@@ -9,10 +9,10 @@ function todayStart() {
   return now;
 }
 
-export async function createOrder(tableId: number, servedBy: string) {
+export async function createOrder(tableId: number, userId: number) {
   const result = await db.insert(orders).values({
     tableId,
-    servedBy,
+    userId,
     status: 'active',
     subtotal: 0,
     tax: 0,
