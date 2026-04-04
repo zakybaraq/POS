@@ -5,7 +5,8 @@ import { relations } from 'drizzle-orm';
 
 export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
 export const tableStatusEnum = mysqlEnum('table_status', ['available', 'occupied']);
-export const orderStatusEnum = mysqlEnum('order_status', ['active', 'completed', 'cancelled']);
+export const orderStatusEnum = mysqlEnum('order_status', ['draft', 'active', 'completed', 'cancelled']);
+export const itemStatusEnum = mysqlEnum('item_status', ['pending', 'cooking', 'ready', 'served']);
 export const roleEnum = mysqlEnum('role', ['super_admin', 'admin_restoran', 'kasir', 'waitress', 'chef']);
 
 export const users = mysqlTable('users', {
@@ -44,9 +45,12 @@ export const orders = mysqlTable('orders', {
   tableId: int('table_id').notNull(),
   userId: int('user_id').notNull(),
   servedBy: varchar('served_by', { length: 100 }).notNull().default(''),
-  status: orderStatusEnum.notNull().default('active'),
+  status: orderStatusEnum.notNull().default('draft'),
   subtotal: int('subtotal').notNull().default(0),
   tax: int('tax').notNull().default(0),
+  discount: int('discount').default(0),
+  discountType: mysqlEnum('discount_type', ['fixed', 'percentage']).default('fixed'),
+  notes: varchar('notes', { length: 500 }),
   total: int('total').notNull().default(0),
   amountPaid: int('amount_paid'),
   changeDue: int('change_due'),
@@ -65,6 +69,8 @@ export const orderItems = mysqlTable('order_items', {
   menuId: int('menu_id').notNull(),
   quantity: int('quantity').notNull().default(1),
   priceAtOrder: int('price_at_order').notNull(),
+  notes: varchar('notes', { length: 255 }).default(''),
+  status: itemStatusEnum.notNull().default('pending'),
 }, (table) => ({
   orderIdIdx: index('idx_order_items_order_id').on(table.orderId),
   menuIdIdx: index('idx_order_items_menu_id').on(table.menuId),

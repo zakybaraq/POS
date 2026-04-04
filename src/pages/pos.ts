@@ -25,13 +25,9 @@ export const posPage = new Elysia()
 
     const { getAllTables } = await import('../repositories/table');
     const { getAvailableMenus } = await import('../repositories/menu');
-    const { getOrdersToday } = await import('../repositories/order');
 
     const tables = await getAllTables();
     const menus = await getAvailableMenus();
-    const orders = await getOrdersToday();
-
-    const todayTotal = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total || 0), 0);
 
     return htmlResponse(`
       <div class="app-layout">
@@ -123,23 +119,34 @@ export const posPage = new Elysia()
         .cart-zone { flex: 1; overflow-y: auto; }
         .cart-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; height: 100%; text-align: center; }
         .cart-empty p { color: var(--color-text-secondary); margin: 0; }
-        .cart-item { display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
+        .cart-item { display: flex; justify-content: space-between; align-items: flex-start; padding: 12px 0; border-bottom: 1px solid var(--color-border); }
         .cart-item:last-child { border-bottom: none; }
         .cart-item-info { flex: 1; }
         .cart-item-name { font-weight: 600; font-size: 14px; }
-        .cart-item-qty { font-size: 12px; color: var(--color-text-secondary); }
-        .cart-item-price { font-weight: 600; font-size: 14px; text-align: right; }
+        .cart-item-notes { margin-top: 4px; }
+        .cart-item-notes input { width: 100%; padding: 4px 8px; font-size: 11px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg-alt); }
+        .cart-item-qty { display: flex; align-items: center; gap: 6px; margin-top: 4px; }
+        .cart-item-qty button { width: 22px; height: 22px; border: 1px solid var(--color-border); border-radius: 4px; background: var(--color-bg-alt); cursor: pointer; font-size: 14px; display: flex; align-items: center; justify-content: center; }
+        .cart-item-qty button:hover { background: var(--color-bg-hover); }
+        .cart-item-qty span { font-size: 13px; font-weight: 600; min-width: 20px; text-align: center; }
+        .cart-item-price { font-weight: 600; font-size: 14px; text-align: right; white-space: nowrap; }
         .cart-item-actions { margin-left: 8px; }
         .cart-item-btn { background: none; border: none; color: var(--color-error); cursor: pointer; padding: 4px; font-size: 16px; }
         .cart-summary { border-top: 1px solid var(--color-border); padding-top: 16px; margin-top: 16px; }
         .cart-row { display: flex; justify-content: space-between; margin-bottom: 8px; font-size: 14px; }
         .cart-row.total { font-size: 18px; font-weight: 700; margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--color-border); }
+        .cart-discount { display: flex; gap: 8px; margin-bottom: 8px; align-items: center; }
+        .cart-discount input { flex: 1; padding: 6px 8px; font-size: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
+        .cart-discount select { padding: 6px 8px; font-size: 13px; border: 1px solid var(--color-border); border-radius: var(--radius-md); }
         .cart-input-group { margin-top: 16px; }
         .cart-input-group label { display: block; font-weight: 600; font-size: 14px; margin-bottom: 8px; }
         .cart-input-group input { width: 100%; }
         .cart-change { font-size: 13px; color: var(--color-text-secondary); margin-top: 8px; text-align: right; }
         .cart-actions { display: flex; gap: 8px; margin-top: 16px; }
         .cart-actions .btn { flex: 1; }
+        .btn-submit-order { background: var(--color-warning); color: white; border: none; border-radius: var(--radius-md); padding: 10px; font-weight: 600; cursor: pointer; width: 100%; margin-top: 8px; }
+        .btn-submit-order:hover { background: #d97706; }
+        .btn-submit-order:disabled { opacity: 0.5; cursor: not-allowed; }
         @keyframes pulse { 0% { transform: scale(1); } 50% { transform: scale(0.95); } 100% { transform: scale(1); } }
         .menu-item.added { animation: pulse 0.2s ease; background: var(--color-primary-10); }
       </style>
@@ -148,6 +155,7 @@ export const posPage = new Elysia()
         let currentUserId = ${user.userId};
         let selectedTableId = null;
         let currentTableNumber = null;
+        let isServerOrder = false;
 
         function filterMenu(category, btn) {
           document.querySelectorAll('.category-tab').forEach(tab => tab.classList.remove('active'));
@@ -169,12 +177,125 @@ export const posPage = new Elysia()
           });
         }
 
+        function saveCart(cart) { localStorage.setItem('pos-cart', JSON.stringify(cart)); }
+        function loadCart() { try { return JSON.parse(localStorage.getItem('pos-cart') || 'null'); } catch { return null; } }
+        function clearCart() { localStorage.removeItem('pos-cart'); }
+
+        function getLocalCart() {
+          const cart = loadCart();
+          if (cart && cart.tableId === selectedTableId) return cart;
+          return null;
+        }
+
+        function addToCartLocal(menuId, name, price) {
+          let cart = getLocalCart();
+          if (!cart) {
+            cart = { tableId: selectedTableId, tableNumber: currentTableNumber, items: [] };
+          }
+          const existing = cart.items.find(i => i.menuId === menuId);
+          if (existing) {
+            existing.quantity += 1;
+          } else {
+            cart.items.push({ menuId, name, price, quantity: 1, notes: '' });
+          }
+          saveCart(cart);
+          renderCartFromLocal();
+        }
+
+        function removeFromCartLocal(menuId) {
+          let cart = getLocalCart();
+          if (!cart) return;
+          cart.items = cart.items.filter(i => i.menuId !== menuId);
+          if (cart.items.length === 0) clearCart();
+          else saveCart(cart);
+          renderCartFromLocal();
+        }
+
+        function updateQuantityLocal(menuId, delta) {
+          let cart = getLocalCart();
+          if (!cart) return;
+          const item = cart.items.find(i => i.menuId === menuId);
+          if (!item) return;
+          item.quantity += delta;
+          if (item.quantity <= 0) { removeFromCartLocal(menuId); return; }
+          saveCart(cart);
+          renderCartFromLocal();
+        }
+
+        function updateItemNotes(menuId, notes) {
+          let cart = getLocalCart();
+          if (!cart) return;
+          const item = cart.items.find(i => i.menuId === menuId);
+          if (item) { item.notes = notes; saveCart(cart); }
+        }
+
+        function renderCartFromLocal() {
+          const cart = getLocalCart();
+          const cartZone = document.getElementById('cart-zone');
+          const cartCount = document.getElementById('cart-count');
+
+          if (!cart || cart.items.length === 0) {
+            cartZone.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Cart kosong</p></div>';
+            cartCount.style.display = 'none';
+            return;
+          }
+
+          cartCount.style.display = 'inline';
+          cartCount.textContent = cart.items.reduce((sum, i) => sum + i.quantity, 0);
+
+          let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
+          cart.items.forEach(item => {
+            html += \`<div class="cart-item">
+              <div class="cart-item-info">
+                <div class="cart-item-name">\${item.name}</div>
+                <div class="cart-item-notes">
+                  <input type="text" placeholder="Catatan (opsional)" value="\${item.notes || ''}" onchange="updateItemNotes(\${item.menuId}, this.value)">
+                </div>
+                <div class="cart-item-qty">
+                  <button onclick="updateQuantityLocal(\${item.menuId}, -1)">-</button>
+                  <span>x\${item.quantity}</span>
+                  <button onclick="updateQuantityLocal(\${item.menuId}, 1)">+</button>
+                </div>
+              </div>
+              <div class="cart-item-price">\${(item.price * item.quantity).toLocaleString('id-ID')}</div>
+              <div class="cart-item-actions">
+                <button class="cart-item-btn" onclick="removeFromCartLocal(\${item.menuId})" title="Hapus">&times;</button>
+              </div>
+            </div>\`;
+          });
+          html += '</div>';
+
+          const subtotal = cart.items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+          const tax = Math.round(subtotal * 0.1);
+          const discount = parseInt(document.getElementById('discount-amount')?.value || '0') || 0;
+          const discountType = document.getElementById('discount-type')?.value || 'fixed';
+          const discountAmount = discountType === 'percentage' ? Math.round(subtotal * discount / 100) : discount;
+          const total = subtotal + tax - discountAmount;
+
+          html += \`<div class="cart-summary">
+            <div class="cart-row"><span>Subtotal</span><span>\${subtotal.toLocaleString('id-ID')}</span></div>
+            <div class="cart-row"><span>Pajak (10%)</span><span>\${tax.toLocaleString('id-ID')}</span></div>
+            <div class="cart-discount">
+              <input type="number" id="discount-amount" placeholder="Diskon" value="\${discount || ''}" onchange="renderCartFromLocal()">
+              <select id="discount-type" onchange="renderCartFromLocal()">
+                <option value="fixed" \${discountType === 'fixed' ? 'selected' : ''}>Rp</option>
+                <option value="percentage" \${discountType === 'percentage' ? 'selected' : ''}>%</option>
+              </select>
+            </div>
+            <div class="cart-row total"><span>Total</span><span>\${total.toLocaleString('id-ID')}</span></div>
+          </div>\`;
+
+          html += \`<button class="btn-submit-order" onclick="submitOrder()" \${cart.items.length === 0 ? 'disabled' : ''}>Kirim ke Dapur</button>\`;
+
+          cartZone.innerHTML = html;
+        }
+
         async function selectTable(tableId, tableNumber, status) {
-          // Jika klik meja yang sama → unselect
           if (selectedTableId === tableId) {
             selectedTableId = null;
             currentTableNumber = null;
             currentOrderId = null;
+            isServerOrder = false;
             document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
             document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>';
             document.getElementById('cart-count').style.display = 'none';
@@ -185,91 +306,115 @@ export const posPage = new Elysia()
           document.querySelector(\`[data-table-id="\${tableId}"]\`).classList.add('selected');
           selectedTableId = tableId;
           currentTableNumber = tableNumber;
+          currentOrderId = null;
+          isServerOrder = false;
 
-          // Cek apakah meja sudah occupied di DOM (sudah ada order sebelumnya)
           const tableBtn = document.querySelector(\`[data-table-id="\${tableId}"]\`);
           const currentStatus = tableBtn?.dataset.status || status;
 
           if (currentStatus === 'occupied') {
             const orderRes = await fetch('/api/orders/table/' + tableId);
             const orderData = await orderRes.json();
-            if (orderData.order) { currentOrderId = orderData.order.id; renderCart(orderData.order, orderData.items); }
+            if (orderData.order) {
+              currentOrderId = orderData.order.id;
+              isServerOrder = true;
+              renderServerCart(orderData.order, orderData.items);
+            }
             return;
           }
 
-          const createRes = await fetch('/api/orders', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ tableId: parseInt(tableId), userId: currentUserId })
-          });
-          const newOrder = await createRes.json();
-
-          if (newOrder.error) {
-            alert(newOrder.error);
-            selectedTableId = null;
-            currentTableNumber = null;
-            currentOrderId = null;
-            tableBtn.classList.remove('selected');
+          const localCart = loadCart();
+          if (localCart && localCart.tableId === tableId) {
+            renderCartFromLocal();
             return;
           }
 
-          currentOrderId = newOrder.id;
-          // Update DOM: tandai meja sebagai occupied agar klik berikutnya load order yang ada
-          if (tableBtn) tableBtn.dataset.status = 'occupied';
-          renderCart(newOrder, []);
+          clearCart();
+          renderEmptyCartForTable(tableNumber);
         }
 
-        async function addToCart(menuId, name, price) {
-          if (!currentOrderId) { alert('Pilih meja terlebih dahulu!'); return; }
+        function renderEmptyCartForTable(tableNumber) {
+          const cartZone = document.getElementById('cart-zone');
+          const cartCount = document.getElementById('cart-count');
+          cartZone.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Meja ' + tableNumber + ' — Tambahkan menu</p></div>';
+          cartCount.style.display = 'none';
+        }
+
+        function addToCart(menuId, name, price) {
+          if (!selectedTableId) { alert('Pilih meja terlebih dahulu!'); return; }
+
           const btn = event.target.closest('.menu-item');
           if (btn) { btn.classList.add('added'); setTimeout(() => btn.classList.remove('added'), 200); }
+
+          if (isServerOrder && currentOrderId) {
+            addToCartServer(menuId);
+          } else {
+            addToCartLocal(menuId, name, price);
+          }
+        }
+
+        async function addToCartServer(menuId) {
           const response = await fetch('/api/orders/' + currentOrderId + '/items', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ menuId, quantity: 1 })
           });
-          if (response.ok) { const data = await response.json(); renderCart(data.order, data.items); }
+          if (response.ok) {
+            const data = await response.json();
+            renderServerCart(data.order, data.items);
+          }
         }
 
-        function renderCart(order, items) {
+        function renderServerCart(order, items) {
           const cartZone = document.getElementById('cart-zone');
           const cartCount = document.getElementById('cart-count');
+
           if (!order || !items.length) {
             cartZone.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Cart kosong</p></div>';
             cartCount.style.display = 'none';
             return;
           }
+
           cartCount.style.display = 'inline';
           cartCount.textContent = items.length;
+
           let html = '<div style="display: flex; flex-direction: column; gap: 8px;">';
           items.forEach(item => {
             html += \`<div class="cart-item">
               <div class="cart-item-info">
                 <div class="cart-item-name">\${item.menuName || 'Item'}</div>
-                <div class="cart-item-qty">x\${item.quantity}</div>
+                <div class="cart-item-qty">
+                  <button onclick="updateServerQty(\${item.id}, -1)">-</button>
+                  <span>x\${item.quantity}</span>
+                  <button onclick="updateServerQty(\${item.id}, 1)">+</button>
+                </div>
               </div>
               <div class="cart-item-price">\${(item.priceAtOrder * item.quantity).toLocaleString('id-ID')}</div>
               <div class="cart-item-actions">
-                <button class="cart-item-btn" onclick="removeItem(\${item.id})" title="Hapus">x</button>
+                <button class="cart-item-btn" onclick="removeServerItem(\${item.id})" title="Hapus">&times;</button>
               </div>
             </div>\`;
           });
           html += '</div>';
+
           const subtotal = order.subtotal || 0, tax = order.tax || 0, total = order.total || 0;
           html += \`<div class="cart-summary">
             <div class="cart-row"><span>Subtotal</span><span>\${subtotal.toLocaleString('id-ID')}</span></div>
             <div class="cart-row"><span>Pajak (10%)</span><span>\${tax.toLocaleString('id-ID')}</span></div>
             <div class="cart-row total"><span>Total</span><span>\${total.toLocaleString('id-ID')}</span></div>
           </div>\`;
+
           html += \`<div class="cart-input-group">
             <label>Uang Diterima</label>
             <input type="number" id="amount-paid" class="input" placeholder="0">
             <div class="cart-change">Kembalian: <span id="change-due">0</span></div>
           </div>\`;
+
           html += \`<div class="cart-actions">
             <button onclick="cancelOrder()" class="btn btn-danger">Batal</button>
             <button onclick="processPayment()" class="btn btn-primary">Bayar</button>
           </div>\`;
+
           cartZone.innerHTML = html;
           document.getElementById('amount-paid').addEventListener('input', function() {
             const paid = parseInt(this.value) || 0;
@@ -277,12 +422,61 @@ export const posPage = new Elysia()
           });
         }
 
-        async function removeItem(itemId) {
-          if (!currentOrderId) return;
+        async function updateServerQty(itemId, delta) {
+          const item = document.querySelector(\`[onclick*="updateServerQty(\${itemId}"]\`);
+          const qtySpan = item?.parentElement?.querySelector('span');
+          const currentQty = parseInt(qtySpan?.textContent?.replace('x', '') || '1');
+          const newQty = currentQty + delta;
+          if (newQty <= 0) { removeServerItem(itemId); return; }
+          await fetch('/api/orders/' + currentOrderId + '/items/' + itemId, {
+            method: 'PUT',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ quantity: newQty })
+          });
+          const response = await fetch('/api/orders/' + currentOrderId);
+          const data = await response.json();
+          if (data.order) renderServerCart(data.order, data.items);
+        }
+
+        async function removeServerItem(itemId) {
           await fetch('/api/orders/' + currentOrderId + '/items/' + itemId, { method: 'DELETE' });
           const response = await fetch('/api/orders/' + currentOrderId);
           const data = await response.json();
-          if (data.order) renderCart(data.order, data.items);
+          if (data.order) renderServerCart(data.order, data.items);
+        }
+
+        async function submitOrder() {
+          const cart = getLocalCart();
+          if (!cart || cart.items.length === 0) { alert('Cart kosong!'); return; }
+
+          const response = await fetch('/api/orders/with-items', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              tableId: cart.tableId,
+              userId: currentUserId,
+              items: cart.items.map(item => ({
+                menuId: item.menuId,
+                quantity: item.quantity,
+                notes: item.notes || ''
+              }))
+            })
+          });
+
+          const data = await response.json();
+          if (data.error) {
+            alert(data.error);
+            return;
+          }
+
+          currentOrderId = data.order.id;
+          isServerOrder = true;
+          clearCart();
+
+          const tableBtn = document.querySelector(\`[data-table-id="\${cart.tableId}"]\`);
+          if (tableBtn) tableBtn.dataset.status = 'occupied';
+
+          renderServerCart(data.order, data.items);
         }
 
         async function processPayment() {
@@ -295,14 +489,19 @@ export const posPage = new Elysia()
           });
           const data = await response.json();
           if (data.error) { alert(data.error); }
-          else { alert('Pembayaran berhasil!\\n\\n' + data.receipt); currentOrderId = null; document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>'; location.reload(); }
+          else { alert('Pembayaran berhasil!\\n\\n' + data.receipt); currentOrderId = null; isServerOrder = false; selectedTableId = null; currentTableNumber = null; document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected')); document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>'; document.getElementById('cart-count').style.display = 'none'; location.reload(); }
         }
 
         async function cancelOrder() {
           if (!currentOrderId || !confirm('Batalkan pesanan?')) return;
           await fetch('/api/orders/' + currentOrderId + '/cancel', { method: 'POST' });
           currentOrderId = null;
+          isServerOrder = false;
+          selectedTableId = null;
+          currentTableNumber = null;
+          document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
           document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>';
+          document.getElementById('cart-count').style.display = 'none';
           location.reload();
         }
 
@@ -312,6 +511,19 @@ export const posPage = new Elysia()
           await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber: num }) });
           location.reload();
         }
+
+        document.addEventListener('DOMContentLoaded', function() {
+          const savedCart = loadCart();
+          if (savedCart && savedCart.tableId) {
+            const tableBtn = document.querySelector(\`[data-table-id="\${savedCart.tableId}"]\`);
+            if (tableBtn) {
+              selectedTableId = savedCart.tableId;
+              currentTableNumber = savedCart.tableNumber;
+              tableBtn.classList.add('selected');
+              renderCartFromLocal();
+            }
+          }
+        });
       </script>
       ${getCommonScripts()}
     `);

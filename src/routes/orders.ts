@@ -63,6 +63,48 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       userId: t.Number(),
     }),
   })
+  .post('/with-items', async ({ cookie, headers, body }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    const { tableId, userId, items } = body as any;
+    if (!tableId || !userId || !items || items.length === 0) {
+      return { error: 'tableId, userId, and items are required' };
+    }
+    const table = await tableRepo.getTableById(tableId);
+    if (!table) return { error: 'Table not found' };
+
+    const order = await orderRepo.createOrder(tableId, userId);
+    if (!order) return { error: 'Failed to create order' };
+
+    for (const item of items) {
+      const { getAvailableMenus } = await import('../repositories/menu');
+      const menus = await getAvailableMenus();
+      const menu = menus.find((m: any) => m.id === item.menuId);
+      if (!menu) continue;
+      await orderItemRepo.addItem(Number(order.id), item.menuId, item.quantity || 1);
+      if (item.notes) {
+        await orderItemRepo.updateItemNotes(Number(order.id), item.menuId, item.notes);
+      }
+    }
+
+    await orderRepo.calculateTotals(Number(order.id));
+    await tableRepo.updateTableStatus(tableId, 'occupied');
+    await orderRepo.updateOrderStatus(Number(order.id), 'active');
+
+    const finalOrder = await orderRepo.getOrderById(Number(order.id));
+    const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
+    return { order: finalOrder, items: orderItems };
+  }, {
+    body: t.Object({
+      tableId: t.Number(),
+      userId: t.Number(),
+      items: t.Array(t.Object({
+        menuId: t.Number(),
+        quantity: t.Number(),
+        notes: t.Optional(t.String()),
+      })),
+    }),
+  })
   .put('/:id', async ({ params: { id }, body }) => {
     const { status } = body as any;
     if (!status || !['active', 'completed', 'cancelled'].includes(status)) {

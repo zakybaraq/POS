@@ -1,30 +1,37 @@
-import { eq } from 'drizzle-orm';
+import { eq, and } from 'drizzle-orm';
 import { db } from '../db/index';
 import { orderItems, menus } from '../db/schema';
 import type { OrderItem, NewOrderItem } from '../db/schema';
 
-export async function addItem(orderId: number, menuId: number, quantity: number = 1) {
+export async function addItem(orderId: number, menuId: number, quantity: number = 1, notes: string = '') {
   const menu = await db.select().from(menus).where(eq(menus.id, menuId)).then(r => r[0]);
   if (!menu) return null;
-  
+
   const existingItem = await db.select().from(orderItems)
     .where(eq(orderItems.orderId, orderId))
     .then(items => items.find(item => item.menuId === menuId));
-  
+
   if (existingItem) {
     await db.update(orderItems)
       .set({ quantity: existingItem.quantity + quantity })
       .where(eq(orderItems.id, existingItem.id));
     return existingItem;
   }
-  
+
   await db.insert(orderItems).values({
     orderId,
     menuId,
     quantity,
     priceAtOrder: menu.price,
+    notes,
   });
-  return { orderId, menuId, quantity, priceAtOrder: menu.price };
+  return { orderId, menuId, quantity, priceAtOrder: menu.price, notes };
+}
+
+export async function updateItemNotes(orderId: number, menuId: number, notes: string) {
+  await db.update(orderItems)
+    .set({ notes })
+    .where(and(eq(orderItems.orderId, orderId), eq(orderItems.menuId, menuId)));
 }
 
 export async function updateQuantity(itemId: number, quantity: number) {
@@ -50,6 +57,8 @@ export async function getItemsWithMenuByOrderId(orderId: number) {
     menuId: orderItems.menuId,
     quantity: orderItems.quantity,
     priceAtOrder: orderItems.priceAtOrder,
+    notes: orderItems.notes,
+    status: orderItems.status,
     menuName: menus.name,
     menuPrice: menus.price,
   })
