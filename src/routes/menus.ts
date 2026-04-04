@@ -27,7 +27,7 @@ export const menuRoutes = new Elysia({ prefix: '/api/menus' })
       .post('/', async ({ cookie, headers, body }) => {
         const user = getUserFromRequest(cookie, headers);
         if (!user) return { error: 'Unauthorized' };
-        const { name, price, category } = body as any;
+        const { name, price, category, description } = body as any;
         if (!name || !price || !category) {
           return { error: 'Missing required fields' };
         }
@@ -37,23 +37,25 @@ export const menuRoutes = new Elysia({ prefix: '/api/menus' })
         if (category !== 'makanan' && category !== 'minuman') {
           return { error: 'Invalid category' };
         }
-        return menuRepo.createMenu({ name, price, category, isAvailable: true });
+        return menuRepo.createMenu({ name, price, category, description: description || '', isAvailable: true });
       }, {
         body: t.Object({
           name: t.String(),
           price: t.Number(),
           category: t.Union([t.Literal('makanan'), t.Literal('minuman')]),
+          description: t.Optional(t.String()),
         }),
       })
       .put('/:id', async ({ cookie, headers, params: { id }, body }) => {
         const user = getUserFromRequest(cookie, headers);
         if (!user) return { error: 'Unauthorized' };
-        const { name, price, category, isAvailable } = body as any;
+        const { name, price, category, isAvailable, description } = body as any;
         const updates: any = {};
         if (name) updates.name = name;
         if (price) updates.price = price;
         if (category) updates.category = category;
         if (isAvailable !== undefined) updates.isAvailable = isAvailable;
+        if (description !== undefined) updates.description = description;
         return menuRepo.updateMenu(Number(id), updates);
       })
       .delete('/:id', async ({ cookie, headers, params: { id } }) => {

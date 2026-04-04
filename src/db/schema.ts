@@ -27,6 +27,7 @@ export const menus = mysqlTable('menus', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
   price: int('price').notNull(),
+  description: varchar('description', { length: 500 }).default(''),
   category: categoryEnum.notNull(),
   isAvailable: boolean('is_available').notNull().default(true),
   createdAt: datetime('created_at').notNull().default(new Date()),
