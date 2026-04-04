@@ -1,192 +1,166 @@
-# Rencana Refactoring: Slicing src/index.ts (2200+ baris)
+# Bug Fix: POS — "Pilih meja terlebih dahulu!" muncul meskipun meja sudah diklik
 
 ## Latar Belakang
 
-File `src/index.ts` saat ini memiliki **~2200 baris** yang mencampur:
-- Helper functions (htmlResponse, getSidebarHtml, getNavbarHtml, getFooterHtml, getCommonScripts)
-- 8+ page route handlers (login, register, forgot-password, dashboard, pos, admin, menu, tables, orders, products)
-- App initialization (Elysia app setup, static file serving)
+Di halaman POS (`/pos`), user mengalami bug berikut:
+1. User klik meja (meja berubah highlight/selected)
+2. User klik menu untuk menambahkan ke cart
+3. **Alert muncul: "Pilih meja terlebih dahulu!"** — padahal meja sudah diklik
+4. Meja yang sudah diklik **tidak bisa di-unselect** (tidak ada cara untuk membatalkan pilihan meja)
 
-File ini terlalu besar dan sulit di-maintain. Perlu dipecah menjadi file-file kecil yang terstruktur.
+## Root Cause (Analisis)
 
-## Tujuan
+File: `src/pages/pos.ts`, fungsi `selectTable()` dan `addToCart()`
 
-Pecah `src/index.ts` menjadi beberapa file kecil yang:
-- Masing-masing < 200 baris
-- Bertanggung jawab atas satu hal saja
-- Mudah di-test dan di-maintain
-- Tidak mengubah fungsionalitas yang sudah ada
+### Bug 1: `currentOrderId` tidak ter-set setelah klik meja
+
+Di fungsi `selectTable()`, setelah order berhasil dibuat:
+```javascript
+const createRes = await fetch('/api/orders', { ... });
+const newOrder = await createRes.json();
+currentOrderId = newOrder.id;  // <-- MASALAH: response mungkin tidak punya properti 'id' di level atas
+renderCart(newOrder, []);
+```
+
+Response dari `POST /api/orders` kemungkinan memiliki struktur yang berbeda (misalnya `{ order: { id: 1 } }` bukan `{ id: 1 }`). Akibatnya `currentOrderId` tetap `null`, dan `addToCart()` menampilkan alert.
+
+### Bug 2: Meja tidak bisa di-unselect
+
+Fungsi `selectTable()` tidak ada logika untuk membatalkan pilihan. Jika user klik meja yang sama lagi, order baru akan dibuat lagi (duplikat). Tidak ada cara untuk "deselect" meja.
 
 ---
 
-## Tahap 1: Buat Struktur Folder
+## Tahap 1: Debug Response API
 
-Buat folder `src/pages/` dan `src/templates/`:
+Cek struktur response dari `POST /api/orders`:
 
+```bash
+# Setelah server running, buka browser console di halaman /pos
+# Klik meja, lalu di console ketik:
+# console.log(newOrder) setelah line `const newOrder = await createRes.json();`
 ```
-src/
-├── index.ts                    (entry point, ~50 baris)
-├── pages/
-│   ├── auth.ts                 (login, register, forgot-password)
-│   ├── dashboard.ts            (halaman /)
-│   ├── pos.ts                  (halaman /pos)
-│   ├── admin.ts                (halaman /admin)
-│   ├── menu.ts                 (halaman /menu)
-│   ├── tables.ts               (halaman /tables)
-│   ├── orders.ts               (halaman /orders)
-│   └── products.ts             (halaman /products)
-└── templates/
-    ├── sidebar.ts              (getSidebarHtml)
-    ├── navbar.ts               (getNavbarHtml)
-    ├── footer.ts               (getFooterHtml)
-    ├── common-scripts.ts       (getCommonScripts + modals)
-    └── html.ts                 (htmlResponse helper)
-```
+
+Atau cek langsung di `src/routes/orders.ts` — lihat apa yang di-return oleh endpoint `POST /api/orders`.
 
 ---
 
-## Tahap 2: Extract Template Functions
+## Tahap 2: Fix `selectTable()` — Set `currentOrderId` dengan benar
 
-Pindahkan fungsi-fungsi HTML template ke `src/templates/`.
+Berdasarkan struktur response API, perbaiki cara mengambil `orderId`.
 
-### `src/templates/html.ts`
-```typescript
-// Pindahkan fungsi htmlResponse() dari index.ts
-// Pindahkan import: readFileSync, existsSync, join
-// Pindahkan layoutHtml constant
+**Jika response berbentuk `{ id: 1, tableId: 1, ... }`:**
+```javascript
+currentOrderId = newOrder.id;
 ```
 
-### `src/templates/sidebar.ts`
-```typescript
-// Pindahkan fungsi getSidebarHtml() dari index.ts
-// Import htmlResponse dari './html' jika diperlukan
+**Jika response berbentuk `{ order: { id: 1 }, items: [] }`:**
+```javascript
+currentOrderId = newOrder.order?.id || newOrder.id;
 ```
 
-### `src/templates/navbar.ts`
-```typescript
-// Pindahkan fungsi getNavbarHtml() dari index.ts
-```
-
-### `src/templates/footer.ts`
-```typescript
-// Pindahkan fungsi getFooterHtml() dari index.ts
-// Update link footer: showHelpModal, showTermsModal, showPrivacyModal
-```
-
-### `src/templates/common-scripts.ts`
-```typescript
-// Pindahkan fungsi getCommonScripts() dari index.ts
-// Termasuk: toggleSidebar, toggleMobileSidebar, toggleNotifications,
-//           toggleUserMenu, logout, showHelpModal, closeHelpModal, dll
-// Termasuk: 3 modal HTML (help, terms, privacy)
+**Tambahkan console.log untuk debugging:**
+```javascript
+console.log('Order response:', newOrder);
+console.log('currentOrderId set to:', currentOrderId);
 ```
 
 ---
 
-## Tahap 3: Extract Page Route Handlers
+## Tahap 3: Tambah Fitur Unselect Meja
 
-Pindahkan setiap page handler ke `src/pages/`. Setiap file mengekspor sebuah Elysia instance.
+Modifikasi `selectTable()` agar:
+1. Jika user klik meja yang **sama** dengan yang sudah dipilih → **unselect** (reset `currentOrderId`, `selectedTableId`, `currentTableNumber`)
+2. Jika user klik meja **berbeda** → tampilkan konfirmasi (opsional) atau langsung switch
+3. Visual feedback: hapus class `selected` saat unselect
 
-### `src/pages/auth.ts`
-```typescript
-import { Elysia } from 'elysia';
-import { htmlResponse } from '../templates/html';
+```javascript
+async function selectTable(tableId, tableNumber, status) {
+  // Jika klik meja yang sama → unselect
+  if (selectedTableId === tableId) {
+    selectedTableId = null;
+    currentTableNumber = null;
+    currentOrderId = null;
+    document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
+    document.getElementById('cart-zone').innerHTML = '<div class="cart-empty">...</div>';
+    document.getElementById('cart-count').style.display = 'none';
+    return;
+  }
 
-export const authPages = new Elysia()
-  .get('/login', () => { /* ... login page HTML ... */ })
-  .get('/register', () => { /* ... register page HTML ... */ })
-  .get('/forgot-password', () => { /* ... forgot password page HTML ... */ });
-```
+  // Reset previous selection
+  document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
+  document.querySelector(`[data-table-id="${tableId}"]`).classList.add('selected');
 
-### `src/pages/dashboard.ts`
-```typescript
-import { Elysia } from 'elysia';
-import { htmlResponse } from '../templates/html';
-import { getSidebarHtml } from '../templates/sidebar';
-import { getNavbarHtml } from '../templates/navbar';
-import { getFooterHtml } from '../templates/footer';
-import { getCommonScripts } from '../templates/common-scripts';
-import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth';
+  selectedTableId = tableId;
+  currentTableNumber = tableNumber;
 
-export const dashboardPage = new Elysia()
-  .get('/', async ({ cookie, headers }) => {
-    // ... existing dashboard handler ...
+  if (status === 'occupied') {
+    const orderRes = await fetch('/api/orders/table/' + tableId);
+    const orderData = await orderRes.json();
+    if (orderData.order) {
+      currentOrderId = orderData.order.id;
+      renderCart(orderData.order, orderData.items);
+    }
+    return;
+  }
+
+  const createRes = await fetch('/api/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ tableId: parseInt(tableId), userId: currentUserId })
   });
-```
-
-### `src/pages/pos.ts`, `src/pages/admin.ts`, `src/pages/menu.ts`, `src/pages/tables.ts`, `src/pages/orders.ts`, `src/pages/products.ts`
-```typescript
-// Pindahkan masing-masing handler dari index.ts
-// Pattern sama seperti dashboard.ts
+  const newOrder = await createRes.json();
+  // FIX: ambil id dari response yang benar
+  currentOrderId = newOrder.id;
+  if (!currentOrderId) {
+    console.error('Failed to get order ID from response:', newOrder);
+    alert('Gagal membuat pesanan. Coba lagi.');
+    return;
+  }
+  renderCart(newOrder, []);
+}
 ```
 
 ---
 
-## Tahap 4: Update src/index.ts
+## Tahap 4: Fix `addToCart()` — Tambah Error Handling yang Lebih Baik
 
-Setelah semua di-extract, `src/index.ts` hanya menjadi entry point yang merakit semuanya:
-
-```typescript
-import { Elysia } from 'elysia';
-import { cookie } from '@elysiajs/cookie';
-import { routes } from './routes';
-import { authPages } from './pages/auth';
-import { dashboardPage } from './pages/dashboard';
-import { posPage } from './pages/pos';
-import { adminPage } from './pages/admin';
-import { menuPage } from './pages/menu';
-import { tablesPage } from './pages/tables';
-import { ordersPage } from './pages/orders';
-import { productsPage } from './pages/products';
-
-const app = new Elysia()
-  .use(routes)
-  .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
-  .get('/styles/:path', ({ params }) => {
-    // ... static file serving ...
-  })
-  .use(authPages)
-  .use(dashboardPage)
-  .use(posPage)
-  .use(adminPage)
-  .use(menuPage)
-  .use(tablesPage)
-  .use(ordersPage)
-  .use(productsPage);
-
-app.listen(3000);
+```javascript
+async function addToCart(menuId, name, price) {
+  if (!currentOrderId) {
+    alert('Pilih meja terlebih dahulu!');
+    return;
+  }
+  if (!selectedTableId) {
+    alert('Meja belum dipilih. Klik meja terlebih dahulu.');
+    return;
+  }
+  // ... sisa kode tetap sama
+}
 ```
 
-Target: **< 50 baris**.
+---
+
+## Tahap 5: Testing
+
+1. Buka halaman `/pos`
+2. Klik meja yang **available** → meja harus highlight (class `selected`)
+3. Klik menu → item harus masuk ke cart (tanpa alert error)
+4. Klik meja yang **sama** lagi → meja harus unselect, cart kosong kembali
+5. Klik meja **berbeda** → harus switch ke meja baru
+6. Klik meja yang **occupied** → harus load pesanan yang sudah ada
 
 ---
 
-## Tahap 5: Verifikasi
+## File yang Perlu Diubah
 
-1. **Server harus bisa start** tanpa error: `bun run src/index.ts`
-2. **Semua halaman harus bisa diakses** dan tampil sama seperti sebelumnya:
-   - `/login`, `/register`, `/forgot-password`
-   - `/` (dashboard)
-   - `/pos`, `/admin`, `/menu`, `/tables`, `/orders`, `/products`
-3. **LSP diagnostics clean** di semua file baru
-4. **Tidak ada fungsionalitas yang berubah** — hanya refactoring struktur file
+| File | Perubahan |
+|------|-----------|
+| `src/pages/pos.ts` | Fix `selectTable()` — response parsing + unselect logic |
+| `src/pages/pos.ts` | Fix `addToCart()` — tambah validasi tambahan |
 
----
+## Catatan Penting
 
-## Aturan Penting
-
-- **JANGAN ubah logika** di dalam handler — hanya pindahkan
-- **JANGAN ubah HTML** yang di-render — harus sama persis
-- **JANGAN ubah import** yang sudah ada di route API (`src/routes/`)
-- **Ikuti pattern** Elysia yang sudah ada — setiap page file ekspor Elysia instance
-- **Gunakan relative import** (`../templates/html`, bukan `src/templates/html`)
-- **Test setiap file** setelah dibuat — jangan pindahkan semua dulu baru test
-
-## Estimasi
-
-- Tahap 1 (Struktur folder): 5 menit
-- Tahap 2 (Extract templates): 15-20 menit
-- Tahap 3 (Extract pages): 30-45 menit
-- Tahap 4 (Update index.ts): 10 menit
-- Tahap 5 (Verifikasi): 15 menit
-- **Total**: ~75-95 menit
+- **JANGAN ubah** API endpoint (`src/routes/orders.ts`) kecuali memang response-nya salah
+- **JANGAN ubah** HTML/CSS layout — hanya fix JavaScript logic
+- **Test** di browser setelah perubahan — pastikan tidak ada error di console
+- **Console.log** boleh ditambahkan untuk debugging, tapi hapus sebelum commit

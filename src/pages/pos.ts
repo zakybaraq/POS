@@ -170,23 +170,52 @@ export const posPage = new Elysia()
         }
 
         async function selectTable(tableId, tableNumber, status) {
+          // Jika klik meja yang sama → unselect
+          if (selectedTableId === tableId) {
+            selectedTableId = null;
+            currentTableNumber = null;
+            currentOrderId = null;
+            document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
+            document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>';
+            document.getElementById('cart-count').style.display = 'none';
+            return;
+          }
+
           document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
           document.querySelector(\`[data-table-id="\${tableId}"]\`).classList.add('selected');
           selectedTableId = tableId;
           currentTableNumber = tableNumber;
-          if (status === 'occupied') {
+
+          // Cek apakah meja sudah occupied di DOM (sudah ada order sebelumnya)
+          const tableBtn = document.querySelector(\`[data-table-id="\${tableId}"]\`);
+          const currentStatus = tableBtn?.dataset.status || status;
+
+          if (currentStatus === 'occupied') {
             const orderRes = await fetch('/api/orders/table/' + tableId);
             const orderData = await orderRes.json();
             if (orderData.order) { currentOrderId = orderData.order.id; renderCart(orderData.order, orderData.items); }
             return;
           }
+
           const createRes = await fetch('/api/orders', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ tableId: parseInt(tableId), userId: currentUserId })
           });
           const newOrder = await createRes.json();
+
+          if (newOrder.error) {
+            alert(newOrder.error);
+            selectedTableId = null;
+            currentTableNumber = null;
+            currentOrderId = null;
+            tableBtn.classList.remove('selected');
+            return;
+          }
+
           currentOrderId = newOrder.id;
+          // Update DOM: tandai meja sebagai occupied agar klik berikutnya load order yang ada
+          if (tableBtn) tableBtn.dataset.status = 'occupied';
           renderCart(newOrder, []);
         }
 
