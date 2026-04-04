@@ -83,25 +83,27 @@ const app = new Elysia()
   .get('/login', () => {
     return htmlResponse(`
       <div class="login-page">
-        <div class="login-card">
-          <div class="login-header">
-            <h1 class="login-logo">POS App</h1>
-            <p class="text-center text-secondary">Login ke akun Anda</p>
+        <div class="card" style="width: 400px;">
+          <div class="card-header">
+            <h2 style="text-align: center; color: var(--color-primary); margin: 0;">POS App</h2>
+            <p class="text-center text-secondary" style="margin-top: 8px;">Login ke akun Anda</p>
           </div>
-          <form id="login-form">
-            <div class="input-group">
-              <label class="input-label">Email</label>
-              <input type="email" name="email" class="input" placeholder="email@example.com" required>
+          <div style="padding: 0 var(--space-lg) var(--space-lg);">
+            <form id="login-form">
+              <div class="input-group" style="margin-bottom: 16px;">
+                <label class="input-label">Email</label>
+                <input type="email" name="email" class="input" placeholder="email@example.com" required>
+              </div>
+              <div class="input-group" style="margin-bottom: 24px;">
+                <label class="input-label">Password</label>
+                <input type="password" name="password" class="input" placeholder="••••••••" required>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Login</button>
+            </form>
+            <div style="margin-top: var(--space-lg); text-align: center; font-size: 14px;">
+              <p style="margin: var(--space-xs) 0;">Belum punya akun? <a href="/register">Register</a></p>
+              <p style="margin: var(--space-xs) 0;"><a href="/forgot-password" class="text-secondary">Lupa Password?</a></p>
             </div>
-            <div class="input-group">
-              <label class="input-label">Password</label>
-              <input type="password" name="password" class="input" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Login</button>
-          </form>
-          <div class="login-footer">
-            <p>Belum punya akun? <a href="/register">Register</a></p>
-            <p><a href="/forgot-password" class="text-secondary">Lupa Password?</a></p>
           </div>
         </div>
       </div>
@@ -112,31 +114,6 @@ const app = new Elysia()
           align-items: center;
           justify-content: center;
           background: linear-gradient(135deg, #f5427e 0%, #ff7da3 100%);
-        }
-        .login-card {
-          background: var(--color-bg);
-          border-radius: var(--radius-lg);
-          padding: var(--space-xl);
-          width: 400px;
-          box-shadow: var(--shadow-lg);
-        }
-        .login-header {
-          text-align: center;
-          margin-bottom: var(--space-lg);
-        }
-        .login-logo {
-          font-size: 28px;
-          font-weight: 700;
-          color: var(--color-primary);
-          margin-bottom: var(--space-sm);
-        }
-        .login-footer {
-          margin-top: var(--space-lg);
-          text-align: center;
-          font-size: 14px;
-        }
-        .login-footer p {
-          margin: var(--space-xs) 0;
         }
       </style>
       <script>
@@ -163,28 +140,30 @@ const app = new Elysia()
   .get('/register', () => {
     return htmlResponse(`
       <div class="login-page">
-        <div class="login-card">
-          <div class="login-header">
-            <h1 class="login-logo">POS App</h1>
-            <p class="text-center text-secondary">Daftar akun baru</p>
+        <div class="card" style="width: 400px;">
+          <div class="card-header">
+            <h2 style="text-align: center; color: var(--color-primary); margin: 0;">POS App</h2>
+            <p class="text-center text-secondary" style="margin-top: 8px;">Daftar akun baru</p>
           </div>
-          <form id="register-form">
-            <div class="input-group">
-              <label class="input-label">Nama</label>
-              <input type="text" name="name" class="input" placeholder="Nama lengkap" required>
+          <div style="padding: 0 var(--space-lg) var(--space-lg);">
+            <form id="register-form">
+              <div class="input-group" style="margin-bottom: 16px;">
+                <label class="input-label">Nama</label>
+                <input type="text" name="name" class="input" placeholder="Nama lengkap" required>
+              </div>
+              <div class="input-group" style="margin-bottom: 16px;">
+                <label class="input-label">Email</label>
+                <input type="email" name="email" class="input" placeholder="email@example.com" required>
+              </div>
+              <div class="input-group" style="margin-bottom: 24px;">
+                <label class="input-label">Password</label>
+                <input type="password" name="password" class="input" placeholder="••••••••" required>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Register</button>
+            </form>
+            <div style="margin-top: var(--space-lg); text-align: center; font-size: 14px;">
+              <p style="margin: var(--space-xs) 0;">Sudah punya akun? <a href="/login">Login</a></p>
             </div>
-            <div class="input-group">
-              <label class="input-label">Email</label>
-              <input type="email" name="email" class="input" placeholder="email@example.com" required>
-            </div>
-            <div class="input-group">
-              <label class="input-label">Password</label>
-              <input type="password" name="password" class="input" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Register</button>
-          </form>
-          <div class="login-footer">
-            <p>Sudah punya akun? <a href="/login">Login</a></p>
           </div>
         </div>
       </div>
@@ -195,31 +174,6 @@ const app = new Elysia()
           align-items: center;
           justify-content: center;
           background: linear-gradient(135deg, #f5427e 0%, #ff7da3 100%);
-        }
-        .login-card {
-          background: var(--color-bg);
-          border-radius: var(--radius-lg);
-          padding: var(--space-xl);
-          width: 400px;
-          box-shadow: var(--shadow-lg);
-        }
-        .login-header {
-          text-align: center;
-          margin-bottom: var(--space-lg);
-        }
-        .login-logo {
-          font-size: 28px;
-          font-weight: 700;
-          color: var(--color-primary);
-          margin-bottom: var(--space-sm);
-        }
-        .login-footer {
-          margin-top: var(--space-lg);
-          text-align: center;
-          font-size: 14px;
-        }
-        .login-footer p {
-          margin: var(--space-xs) 0;
         }
       </style>
       <script>
@@ -246,24 +200,26 @@ const app = new Elysia()
   .get('/forgot-password', () => {
     return htmlResponse(`
       <div class="login-page">
-        <div class="login-card">
-          <div class="login-header">
-            <h1 class="login-logo">POS App</h1>
-            <p class="text-center text-secondary">Reset password</p>
+        <div class="card" style="width: 400px;">
+          <div class="card-header">
+            <h2 style="text-align: center; color: var(--color-primary); margin: 0;">Reset Password</h2>
+            <p class="text-center text-secondary" style="margin-top: 8px;">Masukkan email dan password baru</p>
           </div>
-          <form id="forgot-form">
-            <div class="input-group">
-              <label class="input-label">Email</label>
-              <input type="email" name="email" class="input" placeholder="email@example.com" required>
+          <div style="padding: 0 var(--space-lg) var(--space-lg);">
+            <form id="forgot-form">
+              <div class="input-group" style="margin-bottom: 16px;">
+                <label class="input-label">Email</label>
+                <input type="email" name="email" class="input" placeholder="email@example.com" required>
+              </div>
+              <div class="input-group" style="margin-bottom: 24px;">
+                <label class="input-label">Password Baru</label>
+                <input type="password" name="newPassword" class="input" placeholder="••••••••" required>
+              </div>
+              <button type="submit" class="btn btn-primary" style="width: 100%;">Reset Password</button>
+            </form>
+            <div style="margin-top: var(--space-lg); text-align: center; font-size: 14px;">
+              <p style="margin: var(--space-xs) 0;"><a href="/login">Kembali ke Login</a></p>
             </div>
-            <div class="input-group">
-              <label class="input-label">Password Baru</label>
-              <input type="password" name="newPassword" class="input" placeholder="••••••••" required>
-            </div>
-            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Reset Password</button>
-          </form>
-          <div class="login-footer">
-            <p><a href="/login">Kembali ke Login</a></p>
           </div>
         </div>
       </div>
@@ -274,31 +230,6 @@ const app = new Elysia()
           align-items: center;
           justify-content: center;
           background: linear-gradient(135deg, #f5427e 0%, #ff7da3 100%);
-        }
-        .login-card {
-          background: var(--color-bg);
-          border-radius: var(--radius-lg);
-          padding: var(--space-xl);
-          width: 400px;
-          box-shadow: var(--shadow-lg);
-        }
-        .login-header {
-          text-align: center;
-          margin-bottom: var(--space-lg);
-        }
-        .login-logo {
-          font-size: 28px;
-          font-weight: 700;
-          color: var(--color-primary);
-          margin-bottom: var(--space-sm);
-        }
-        .login-footer {
-          margin-top: var(--space-lg);
-          text-align: center;
-          font-size: 14px;
-        }
-        .login-footer p {
-          margin: var(--space-xs) 0;
         }
       </style>
       <script>
