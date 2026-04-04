@@ -655,16 +655,12 @@ export const posPage = new Elysia()
           const cart = getLocalCart();
           if ((!cart || cart.items.length === 0) && !isServerOrder) { showToast('Cart kosong!', 'warning'); return; }
           const section = document.getElementById('payment-section');
-          if (section.style.display === 'none') {
-            section.style.display = 'block';
-            const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-            document.getElementById('amount-paid-input').value = '';
-            document.getElementById('summary-paid').textContent = '0';
-            document.getElementById('summary-change').textContent = '0';
-            document.getElementById('amount-paid-input').focus();
-          } else {
-            section.style.display = 'none';
-          }
+          section.style.display = 'block';
+          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
+          document.getElementById('amount-paid-input').value = '';
+          document.getElementById('summary-paid').textContent = '0';
+          document.getElementById('summary-change').textContent = '0';
+          setTimeout(() => document.getElementById('amount-paid-input').focus(), 100);
         }
 
         async function processPaymentManual() {
@@ -672,7 +668,10 @@ export const posPage = new Elysia()
           if (!amount || amount <= 0) { showToast('Masukkan jumlah uang!', 'warning'); return; }
           const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
           if (amount < total) { showToast('Uang kurang!', 'error'); return; }
-          if (!isServerOrder && currentOrderId === null) { await submitOrder(); }
+          if (!isServerOrder && currentOrderId === null) {
+            const result = await submitOrder();
+            if (!result) return;
+          }
           const response = await fetch('/api/orders/' + currentOrderId + '/pay', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
