@@ -227,6 +227,9 @@ export const inventoryPage = new Elysia()
       </div>
 
       <style>
+        .inv-tab-content { padding: 0; }
+        .inv-tab-content .menu-toolbar { margin-bottom: 16px; padding: 0 16px; }
+        .inv-tab-content .table-container { padding: 0 16px 16px; }
         .inv-tabs { display: flex; gap: 4px; }
         .inv-tab { padding: 8px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--color-bg); cursor: pointer; font-size: 13px; font-weight: 500; transition: var(--transition); }
         .inv-tab:hover { background: var(--color-bg-hover); }
