@@ -1,7 +1,13 @@
 import { Elysia, t } from 'elysia';
+import { cookie } from '@elysiajs/cookie';
 import * as authService from '../services/auth';
+import { createSessionCookie, getTokenFromCookie, verifyToken, createToken } from '../services/session';
+
+const COOKIE_NAME = 'pos_session';
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
+  .use(cookie())
+  
   .post('/register', async ({ body }) => {
     const { email, password, name, role } = body as any;
     
@@ -28,7 +34,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .post('/login', async ({ body }) => {
+  .post('/login', async ({ body, cookies }) => {
     const { email, password } = body as any;
     
     if (!email || !password) {
@@ -37,7 +43,9 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     
     try {
       const result = await authService.login(email, password);
-      return result;
+      const token = createToken(result.user);
+      cookies.set(COOKIE_NAME, token, createSessionCookie());
+      return { success: true, user: result.user };
     } catch (e: any) {
       return { error: e.message };
     }
@@ -46,6 +54,11 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       email: t.String({ format: 'email' }),
       password: t.String(),
     }),
+  })
+  
+  .post('/logout', async ({ cookies }) => {
+    cookies.delete(COOKIE_NAME, { path: '/' });
+    return { success: true };
   })
   
   .post('/reset-password', async ({ body }) => {
@@ -72,19 +85,15 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .get('/me', async ({ headers }) => {
-    const authHeader = headers.authorization;
-    
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return { error: 'No token provided' };
+  .get('/me', async ({ cookies }) => {
+    const token = getTokenFromCookie(cookies);
+    if (!token) {
+      return { error: 'Not authenticated' };
     }
-    
-    const token = authHeader.slice(7);
-    
     try {
-      const user = authService.verifyToken(token);
+      const user = verifyToken(token);
       return { user };
-    } catch (e: any) {
+    } catch {
       return { error: 'Invalid token' };
     }
   });
