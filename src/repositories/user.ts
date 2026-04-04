@@ -14,15 +14,30 @@ export async function getUserById(id: number) {
   return result[0] || null;
 }
 
-export async function createUser(data: { email: string; password: string; name: string; role?: string }) {
+export async function getAllUsers() {
+  return db.select().from(users).orderBy(users.createdAt);
+}
+
+export async function createUser(data: { email: string; password: string; name: string; role?: string; isActive?: boolean }) {
   const hashedPassword = await bcrypt.hash(data.password, 10);
   const result = await db.insert(users).values({
     email: data.email,
     password: hashedPassword,
     name: data.name,
     role: (data.role || 'kasir') as 'super_admin' | 'admin_restoran' | 'kasir' | 'waitress' | 'chef',
+    isActive: data.isActive !== undefined ? data.isActive : true,
   });
   return result;
+}
+
+export async function updateUser(id: number, data: Partial<{ name: string; email: string; role: 'super_admin' | 'admin_restoran' | 'kasir' | 'waitress' | 'chef'; isActive: boolean }>) {
+  await db.update(users).set(data).where(eq(users.id, id));
+  const result = await db.select().from(users).where(eq(users.id, id));
+  return result[0] || null;
+}
+
+export async function deleteUser(id: number) {
+  await db.delete(users).where(eq(users.id, id));
 }
 
 export async function verifyPassword(password: string, hashedPassword: string) {
