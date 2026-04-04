@@ -771,7 +771,9 @@ export const posPage = new Elysia()
         }
 
         function showReceipt(order, items, paid, change) {
-          lastReceipt = { order, items, paid, change, tableNumber: currentTableNumber, cashier: '${user.name}', date: new Date() };
+          const orderTotal = order.total || 0;
+          const actualChange = change !== undefined ? change : paid - orderTotal;
+          lastReceipt = { order, items, paid, change: actualChange, tableNumber: currentTableNumber, cashier: '${user.name}', date: new Date() };
           let html = '<div class="receipt-center"><strong>POS APP</strong></div>';
           html += '<div class="receipt-center" style="font-size: 11px;">Jl. Contoh No. 123</div>';
           html += '<div class="receipt-line"></div>';
@@ -784,9 +786,9 @@ export const posPage = new Elysia()
           html += '<div class="receipt-line"></div>';
           html += '<div class="receipt-row"><span>Subtotal</span><span>' + (order.subtotal || 0).toLocaleString('id-ID') + '</span></div>';
           html += '<div class="receipt-row"><span>Pajak</span><span>' + (order.tax || 0).toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-row" style="font-weight: bold;"><span>TOTAL</span><span>' + (order.total || 0).toLocaleString('id-ID') + '</span></div>';
+          html += '<div class="receipt-row" style="font-weight: bold;"><span>TOTAL</span><span>' + orderTotal.toLocaleString('id-ID') + '</span></div>';
           html += '<div class="receipt-row"><span>Bayar</span><span>' + paid.toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-row"><span>Kembali</span><span>' + change.toLocaleString('id-ID') + '</span></div>';
+          html += '<div class="receipt-row"><span>Kembali</span><span>' + actualChange.toLocaleString('id-ID') + '</span></div>';
           html += '<div class="receipt-line"></div>';
           html += '<div class="receipt-center"><strong>TERIMA KASIH!</strong></div>';
           document.getElementById('receipt-content').innerHTML = html;
