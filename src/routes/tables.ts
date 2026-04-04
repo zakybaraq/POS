@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import * as tableRepo from '../repositories/table';
+import { requireAdmin, requireOrderAccess, getUserFromRequest } from '../middleware/authorization';
 
 export const tableRoutes = new Elysia({ prefix: '/api/tables' })
   .get('/', async () => {
@@ -37,4 +38,5 @@ export const tableRoutes = new Elysia({ prefix: '/api/tables' })
   .delete('/:id', async ({ params: { id } }) => {
     await tableRepo.deleteTable(Number(id));
     return { success: true };
-  });
+  })
+  .onBeforeHandle(requireAdmin());

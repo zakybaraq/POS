@@ -1,6 +1,7 @@
 import { Elysia, t } from 'elysia';
 import * as authService from '../services/auth';
 import { createToken } from '../services/session';
+import { getUserFromRequest } from '../middleware/authorization';
 
 const COOKIE_NAME = 'pos_session';
 
@@ -15,7 +16,7 @@ function createSessionCookie() {
 }
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
-  .post('/register', async ({ body }) => {
+  .post('/register', async ({ cookie, headers, body }) => {
     const { email, password, name, role } = body as any;
     
     if (!email || !password || !name) {
@@ -26,8 +27,19 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       return { error: 'Password must be at least 6 characters' };
     }
     
+    const requestingUser = getUserFromRequest(cookie, headers);
+    let assignedRole = role || 'kasir';
+    
+    if (requestingUser) {
+      if (requestingUser.role !== 'super_admin') {
+        return { error: 'Hanya Super Admin yang dapat mendaftarkan pengguna baru' };
+      }
+    } else {
+      assignedRole = 'kasir';
+    }
+    
     try {
-      const result = await authService.register(email, password, name, role);
+      const result = await authService.register(email, password, name, assignedRole);
       return { success: true, user: result };
     } catch (e: any) {
       return { error: e.message };
@@ -37,7 +49,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       email: t.String({ format: 'email' }),
       password: t.String({ minLength: 6 }),
       name: t.String({ minLength: 2 }),
-      role: t.Optional(t.Union([t.Literal('admin'), t.Literal('cashier')])),
+      role: t.Optional(t.Union([t.Literal('super_admin'), t.Literal('admin_restoran'), t.Literal('kasir'), t.Literal('waitress'), t.Literal('chef')])),
     }),
   })
   
