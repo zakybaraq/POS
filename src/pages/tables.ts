@@ -230,9 +230,14 @@ export const tablesPage = new Elysia()
           const capacity = parseInt(document.getElementById('table-capacity').value) || 4;
           const area = document.getElementById('table-area').value;
           if (!tableNumber || tableNumber <= 0) { showToast('Nomor meja wajib diisi', 'warning'); return; }
-          const response = await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber, capacity, area }) });
-          if (response.ok) { closeAddTableModal(); showToast('Meja berhasil ditambahkan'); location.reload(); }
-          else { const data = await response.json(); showToast(data.error || 'Gagal menambahkan meja', 'error'); }
+          try {
+            const response = await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber, capacity, area }) });
+            const data = await response.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            closeAddTableModal();
+            showToast('Meja berhasil ditambahkan');
+            location.reload();
+          } catch (e) { showToast('Gagal menambahkan meja', 'error'); }
         }
 
         function showEditTableModal(id, number, capacity, area, status) {
@@ -265,9 +270,14 @@ export const tablesPage = new Elysia()
         function closeDeleteConfirmModal() { document.getElementById('delete-confirm-modal').classList.remove('show'); pendingDeleteId = null; }
         async function confirmDeleteTable() {
           if (!pendingDeleteId) return;
-          await fetch('/api/tables/' + pendingDeleteId, { method: 'DELETE' });
-          showToast('Meja berhasil dihapus');
-          location.reload();
+          try {
+            const response = await fetch('/api/tables/' + pendingDeleteId, { method: 'DELETE' });
+            const data = await response.json();
+            if (data.error) { showToast(data.error, 'error'); return; }
+            showToast('Meja berhasil dihapus');
+            closeDeleteConfirmModal();
+            location.reload();
+          } catch (e) { showToast('Gagal menghapus meja', 'error'); }
         }
       </script>
       ${getCommonScripts()}
