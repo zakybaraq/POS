@@ -26,7 +26,10 @@ export const inventoryPage = new Elysia()
     const menus = await menuRepo.getAllMenus();
     const movements = await inv.getStockMovements(undefined, 50);
 
-    const lowStockCount = ingredients.filter((i: any) => Number(i.currentStock) < Number(i.minStock)).length;
+    const total = ingredients.length;
+    const lowStockCount = ingredients.filter((i: any) => Number(i.currentStock) < Number(i.minStock) && Number(i.currentStock) > 0).length;
+    const outOfStock = ingredients.filter((i: any) => Number(i.currentStock) === 0).length;
+    const inStock = total - lowStockCount - outOfStock;
 
     return htmlResponse(`
       <div class="app-layout">
@@ -34,24 +37,51 @@ export const inventoryPage = new Elysia()
         <div class="app-content">
           ${getNavbarHtml('Inventory', 'inventory', user)}
           <main class="app-main">
+            <div class="stats-grid">
+              <div class="stats-card">
+                <div class="stats-label">Total Bahan</div>
+                <div class="stats-value">${total}</div>
+                <div class="stats-change">Semua bahan baku</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Stok Aman</div>
+                <div class="stats-value" style="color: var(--color-success);">${inStock}</div>
+                <div class="stats-change">Stok cukup</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Stok Rendah</div>
+                <div class="stats-value" style="color: var(--color-warning);">${lowStockCount}</div>
+                <div class="stats-change">Perlu restock</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Stok Habis</div>
+                <div class="stats-value" style="color: var(--color-error);">${outOfStock}</div>
+                <div class="stats-change">Tidak tersedia</div>
+              </div>
+            </div>
+
             <div class="card">
               <div class="card-header">
                 <div class="inv-tabs">
-                  <button class="inv-tab active" onclick="showInvTab('ingredients', this)">📦 Bahan Baku${lowStockCount > 0 ? ' <span class="badge badge-error" style="font-size:10px;">' + lowStockCount + '</span>' : ''}</button>
+                  <button class="inv-tab active" onclick="showInvTab('ingredients', this)">📦 Bahan Baku${lowStockCount + outOfStock > 0 ? ' <span class="badge badge-error" style="font-size:10px;">' + (lowStockCount + outOfStock) + '</span>' : ''}</button>
                   <button class="inv-tab" onclick="showInvTab('recipes', this)">📋 Resep</button>
                   <button class="inv-tab" onclick="showInvTab('movements', this)">📊 Riwayat Stok</button>
                 </div>
               </div>
 
               <div class="inv-tab-content" id="tab-ingredients">
-                <div class="inv-toolbar">
-                  <input type="text" id="inv-search" class="inv-search-input" placeholder="🔍 Cari bahan..." oninput="filterIngredients()">
-                  <select id="inv-filter-stock" class="inv-filter-select" onchange="filterIngredients()">
-                    <option value="all">Semua</option>
-                    <option value="low">Stok Rendah</option>
-                    <option value="out">Stok Habis</option>
-                  </select>
-                  <button class="btn btn-primary" onclick="showAddIngredientModal()">+ Tambah Bahan</button>
+                <div class="menu-toolbar">
+                  <div class="menu-toolbar-left">
+                    <input type="text" id="inv-search" class="menu-search-input" placeholder="🔍 Cari bahan..." oninput="filterIngredients()">
+                    <select id="inv-filter-stock" class="menu-filter-select" onchange="filterIngredients()">
+                      <option value="all">Semua</option>
+                      <option value="low">Stok Rendah</option>
+                      <option value="out">Stok Habis</option>
+                    </select>
+                  </div>
+                  <div class="menu-toolbar-right">
+                    <button class="btn btn-primary" onclick="showAddIngredientModal()">+ Tambah Bahan</button>
+                  </div>
                 </div>
                 <div class="table-container">
                   <table class="table">
@@ -81,12 +111,16 @@ export const inventoryPage = new Elysia()
               </div>
 
               <div class="inv-tab-content" id="tab-recipes" style="display: none;">
-                <div class="inv-toolbar">
-                  <select id="recipe-menu-select" class="inv-filter-select" onchange="loadRecipe()">
-                    <option value="">— Pilih Menu —</option>
-                    ${menus.map((m: any) => `<option value="${m.id}">${m.name}</option>`).join('')}
-                  </select>
-                  <button class="btn btn-primary" onclick="showAddRecipeModal()" id="btn-add-recipe" style="display: none;">+ Tambah Bahan</button>
+                <div class="menu-toolbar">
+                  <div class="menu-toolbar-left">
+                    <select id="recipe-menu-select" class="menu-filter-select" onchange="loadRecipe()">
+                      <option value="">— Pilih Menu —</option>
+                      ${menus.map((m: any) => `<option value="${m.id}">${m.name}</option>`).join('')}
+                    </select>
+                  </div>
+                  <div class="menu-toolbar-right">
+                    <button class="btn btn-primary" onclick="showAddRecipeModal()" id="btn-add-recipe" style="display: none;">+ Tambah Bahan</button>
+                  </div>
                 </div>
                 <div id="recipe-content">
                   <p class="text-muted text-center" style="padding: 40px;">Pilih menu untuk melihat resep</p>
@@ -94,15 +128,18 @@ export const inventoryPage = new Elysia()
               </div>
 
               <div class="inv-tab-content" id="tab-movements" style="display: none;">
-                <div class="inv-toolbar">
-                  <input type="text" id="mov-search" class="inv-search-input" placeholder="🔍 Cari..." oninput="filterMovements()">
-                  <select id="mov-filter-type" class="inv-filter-select" onchange="filterMovements()">
-                    <option value="all">Semua Tipe</option>
-                    <option value="in">📥 Masuk</option>
-                    <option value="out">📤 Keluar</option>
-                    <option value="adjustment">🔄 Adjustment</option>
-                    <option value="waste">🗑️ Waste</option>
-                  </select>
+                <div class="menu-toolbar">
+                  <div class="menu-toolbar-left">
+                    <input type="text" id="mov-search" class="menu-search-input" placeholder="🔍 Cari..." oninput="filterMovements()">
+                    <select id="mov-filter-type" class="menu-filter-select" onchange="filterMovements()">
+                      <option value="all">Semua Tipe</option>
+                      <option value="in">📥 Masuk</option>
+                      <option value="out">📤 Keluar</option>
+                      <option value="adjustment">🔄 Adjustment</option>
+                      <option value="waste">🗑️ Waste</option>
+                    </select>
+                  </div>
+                  <div class="menu-toolbar-right"></div>
                 </div>
                 <div class="table-container">
                   <table class="table">
@@ -194,9 +231,11 @@ export const inventoryPage = new Elysia()
         .inv-tab { padding: 8px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--color-bg); cursor: pointer; font-size: 13px; font-weight: 500; transition: var(--transition); }
         .inv-tab:hover { background: var(--color-bg-hover); }
         .inv-tab.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
-        .inv-toolbar { display: flex; gap: 8px; padding: 16px; border-bottom: 1px solid var(--color-border); align-items: center; flex-wrap: wrap; }
-        .inv-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; flex: 1; min-width: 180px; }
-        .inv-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
+        .menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
+        .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+        .menu-toolbar-right { display: flex; gap: 8px; }
+        .menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
+        .menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
         .btn-sm { padding: 4px 8px; font-size: 11px; }
         .btn-warning { background: var(--color-warning); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; font-weight: 500; }
         .text-muted { color: var(--color-text-secondary); }
