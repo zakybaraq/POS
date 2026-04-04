@@ -4,10 +4,12 @@ import { menuRoutes } from './menus';
 import { tableRoutes } from './tables';
 import { orderRoutes } from './orders';
 import { authRoutes } from './auth';
+import { userRoutes } from './users';
 
 export const routes = new Elysia()
   .use(cookie())
   .use(menuRoutes)
   .use(tableRoutes)
   .use(orderRoutes)
-  .use(authRoutes);
+  .use(authRoutes)
+  .use(userRoutes);
