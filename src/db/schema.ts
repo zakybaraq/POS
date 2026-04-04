@@ -6,14 +6,14 @@ import { relations } from 'drizzle-orm';
 export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
 export const tableStatusEnum = mysqlEnum('table_status', ['available', 'occupied']);
 export const orderStatusEnum = mysqlEnum('order_status', ['active', 'completed', 'cancelled']);
-export const roleEnum = mysqlEnum('role', ['admin', 'cashier']);
+export const roleEnum = mysqlEnum('role', ['super_admin', 'admin_restoran', 'kasir', 'waitress', 'chef']);
 
 export const users = mysqlTable('users', {
   id: serial('id').primaryKey(),
   email: varchar('email', { length: 255 }).notNull().unique(),
   password: varchar('password', { length: 255 }).notNull(),
   name: varchar('name', { length: 100 }).notNull(),
-  role: roleEnum.notNull().default('cashier'),
+  role: roleEnum.notNull().default('kasir'),
   isActive: boolean('is_active').notNull().default(true),
   createdAt: datetime('created_at').notNull().default(new Date()),
   updatedAt: datetime('updated_at'),

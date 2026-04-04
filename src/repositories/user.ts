@@ -20,7 +20,7 @@ export async function createUser(data: { email: string; password: string; name: 
     email: data.email,
     password: hashedPassword,
     name: data.name,
-    role: data.role || 'cashier',
+    role: (data.role || 'kasir') as 'super_admin' | 'admin_restoran' | 'kasir' | 'waitress' | 'chef',
   });
   return result;
 }

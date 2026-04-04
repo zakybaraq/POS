@@ -8,7 +8,7 @@ export interface TokenPayload {
   userId: number;
   email: string;
   name: string;
-  role: string;
+  role: 'super_admin' | 'admin_restoran' | 'kasir' | 'waitress' | 'chef';
 }
 
 export async function register(email: string, password: string, name: string, role?: string) {

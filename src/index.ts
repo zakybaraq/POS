@@ -3,9 +3,9 @@ import { cookie } from '@elysiajs/cookie';
 import { routes } from './routes';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import jwt from 'jsonwebtoken';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'pos-secret-key-change-in-production';
+import { getTokenFromCookies, verifyToken, redirectToLogin, JWT_SECRET } from './utils/auth';
+import type { TokenPayload } from './utils/auth';
+import { hasRole, getUserFromRequest } from './middleware/authorization';
 
 const layoutHtml = existsSync(join(__dirname, 'views/layout.html')) 
   ? readFileSync(join(__dirname, 'views/layout.html'), 'utf-8')
@@ -29,45 +29,25 @@ function htmlResponse(content: string) {
   });
 }
 
-function redirectToLogin() {
-  return new Response(null, {
-    status: 302,
-    headers: { Location: '/login' }
-  });
-}
+// Re-export for backward compatibility
+export { redirectToLogin, getTokenFromCookies, verifyToken } from './utils/auth';
+export type { TokenPayload } from './utils/auth';
 
-function getTokenFromCookies(cookies: any, headers: any): string | null {
-  if (cookies?.pos_session) {
-    const sessionCookie = cookies.pos_session;
-    const token = sessionCookie?.value || sessionCookie;
-    if (token) {
-      try {
-        jwt.verify(token, JWT_SECRET);
-        return token;
-      } catch {}
-    }
-  }
+function getSidebarHtml(activePage: string, user: { role: string; name: string }) {
+  // Define menu items accessible by each role
+  const roleMenuMap: Record<string, string[]> = {
+    super_admin: ['dashboard', 'pos', 'menu', 'tables', 'orders'],
+    admin_restoran: ['pos', 'menu', 'tables', 'orders'],
+    kasir: ['pos'],
+    waitress: ['orders', 'tables'],
+    chef: ['orders']
+  };
   
-  const cookieHeader = headers?.cookie;
-  if (!cookieHeader) return null;
+  const allowedMenus = roleMenuMap[user.role] || [];
   
-  const match = cookieHeader.match(/pos_session=([^;]+)/);
-  if (!match) return null;
+  // Helper function to check if menu is allowed
+  const isMenuAllowed = (menu: string): boolean => allowedMenus.includes(menu);
   
-  const token = match[1];
-  try {
-    jwt.verify(token, JWT_SECRET);
-    return token;
-  } catch {
-    return null;
-  }
-}
-
-function verifyToken(token: string): any {
-  return jwt.verify(token, JWT_SECRET);
-}
-
-function getSidebarHtml(activePage: string, user: any) {
   return `
 <aside class="sidebar" id="app-sidebar">
   <button class="sidebar-toggle" onclick="toggleSidebar()" title="Toggle Sidebar">
@@ -85,37 +65,46 @@ function getSidebarHtml(activePage: string, user: any) {
   </div>
   <nav class="sidebar-nav">
     <ul class="sidebar-menu">
+      ${isMenuAllowed('dashboard') ? `
       <li class="sidebar-menu-item">
         <a href="/" class="sidebar-menu-link ${activePage === 'dashboard' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
           <span class="sidebar-menu-label">Dashboard</span>
         </a>
-      </li>
+      </li>` : ''}
+      
+      ${isMenuAllowed('pos') ? `
       <li class="sidebar-menu-item">
         <a href="/pos" class="sidebar-menu-link ${activePage === 'pos' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
           <span class="sidebar-menu-label">POS</span>
         </a>
-      </li>
+      </li>` : ''}
+      
+      ${isMenuAllowed('menu') ? `
       <li class="sidebar-menu-item">
         <a href="/menu" class="sidebar-menu-link ${activePage === 'menu' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
           <span class="sidebar-menu-label">Menu</span>
         </a>
-      </li>
+      </li>` : ''}
+      
+      ${isMenuAllowed('tables') ? `
       <li class="sidebar-menu-item">
         <a href="/tables" class="sidebar-menu-link ${activePage === 'tables' ? 'active' : ''}">
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
           <span class="sidebar-menu-label">Meja</span>
         </a>
-      </li>
+      </li>` : ''}
+      
+      ${isMenuAllowed('orders') ? `
       <li class="sidebar-menu-item">
         <a href="/orders" class="sidebar-menu-link ${activePage === 'orders' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
           <span class="sidebar-menu-label">Pesanan</span>
           <span class="menu-badge" id="order-badge" style="display: none;">0</span>
         </a>
-      </li>
+      </li>` : ''}
     </ul>
   </nav>
   <div class="sidebar-footer">
@@ -123,11 +112,11 @@ function getSidebarHtml(activePage: string, user: any) {
       <div class="navbar-user-avatar">${user.name.charAt(0).toUpperCase()}</div>
       <div class="sidebar-user-details">
         <div class="sidebar-user-name">${user.name}</div>
-        <div class="sidebar-user-role">Admin</div>
+        <div class="sidebar-user-role">${user.role.charAt(0).toUpperCase() + user.role.slice(1).replace('_', ' ')}</div>
       </div>
     </div>
     <button onclick="logout()" class="btn btn-secondary sidebar-footer-text" style="width: 100%;">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1-2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
       <span class="sidebar-menu-label">Logout</span>
     </button>
   </div>
@@ -483,16 +472,24 @@ const app = new Elysia()
     `);
   })
   
-  .get('/', async ({ cookie, headers }) => {
-    const token = getTokenFromCookies(cookie, headers);
-    if (!token) return redirectToLogin();
-    
-    let user = null;
-    try {
-      user = verifyToken(token);
-    } catch {
-      return redirectToLogin();
-    }
+   .get('/', async ({ cookie, headers }) => {
+     const token = getTokenFromCookies(cookie, headers);
+     if (!token) return redirectToLogin();
+     
+     let user = null;
+     try {
+       user = verifyToken(token);
+       // Ensure we have the user name for display
+       if (!user.name) {
+         const { getUserById } = await import('./repositories/user');
+         const dbUser = await getUserById(user.userId);
+         if (dbUser) {
+           user.name = dbUser.name;
+         }
+       }
+     } catch {
+       return redirectToLogin();
+     }
     
     return htmlResponse(`
       <div class="app-layout">
@@ -536,18 +533,20 @@ const app = new Elysia()
                   </div>
                   <span>Buka POS</span>
                 </a>
+                ${['super_admin', 'admin_restoran'].includes(user.role) ? `
                 <a href="/menu" class="quick-link">
                   <div class="quick-icon" style="background: rgba(16, 185, 129, 0.1);">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--color-success)" stroke="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
                   </div>
                   <span>Kelola Menu</span>
-                </a>
+                </a>` : ''}
+                ${['super_admin', 'admin_restoran'].includes(user.role) ? `
                 <a href="/tables" class="quick-link">
                   <div class="quick-icon" style="background: rgba(245, 158, 11, 0.1);">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--color-warning)" stroke="none"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
                   </div>
                   <span>Kelola Meja</span>
-                </a>
+                </a>` : ''}
                 <a href="/orders" class="quick-link">
                   <div class="quick-icon" style="background: rgba(139, 92, 246, 0.1);">
                     <svg width="24" height="24" viewBox="0 0 24 24" fill="#8b5cf6" stroke="none"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line></svg>
@@ -604,6 +603,11 @@ const app = new Elysia()
       return redirectToLogin();
     }
     
+    const posRoles = ['super_admin', 'admin_restoran', 'kasir'];
+    if (!posRoles.includes(user.role)) {
+      return new Response('Akses ditolak: halaman ini hanya untuk Super Admin, Admin Restoran, dan Kasir', { status: 403 });
+    }
+    
     const { getAllTables } = await import('./repositories/table');
     const { getAvailableMenus } = await import('./repositories/menu');
     const { getOrdersToday } = await import('./repositories/order');
@@ -625,7 +629,7 @@ const app = new Elysia()
             <div class="pos-tables">
               <div class="pos-tables-header">
                 <h3>Meja</h3>
-                <button class="btn btn-sm btn-secondary" onclick="addTable()" title="Tambah Meja">+</button>
+                ${['super_admin', 'admin_restoran'].includes(user.role) ? `<button class="btn btn-sm btn-secondary" onclick="addTable()" title="Tambah Meja">+</button>` : ''}
               </div>
               <div class="tables-grid">
                 ${tables.map(t => `<button class="table-btn ${t.status === 'available' ? 'available' : 'occupied'}" data-table-id="${t.id}" data-status="${t.status}" onclick="selectTable(${t.id}, ${t.tableNumber}, '${t.status}')">${t.tableNumber}</button>`).join('')}
@@ -1193,6 +1197,11 @@ const app = new Elysia()
       return redirectToLogin();
     }
     
+    const menuRoles = ['super_admin', 'admin_restoran'];
+    if (!menuRoles.includes(user.role)) {
+      return new Response('Akses ditolak: halaman ini hanya untuk Super Admin dan Admin Restoran', { status: 403 });
+    }
+    
     const { getAllMenus } = await import('./repositories/menu');
     const menus = await getAllMenus();
     
@@ -1330,6 +1339,11 @@ const app = new Elysia()
       user = verifyToken(token);
     } catch {
       return redirectToLogin();
+    }
+    
+    const tableRoles = ['super_admin', 'admin_restoran'];
+    if (!tableRoles.includes(user.role)) {
+      return new Response('Akses ditolak: halaman ini hanya untuk Super Admin dan Admin Restoran', { status: 403 });
     }
     
     const { getAllTables } = await import('./repositories/table');
