@@ -50,12 +50,17 @@ export async function getOrdersTodayWithTables() {
     .orderBy(desc(orders.createdAt));
 }
 
-export async function updateOrderStatus(id: number, status: 'active' | 'completed' | 'cancelled') {
+export async function updateOrderStatus(id: number, status: 'draft' | 'active' | 'completed' | 'cancelled') {
   const updateData: Partial<Order> = { status };
   if (status === 'completed' || status === 'cancelled') {
     updateData.completedAt = new Date();
   }
   await db.update(orders).set(updateData).where(eq(orders.id, id));
+  return getOrderById(id);
+}
+
+export async function updateOrder(id: number, data: Partial<{ tableId: number }>) {
+  await db.update(orders).set(data).where(eq(orders.id, id));
   return getOrderById(id);
 }
 

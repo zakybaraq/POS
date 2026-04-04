@@ -203,4 +203,21 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     await orderRepo.updateOrderStatus(Number(id), 'cancelled');
     await tableRepo.updateTableStatus(order.tableId, 'available');
     return { success: true };
+  })
+  .put('/:id/transfer', async ({ cookie, headers, params: { id }, body }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    const { newTableId } = body as any;
+    if (!newTableId) return { error: 'newTableId is required' };
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) return { error: 'Order not found' };
+    if (order.status !== 'active') return { error: 'Only active orders can be transferred' };
+    const newTable = await tableRepo.getTableById(newTableId);
+    if (!newTable) return { error: 'Target table not found' };
+    if (newTable.status === 'occupied') return { error: 'Target table is occupied' };
+    await tableRepo.updateTableStatus(order.tableId, 'available');
+    await tableRepo.updateTableStatus(newTableId, 'occupied');
+    await orderRepo.updateOrder(Number(id), { tableId: newTableId });
+    const updatedOrder = await orderRepo.getOrderById(Number(id));
+    return { success: true, order: updatedOrder };
   });
