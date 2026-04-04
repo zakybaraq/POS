@@ -680,7 +680,7 @@ export const posPage = new Elysia()
           const data = await response.json();
           if (data.error) { showToast(data.error, 'error'); }
           else {
-            showReceipt(data.order, data.items, amount, amount - total);
+            showReceipt(data.order, data.items, amount);
             showToast('Pembayaran berhasil!');
           }
         }
@@ -770,9 +770,11 @@ export const posPage = new Elysia()
           }
         }
 
-        function showReceipt(order, items, paid, change) {
-          const orderTotal = order.total || 0;
-          const actualChange = change !== undefined ? change : paid - orderTotal;
+        function showReceipt(order, items, paid) {
+          const itemsTotal = items.reduce((sum, item) => sum + ((item.priceAtOrder || 0) * (item.quantity || 1)), 0);
+          const tax = Math.round(itemsTotal * 0.1);
+          const orderTotal = itemsTotal + tax;
+          const actualChange = paid - orderTotal;
           lastReceipt = { order, items, paid, change: actualChange, tableNumber: currentTableNumber, cashier: '${user.name}', date: new Date() };
           let html = '<div class="receipt-center"><strong>POS APP</strong></div>';
           html += '<div class="receipt-center" style="font-size: 11px;">Jl. Contoh No. 123</div>';
