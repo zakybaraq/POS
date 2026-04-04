@@ -69,7 +69,6 @@ function verifyToken(token: string): any {
 }
 
 const app = new Elysia()
-  .use(cookie())
   .use(routes)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
   
