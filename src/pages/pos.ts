@@ -208,7 +208,7 @@ export const posPage = new Elysia()
       </div>
 
       <style>
-        .pos-main { padding: 0; display: flex; height: calc(100vh - 128px); gap: 0; background: var(--color-bg); }
+        .pos-main { padding: 0; display: flex; flex: 1; gap: 0; background: var(--color-bg); overflow: hidden; }
         .pos-left { flex: 1; display: flex; flex-direction: column; overflow: hidden; }
         .pos-panels { display: flex; flex: 1; overflow: hidden; }
         .pos-tables-panel { width: 200px; background: var(--color-bg-alt); border-right: 1px solid var(--color-border); display: flex; flex-direction: column; flex-shrink: 0; overflow-y: auto; }
