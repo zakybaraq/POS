@@ -18,6 +18,7 @@ export const users = mysqlTable('users', {
   isActive: boolean('is_active').notNull().default(true),
   createdAt: datetime('created_at').notNull().default(new Date()),
   updatedAt: datetime('updated_at'),
+  lastLogin: datetime('last_login'),
 }, (table) => ({
   emailIdx: index('idx_users_email').on(table.email),
 }));
@@ -112,6 +113,18 @@ export const usersRelations = relations(users, ({ many }) => ({
   orders: many(orders),
 }));
 
+export const auditLogs = mysqlTable('audit_logs', {
+  id: serial('id').primaryKey(),
+  userId: int('user_id').notNull(),
+  userName: varchar('user_name', { length: 100 }).notNull().default(''),
+  action: varchar('action', { length: 100 }).notNull(),
+  details: varchar('details', { length: 500 }),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+}, (table) => ({
+  userIdIdx: index('idx_audit_logs_user_id').on(table.userId),
+  createdAtIdx: index('idx_audit_logs_created_at').on(table.createdAt),
+}));
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -123,3 +136,5 @@ export type OrderItem = typeof orderItems.$inferSelect;
 export type NewOrderItem = typeof orderItems.$inferInsert;
 export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
+export type AuditLog = typeof auditLogs.$inferSelect;
+export type NewAuditLog = typeof auditLogs.$inferInsert;

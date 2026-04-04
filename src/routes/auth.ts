@@ -2,6 +2,8 @@ import { Elysia, t } from 'elysia';
 import * as authService from '../services/auth';
 import { createToken } from '../services/session';
 import { getUserFromRequest } from '../middleware/authorization';
+import * as userRepo from '../repositories/user';
+import * as auditRepo from '../repositories/audit-log';
 
 const COOKIE_NAME = 'pos_session';
 
@@ -63,6 +65,14 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     try {
       const result = await authService.login(email, password);
       const token = createToken(result.user);
+      
+      await userRepo.updateUserLastLogin(result.user.userId);
+      await auditRepo.createAuditLog({
+        userId: result.user.userId,
+        userName: result.user.name,
+        action: 'login',
+        details: `Login via email ${email}`,
+      });
       
       set.headers['Set-Cookie'] = `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Lax; Max-Age=86400; Path=/`;
       
