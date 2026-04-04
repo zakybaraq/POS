@@ -1,122 +1,192 @@
-# Rencana Implementasi: Modal Bantuan, Ketentuan & Privasi
+# Rencana Refactoring: Slicing src/index.ts (2200+ baris)
 
 ## Latar Belakang
 
-Footer aplikasi sudah memiliki 3 link: **Bantuan**, **Ketentuan**, dan **Privasi**. Saat ini link tersebut mengarah ke `/help`, `/terms`, `/privacy` yang belum ada (404).
+File `src/index.ts` saat ini memiliki **~2200 baris** yang mencampur:
+- Helper functions (htmlResponse, getSidebarHtml, getNavbarHtml, getFooterHtml, getCommonScripts)
+- 8+ page route handlers (login, register, forgot-password, dashboard, pos, admin, menu, tables, orders, products)
+- App initialization (Elysia app setup, static file serving)
+
+File ini terlalu besar dan sulit di-maintain. Perlu dipecah menjadi file-file kecil yang terstruktur.
 
 ## Tujuan
 
-Ubah 3 link footer agar membuka **modal pop-up** (bukan navigasi ke halaman baru).
+Pecah `src/index.ts` menjadi beberapa file kecil yang:
+- Masing-masing < 200 baris
+- Bertanggung jawab atas satu hal saja
+- Mudah di-test dan di-maintain
+- Tidak mengubah fungsionalitas yang sudah ada
 
 ---
 
-## Tahap 1: Update Footer Links
+## Tahap 1: Buat Struktur Folder
 
-Di `src/index.ts`, fungsi `getFooterHtml()` — ubah href dari URL ke JavaScript:
+Buat folder `src/pages/` dan `src/templates/`:
+
+```
+src/
+├── index.ts                    (entry point, ~50 baris)
+├── pages/
+│   ├── auth.ts                 (login, register, forgot-password)
+│   ├── dashboard.ts            (halaman /)
+│   ├── pos.ts                  (halaman /pos)
+│   ├── admin.ts                (halaman /admin)
+│   ├── menu.ts                 (halaman /menu)
+│   ├── tables.ts               (halaman /tables)
+│   ├── orders.ts               (halaman /orders)
+│   └── products.ts             (halaman /products)
+└── templates/
+    ├── sidebar.ts              (getSidebarHtml)
+    ├── navbar.ts               (getNavbarHtml)
+    ├── footer.ts               (getFooterHtml)
+    ├── common-scripts.ts       (getCommonScripts + modals)
+    └── html.ts                 (htmlResponse helper)
+```
+
+---
+
+## Tahap 2: Extract Template Functions
+
+Pindahkan fungsi-fungsi HTML template ke `src/templates/`.
+
+### `src/templates/html.ts`
+```typescript
+// Pindahkan fungsi htmlResponse() dari index.ts
+// Pindahkan import: readFileSync, existsSync, join
+// Pindahkan layoutHtml constant
+```
+
+### `src/templates/sidebar.ts`
+```typescript
+// Pindahkan fungsi getSidebarHtml() dari index.ts
+// Import htmlResponse dari './html' jika diperlukan
+```
+
+### `src/templates/navbar.ts`
+```typescript
+// Pindahkan fungsi getNavbarHtml() dari index.ts
+```
+
+### `src/templates/footer.ts`
+```typescript
+// Pindahkan fungsi getFooterHtml() dari index.ts
+// Update link footer: showHelpModal, showTermsModal, showPrivacyModal
+```
+
+### `src/templates/common-scripts.ts`
+```typescript
+// Pindahkan fungsi getCommonScripts() dari index.ts
+// Termasuk: toggleSidebar, toggleMobileSidebar, toggleNotifications,
+//           toggleUserMenu, logout, showHelpModal, closeHelpModal, dll
+// Termasuk: 3 modal HTML (help, terms, privacy)
+```
+
+---
+
+## Tahap 3: Extract Page Route Handlers
+
+Pindahkan setiap page handler ke `src/pages/`. Setiap file mengekspor sebuah Elysia instance.
+
+### `src/pages/auth.ts`
+```typescript
+import { Elysia } from 'elysia';
+import { htmlResponse } from '../templates/html';
+
+export const authPages = new Elysia()
+  .get('/login', () => { /* ... login page HTML ... */ })
+  .get('/register', () => { /* ... register page HTML ... */ })
+  .get('/forgot-password', () => { /* ... forgot password page HTML ... */ });
+```
+
+### `src/pages/dashboard.ts`
+```typescript
+import { Elysia } from 'elysia';
+import { htmlResponse } from '../templates/html';
+import { getSidebarHtml } from '../templates/sidebar';
+import { getNavbarHtml } from '../templates/navbar';
+import { getFooterHtml } from '../templates/footer';
+import { getCommonScripts } from '../templates/common-scripts';
+import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth';
+
+export const dashboardPage = new Elysia()
+  .get('/', async ({ cookie, headers }) => {
+    // ... existing dashboard handler ...
+  });
+```
+
+### `src/pages/pos.ts`, `src/pages/admin.ts`, `src/pages/menu.ts`, `src/pages/tables.ts`, `src/pages/orders.ts`, `src/pages/products.ts`
+```typescript
+// Pindahkan masing-masing handler dari index.ts
+// Pattern sama seperti dashboard.ts
+```
+
+---
+
+## Tahap 4: Update src/index.ts
+
+Setelah semua di-extract, `src/index.ts` hanya menjadi entry point yang merakit semuanya:
 
 ```typescript
-// Sebelum
-<a href="/help">Bantuan</a>
-<a href="/terms">Ketentuan</a>
-<a href="/privacy">Privasi</a>
+import { Elysia } from 'elysia';
+import { cookie } from '@elysiajs/cookie';
+import { routes } from './routes';
+import { authPages } from './pages/auth';
+import { dashboardPage } from './pages/dashboard';
+import { posPage } from './pages/pos';
+import { adminPage } from './pages/admin';
+import { menuPage } from './pages/menu';
+import { tablesPage } from './pages/tables';
+import { ordersPage } from './pages/orders';
+import { productsPage } from './pages/products';
 
-// Sesudah
-<a href="javascript:void(0)" onclick="showHelpModal()">Bantuan</a>
-<a href="javascript:void(0)" onclick="showTermsModal()">Ketentuan</a>
-<a href="javascript:void(0)" onclick="showPrivacyModal()">Privasi</a>
+const app = new Elysia()
+  .use(routes)
+  .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+  .get('/styles/:path', ({ params }) => {
+    // ... static file serving ...
+  })
+  .use(authPages)
+  .use(dashboardPage)
+  .use(posPage)
+  .use(adminPage)
+  .use(menuPage)
+  .use(tablesPage)
+  .use(ordersPage)
+  .use(productsPage);
+
+app.listen(3000);
 ```
 
----
-
-## Tahap 2: Tambah 3 Modal HTML
-
-Tambahkan 3 modal di **setiap halaman**. Cara paling efisien: masukkan ke `getCommonScripts()` atau buat fungsi baru `getModalsHtml()` yang dipanggil di setiap `htmlResponse()`.
-
-### Modal Bantuan (`#help-modal`)
-
-Konten:
-- **Cara Menggunakan POS**: Langkah-langkah buka pesanan, tambah menu, proses pembayaran
-- **FAQ**: Pertanyaan umum (cara reset password, cara tambah meja, dll)
-- **Kontak Support**: Email/telepon support
-
-### Modal Ketentuan (`#terms-modal`)
-
-Konten:
-- Syarat penggunaan aplikasi
-- Kebijakan akun dan akses
-- Batasan tanggung jawab
-
-### Modal Privasi (`#privacy-modal`)
-
-Konten:
-- Data yang dikumpulkan (nama, email, riwayat transaksi)
-- Cara data digunakan
-- Kebijakan penyimpanan data
-- Hak pengguna
-
-### Pattern Modal (ikuti yang sudah ada di `/admin`)
-
-```html
-<div class="modal" id="help-modal">
-  <div class="modal-backdrop" onclick="closeHelpModal()"></div>
-  <div class="modal-content" style="max-width: 600px;">
-    <div class="modal-header">
-      <h3>Bantuan</h3>
-      <button class="modal-close" onclick="closeHelpModal()">&times;</button>
-    </div>
-    <div class="modal-body">
-      <!-- Konten di sini -->
-    </div>
-    <div class="modal-footer">
-      <button onclick="closeHelpModal()" class="btn btn-secondary">Tutup</button>
-    </div>
-  </div>
-</div>
-```
+Target: **< 50 baris**.
 
 ---
 
-## Tahap 3: Tambah JavaScript Functions
+## Tahap 5: Verifikasi
 
-Di `getCommonScripts()` atau di dalam `<script>` yang sama, tambahkan:
-
-```javascript
-function showHelpModal() {
-  document.getElementById('help-modal').classList.add('show');
-}
-function closeHelpModal() {
-  document.getElementById('help-modal').classList.remove('show');
-}
-
-function showTermsModal() {
-  document.getElementById('terms-modal').classList.add('show');
-}
-function closeTermsModal() {
-  document.getElementById('terms-modal').classList.remove('show');
-}
-
-function showPrivacyModal() {
-  document.getElementById('privacy-modal').classList.add('show');
-}
-function closePrivacyModal() {
-  document.getElementById('privacy-modal').classList.remove('show');
-}
-```
+1. **Server harus bisa start** tanpa error: `bun run src/index.ts`
+2. **Semua halaman harus bisa diakses** dan tampil sama seperti sebelumnya:
+   - `/login`, `/register`, `/forgot-password`
+   - `/` (dashboard)
+   - `/pos`, `/admin`, `/menu`, `/tables`, `/orders`, `/products`
+3. **LSP diagnostics clean** di semua file baru
+4. **Tidak ada fungsionalitas yang berubah** — hanya refactoring struktur file
 
 ---
 
-## Tahap 4: Tambah CSS untuk Modal
+## Aturan Penting
 
-Pastikan class `.modal`, `.modal-backdrop`, `.modal-content`, `.modal-header`, `.modal-body`, `.modal-footer`, `.modal-close` sudah ada di CSS. Cek `src/public/styles/global.css` — jika belum ada, tambahkan.
+- **JANGAN ubah logika** di dalam handler — hanya pindahkan
+- **JANGAN ubah HTML** yang di-render — harus sama persis
+- **JANGAN ubah import** yang sudah ada di route API (`src/routes/`)
+- **Ikuti pattern** Elysia yang sudah ada — setiap page file ekspor Elysia instance
+- **Gunakan relative import** (`../templates/html`, bukan `src/templates/html`)
+- **Test setiap file** setelah dibuat — jangan pindahkan semua dulu baru test
 
-Pattern yang sudah ada di halaman `/admin` bisa dijadikan referensi.
+## Estimasi
 
----
-
-## Catatan Penting
-
-- **JANGAN buat route baru** (`/help`, `/terms`, `/privacy`) — ini harus modal, bukan halaman
-- **Ikuti pattern** modal yang sudah ada di halaman `/admin` (class, style, behavior)
-- **Modal harus bisa ditutup** dengan klik backdrop, klik tombol X, atau klik tombol Tutup
-- **Konten modal** bisa hardcoded dalam HTML (tidak perlu API)
-- **JANGAN hapus atau ubah** fungsionalitas yang sudah ada
+- Tahap 1 (Struktur folder): 5 menit
+- Tahap 2 (Extract templates): 15-20 menit
+- Tahap 3 (Extract pages): 30-45 menit
+- Tahap 4 (Update index.ts): 10 menit
+- Tahap 5 (Verifikasi): 15 menit
+- **Total**: ~75-95 menit
