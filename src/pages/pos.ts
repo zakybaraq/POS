@@ -141,7 +141,7 @@ export const posPage = new Elysia()
 
                   <div class="payment-section" id="payment-section" style="display: none;">
                     <div style="margin-bottom: 6px;">
-                      <input type="number" id="amount-paid-input" class="discount-input" placeholder="Masukkan nominal..." oninput="updatePaidAmount(this.value)" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 600;">
+                      <input type="number" id="amount-paid-input" class="discount-input" placeholder="Masukkan nominal..." oninput="updatePaidAmount(this.value)" onkeyup="updatePaidAmount(this.value)" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 600;">
                     </div>
                     <div class="cart-row"><span>Bayar</span><span id="summary-paid">0</span></div>
                     <div class="cart-row"><span>Kembali</span><span id="summary-change" style="color: var(--color-success);">0</span></div>
@@ -694,12 +694,18 @@ export const posPage = new Elysia()
         }
 
         function updatePaidAmount(value) {
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
+          const totalEl = document.getElementById('summary-total');
+          const paidEl = document.getElementById('summary-paid');
+          const changeEl = document.getElementById('summary-change');
+          if (!totalEl || !paidEl || !changeEl) return;
+
+          const totalText = totalEl.textContent.replace(/[^0-9]/g, '') || '0';
+          const total = parseInt(totalText) || 0;
           const paid = parseInt(value) || 0;
-          document.getElementById('summary-paid').textContent = paid.toLocaleString('id-ID');
+          paidEl.textContent = paid.toLocaleString('id-ID');
           const change = paid - total;
-          document.getElementById('summary-change').textContent = change >= 0 ? change.toLocaleString('id-ID') : 'Kurang ' + Math.abs(change).toLocaleString('id-ID');
-          document.getElementById('summary-change').style.color = change >= 0 ? 'var(--color-success)' : 'var(--color-error)';
+          changeEl.textContent = change >= 0 ? change.toLocaleString('id-ID') : 'Kurang ' + Math.abs(change).toLocaleString('id-ID');
+          changeEl.style.color = change >= 0 ? 'var(--color-success)' : 'var(--color-error)';
         }
 
         async function processPaymentWithAmount(amountPaid) {
