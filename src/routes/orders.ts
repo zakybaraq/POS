@@ -36,9 +36,9 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     return { order, items, table };
   })
   .post('/', async ({ body }) => {
-    const { tableId, servedBy } = body as any;
-    if (!tableId || !servedBy) {
-      return { error: 'tableId and servedBy are required' };
+    const { tableId, userId } = body as any;
+    if (!tableId || !userId) {
+      return { error: 'tableId and userId are required' };
     }
     const table = await tableRepo.getTableById(tableId);
     if (!table) {
@@ -47,13 +47,13 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     if (table.status === 'occupied') {
       return { error: 'Table is occupied' };
     }
-    const order = await orderRepo.createOrder(tableId, servedBy);
+    const order = await orderRepo.createOrder(tableId, userId);
     await tableRepo.updateTableStatus(tableId, 'occupied');
     return order;
   }, {
     body: t.Object({
       tableId: t.Number(),
-      servedBy: t.String(),
+      userId: t.Number(),
     }),
   })
   .put('/:id', async ({ params: { id }, body }) => {

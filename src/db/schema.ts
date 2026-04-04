@@ -1,14 +1,26 @@
 // src/db/schema.ts
 
-import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index, uniqueIndex } from 'drizzle-orm/mysql-core';
+import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
-// ENUMS
 export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
 export const tableStatusEnum = mysqlEnum('table_status', ['available', 'occupied']);
 export const orderStatusEnum = mysqlEnum('order_status', ['active', 'completed', 'cancelled']);
+export const roleEnum = mysqlEnum('role', ['admin', 'cashier']);
 
-// TABLES
+export const users = mysqlTable('users', {
+  id: serial('id').primaryKey(),
+  email: varchar('email', { length: 255 }).notNull().unique(),
+  password: varchar('password', { length: 255 }).notNull(),
+  name: varchar('name', { length: 100 }).notNull(),
+  role: roleEnum.notNull().default('cashier'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+}, (table) => ({
+  emailIdx: index('idx_users_email').on(table.email),
+}));
+
 export const menus = mysqlTable('menus', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 255 }).notNull(),
@@ -30,7 +42,7 @@ export const tables = mysqlTable('tables', {
 export const orders = mysqlTable('orders', {
   id: serial('id').primaryKey(),
   tableId: int('table_id').notNull(),
-  servedBy: varchar('served_by', { length: 100 }).notNull(),
+  userId: int('user_id').notNull(),
   status: orderStatusEnum.notNull().default('active'),
   subtotal: int('subtotal').notNull().default(0),
   tax: int('tax').notNull().default(0),
@@ -41,6 +53,7 @@ export const orders = mysqlTable('orders', {
   completedAt: datetime('completed_at'),
 }, (table) => ({
   tableIdIdx: index('idx_orders_table_id').on(table.tableId),
+  userIdIdx: index('idx_orders_user_id').on(table.userId),
   statusIdx: index('idx_orders_status').on(table.status),
   createdAtIdx: index('idx_orders_created_at').on(table.createdAt),
 }));
@@ -70,6 +83,10 @@ export const ordersRelations = relations(orders, ({ one, many }) => ({
     fields: [orders.tableId],
     references: [tables.id],
   }),
+  user: one(users, {
+    fields: [orders.userId],
+    references: [users.id],
+  }),
   orderItems: many(orderItems),
 }));
 
@@ -84,6 +101,10 @@ export const orderItemsRelations = relations(orderItems, ({ one }) => ({
   }),
 }));
 
+export const usersRelations = relations(users, ({ many }) => ({
+  orders: many(orders),
+}));
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -93,3 +114,5 @@ export type Order = typeof orders.$inferSelect;
 export type NewOrder = typeof orders.$inferInsert;
 export type OrderItem = typeof orderItems.$inferSelect;
 export type NewOrderItem = typeof orderItems.$inferInsert;
+export type User = typeof users.$inferSelect;
+export type NewUser = typeof users.$inferInsert;
