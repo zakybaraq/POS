@@ -182,9 +182,19 @@ export const tablesPage = new Elysia()
         .table-card-actions { display: flex; gap: 6px; }
         .btn-sm { padding: 4px 8px; font-size: 11px; }
       </style>
-      ${getCommonScripts()}
       <script>
         let pendingDeleteId = null;
+
+        function showToastLocal(msg, type) {
+          const container = document.getElementById('toast-container');
+          if (!container) { alert(msg); return; }
+          const colors = { success: 'var(--color-success)', warning: 'var(--color-warning)', error: 'var(--color-error)' };
+          const toast = document.createElement('div');
+          toast.style.cssText = 'padding:12px 20px;border-radius:var(--radius-md);color:white;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);min-width:250px;background:' + (colors[type] || colors.success);
+          toast.innerHTML = '<span>' + msg + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">&times;</button>';
+          container.appendChild(toast);
+          setTimeout(() => toast.remove(), 3000);
+        }
 
         function filterTables() {
           const search = document.getElementById('table-search').value.toLowerCase();
@@ -214,7 +224,7 @@ export const tablesPage = new Elysia()
           for (const cb of checked) {
             await fetch('/api/tables/' + cb.value, { method: 'DELETE' });
           }
-          showToast(checked.length + ' meja dihapus');
+          showToastLocal(checked.length + ' meja dihapus');
           location.reload();
         }
 
@@ -230,15 +240,15 @@ export const tablesPage = new Elysia()
           const tableNumber = parseInt(document.getElementById('table-number').value);
           const capacity = parseInt(document.getElementById('table-capacity').value) || 4;
           const area = document.getElementById('table-area').value;
-          if (!tableNumber || tableNumber <= 0) { showToast('Nomor meja wajib diisi', 'warning'); return; }
+          if (!tableNumber || tableNumber <= 0) { showToastLocal('Nomor meja wajib diisi', 'warning'); return; }
           try {
             const response = await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber, capacity, area }) });
             const data = await response.json();
-            if (data.error) { showToast(data.error, 'error'); return; }
+            if (data.error) { showToastLocal(data.error, 'error'); return; }
             closeAddTableModal();
-            showToast('Meja berhasil ditambahkan');
+            showToastLocal('Meja berhasil ditambahkan');
             location.reload();
-          } catch (e) { showToast('Gagal menambahkan meja', 'error'); }
+          } catch (e) { showToastLocal('Gagal menambahkan meja', 'error'); }
         }
 
         function showEditTableModal(id, number, capacity, area, status) {
@@ -257,10 +267,10 @@ export const tablesPage = new Elysia()
           const capacity = parseInt(document.getElementById('edit-table-capacity').value) || 4;
           const area = document.getElementById('edit-table-area').value;
           const status = document.getElementById('edit-table-status').value;
-          if (!tableNumber || tableNumber <= 0) { showToast('Nomor meja wajib diisi', 'warning'); return; }
+          if (!tableNumber || tableNumber <= 0) { showToastLocal('Nomor meja wajib diisi', 'warning'); return; }
           const response = await fetch('/api/tables/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber, capacity, area, status }) });
-          if (response.ok) { closeEditTableModal(); showToast('Meja berhasil diupdate'); location.reload(); }
-          else { showToast('Gagal mengupdate meja', 'error'); }
+          if (response.ok) { closeEditTableModal(); showToastLocal('Meja berhasil diupdate'); location.reload(); }
+          else { showToastLocal('Gagal mengupdate meja', 'error'); }
         }
 
         function showDeleteConfirmModal(id, number) {
@@ -274,11 +284,11 @@ export const tablesPage = new Elysia()
           try {
             const response = await fetch('/api/tables/' + pendingDeleteId, { method: 'DELETE' });
             const data = await response.json();
-            if (data.error) { showToast(data.error, 'error'); return; }
-            showToast('Meja berhasil dihapus');
+            if (data.error) { showToastLocal(data.error, 'error'); return; }
+            showToastLocal('Meja berhasil dihapus');
             closeDeleteConfirmModal();
             location.reload();
-          } catch (e) { showToast('Gagal menghapus meja', 'error'); }
+          } catch (e) { showToastLocal('Gagal menghapus meja', 'error'); }
         }
       </script>
     `);
