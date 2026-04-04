@@ -1,6 +1,6 @@
 // src/db/schema.ts
 
-import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index, decimal } from 'drizzle-orm/mysql-core';
+import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index, decimal, date } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
@@ -165,6 +165,38 @@ export const stockMovements = mysqlTable('stock_movements', {
   createdAtIdx: index('idx_stock_movements_created_at').on(table.createdAt),
 }));
 
+export const customers = mysqlTable('customers', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  phone: varchar('phone', { length: 20 }).notNull().unique(),
+  email: varchar('email', { length: 255 }),
+  address: varchar('address', { length: 500 }),
+  birthDate: date('birth_date'),
+  totalSpent: int('total_spent').notNull().default(0),
+  totalVisits: int('total_visits').notNull().default(0),
+  loyaltyPoints: int('loyalty_points').notNull().default(0),
+  tier: mysqlEnum('tier', ['regular', 'silver', 'gold']).notNull().default('regular'),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+}, (table) => ({
+  phoneIdx: index('idx_customers_phone').on(table.phone),
+  tierIdx: index('idx_customers_tier').on(table.tier),
+}));
+
+export const loyaltyTransactions = mysqlTable('loyalty_transactions', {
+  id: serial('id').primaryKey(),
+  customerId: int('customer_id').notNull(),
+  type: mysqlEnum('type', ['earn', 'redeem']).notNull(),
+  points: int('points').notNull(),
+  referenceId: int('reference_id'),
+  reason: varchar('reason', { length: 255 }),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+}, (table) => ({
+  customerIdx: index('idx_loyalty_customer_id').on(table.customerId),
+  createdAtIdx: index('idx_loyalty_created_at').on(table.createdAt),
+}));
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -184,3 +216,7 @@ export type Recipe = typeof recipes.$inferSelect;
 export type NewRecipe = typeof recipes.$inferInsert;
 export type StockMovement = typeof stockMovements.$inferSelect;
 export type NewStockMovement = typeof stockMovements.$inferInsert;
+export type Customer = typeof customers.$inferSelect;
+export type NewCustomer = typeof customers.$inferInsert;
+export type LoyaltyTransaction = typeof loyaltyTransactions.$inferSelect;
+export type NewLoyaltyTransaction = typeof loyaltyTransactions.$inferInsert;

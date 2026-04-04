@@ -9,6 +9,7 @@ import * as orderRepo from '../repositories/order';
 import * as tableRepo from '../repositories/table';
 import * as menuRepo from '../repositories/menu';
 import * as invRepo from '../repositories/inventory';
+import * as custRepo from '../repositories/customer';
 
 function getGreeting(name: string) {
   const hour = new Date().getHours();
@@ -48,6 +49,7 @@ export const dashboardPage = new Elysia()
 
     const greeting = getGreeting(user.name);
     const lowStockItems = await invRepo.getLowStockIngredients();
+    const customerStats = await custRepo.getCustomerStats();
     const tablePercent = tableStats.total > 0 ? Math.round((tableStats.occupied / tableStats.total) * 100) : 0;
     const filledBar = '█'.repeat(Math.round(tablePercent / 10));
     const emptyBar = '░'.repeat(10 - Math.round(tablePercent / 10));

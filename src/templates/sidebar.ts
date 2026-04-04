@@ -1,8 +1,8 @@
 export function getSidebarHtml(activePage: string, user: { role: string; name: string }) {
   const roleMenuMap: Record<string, string[]> = {
-    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory'],
-    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory'],
-    kasir: ['pos'],
+    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory', 'customers'],
+    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory', 'customers'],
+    kasir: ['pos', 'customers'],
     waitress: ['orders', 'tables'],
     chef: ['orders']
   };
@@ -81,6 +81,14 @@ export function getSidebarHtml(activePage: string, user: { role: string; name: s
         <a href="/inventory" class="sidebar-menu-link ${activePage === 'inventory' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20 7l-8-4-8 4m16 0l-8 4m8-4v10l-8 4m0-10L4 7m8 4v10M4 7v10l8 4"></path></svg>
           <span class="sidebar-menu-label">Inventory</span>
+        </a>
+      </li>` : ''}
+
+      ${isMenuAllowed('customers') ? `
+      <li class="sidebar-menu-item">
+        <a href="/customers" class="sidebar-menu-link ${activePage === 'customers' ? 'active' : ''}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
+          <span class="sidebar-menu-label">Pelanggan</span>
         </a>
       </li>` : ''}
     </ul>
