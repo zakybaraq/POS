@@ -1,13 +1,10 @@
 import { Elysia, t } from 'elysia';
-import { cookie } from '@elysiajs/cookie';
 import * as authService from '../services/auth';
 import { createSessionCookie, getTokenFromCookie, verifyToken, createToken } from '../services/session';
 
 const COOKIE_NAME = 'pos_session';
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
-  .use(cookie())
-  
   .post('/register', async ({ body }) => {
     const { email, password, name, role } = body as any;
     
