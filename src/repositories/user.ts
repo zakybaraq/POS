@@ -50,5 +50,25 @@ export async function updatePassword(userId: number, newPassword: string) {
 }
 
 export async function updateUserLastLogin(userId: number) {
-  await db.update(users).set({ updatedAt: new Date() }).where(eq(users.id, userId));
+  await db.update(users).set({ lastLogin: new Date() }).where(eq(users.id, userId));
+}
+
+export async function getUsersWithStats() {
+  const allUsers = await db.select().from(users).orderBy(users.createdAt);
+  const total = allUsers.length;
+  const active = allUsers.filter((u: any) => u.isActive).length;
+  const inactive = total - active;
+  const roleCounts: Record<string, number> = {};
+  for (const u of allUsers) {
+    roleCounts[u.role] = (roleCounts[u.role] || 0) + 1;
+  }
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const newThisWeek = allUsers.filter((u: any) => {
+    const created = new Date(u.createdAt);
+    const weekAgo = new Date();
+    weekAgo.setDate(weekAgo.getDate() - 7);
+    return created >= weekAgo;
+  }).length;
+  return { users: allUsers, total, active, inactive, roleCounts, newThisWeek };
 }

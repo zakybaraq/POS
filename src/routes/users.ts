@@ -1,5 +1,6 @@
 import { Elysia, t } from 'elysia';
 import * as userRepo from '../repositories/user';
+import * as auditRepo from '../repositories/audit-log';
 import { requireSuperAdmin, getUserFromRequest } from '../middleware/authorization';
 
 const VALID_ROLES = ['super_admin', 'admin_restoran', 'kasir', 'waitress', 'chef'] as const;
@@ -33,7 +34,8 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     return rest;
   })
 
-  .post('/', async ({ body }) => {
+  .post('/', async ({ cookie, headers, body }) => {
+    const user = getUserFromRequest(cookie, headers);
     const { email, password, name, role, isActive } = body as any;
     if (!email || !password || !name) {
       return { error: 'Email, password, and name are required' };
@@ -51,6 +53,12 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     const result = await userRepo.createUser({ email, password, name, role, isActive: isActive !== false });
     const newUser = await userRepo.getUserById(Number(result[0]?.insertId));
     if (!newUser) return { error: 'Failed to create user' };
+    await auditRepo.createAuditLog({
+      userId: user?.userId || 0,
+      userName: user?.name || 'System',
+      action: 'user_created',
+      details: `Created user ${newUser.name} (${newUser.email}) as ${newUser.role}`,
+    });
     const { password: _, ...rest } = newUser;
     return { success: true, user: rest };
   }, {
@@ -63,7 +71,8 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     }),
   })
 
-  .put('/:id', async ({ params: { id }, body }) => {
+  .put('/:id', async ({ cookie, headers, params: { id }, body }) => {
+    const user = getUserFromRequest(cookie, headers);
     const { name, email, role, isActive } = body as any;
     const targetUser = await userRepo.getUserById(Number(id));
     if (!targetUser) return { error: 'User not found' };
@@ -85,6 +94,14 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
 
     const updated = await userRepo.updateUser(Number(id), updates);
     if (!updated) return { error: 'Failed to update user' };
+
+    await auditRepo.createAuditLog({
+      userId: user?.userId || 0,
+      userName: user?.name || 'System',
+      action: 'user_updated',
+      details: `Updated user ${targetUser.name} (${targetUser.email})`,
+    });
+
     const { password: _, ...rest } = updated;
     return { success: true, user: rest };
   }, {
@@ -116,7 +133,8 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     }),
   })
 
-  .put('/:id/password', async ({ params: { id }, body }) => {
+  .put('/:id/password', async ({ cookie, headers, params: { id }, body }) => {
+    const user = getUserFromRequest(cookie, headers);
     const { newPassword } = body as any;
     if (!newPassword || newPassword.length < 6) {
       return { error: 'Password must be at least 6 characters' };
@@ -124,6 +142,12 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     const targetUser = await userRepo.getUserById(Number(id));
     if (!targetUser) return { error: 'User not found' };
     await userRepo.updatePassword(Number(id), newPassword);
+    await auditRepo.createAuditLog({
+      userId: user?.userId || 0,
+      userName: user?.name || 'System',
+      action: 'password_reset',
+      details: `Reset password for ${targetUser.name} (${targetUser.email})`,
+    });
     return { success: true };
   }, {
     body: t.Object({
@@ -131,12 +155,19 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     }),
   })
 
-  .delete('/:id', async ({ params: { id } }) => {
+  .delete('/:id', async ({ cookie, headers, params: { id } }) => {
+    const user = getUserFromRequest(cookie, headers);
     const targetUser = await userRepo.getUserById(Number(id));
     if (!targetUser) return { error: 'User not found' };
     if (targetUser.role === 'super_admin') {
       return { error: 'Super Admin tidak dapat dihapus' };
     }
+    await auditRepo.createAuditLog({
+      userId: user?.userId || 0,
+      userName: user?.name || 'System',
+      action: 'user_deleted',
+      details: `Deleted user ${targetUser.name} (${targetUser.email})`,
+    });
     await userRepo.deleteUser(Number(id));
     return { success: true };
   })
