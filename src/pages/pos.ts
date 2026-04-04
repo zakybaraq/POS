@@ -140,6 +140,9 @@ export const posPage = new Elysia()
                   </div>
 
                   <div class="payment-section" id="payment-section" style="display: none;">
+                    <div style="margin-bottom: 6px;">
+                      <input type="number" id="amount-paid-input" class="discount-input" placeholder="Masukkan nominal..." oninput="updatePaidAmount(this.value)" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 600;">
+                    </div>
                     <div class="cart-row"><span>Bayar</span><span id="summary-paid">0</span></div>
                     <div class="cart-row"><span>Kembali</span><span id="summary-change" style="color: var(--color-success);">0</span></div>
                     <div class="quick-pay-buttons">
@@ -148,6 +151,7 @@ export const posPage = new Elysia()
                       <button class="quick-pay-btn" onclick="setQuickPayment(100000)">100K</button>
                       <button class="quick-pay-btn" onclick="setQuickPayment(200000)">200K</button>
                     </div>
+                    <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="processPaymentManual()">💳 Bayar Sekarang</button>
                   </div>
 
                   <div class="cart-buttons">
@@ -651,29 +655,52 @@ export const posPage = new Elysia()
           const cart = getLocalCart();
           if ((!cart || cart.items.length === 0) && !isServerOrder) { showToast('Cart kosong!', 'warning'); return; }
           const section = document.getElementById('payment-section');
-          section.style.display = section.style.display === 'none' ? 'block' : 'none';
-          if (section.style.display === 'block') {
+          if (section.style.display === 'none') {
+            section.style.display = 'block';
             const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
+            document.getElementById('amount-paid-input').value = '';
             document.getElementById('summary-paid').textContent = '0';
             document.getElementById('summary-change').textContent = '0';
+            document.getElementById('amount-paid-input').focus();
+          } else {
+            section.style.display = 'none';
+          }
+        }
+
+        async function processPaymentManual() {
+          const amount = parseInt(document.getElementById('amount-paid-input').value) || 0;
+          if (!amount || amount <= 0) { showToast('Masukkan jumlah uang!', 'warning'); return; }
+          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
+          if (amount < total) { showToast('Uang kurang!', 'error'); return; }
+          if (!isServerOrder && currentOrderId === null) { await submitOrder(); }
+          const response = await fetch('/api/orders/' + currentOrderId + '/pay', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ amountPaid: amount })
+          });
+          const data = await response.json();
+          if (data.error) { showToast(data.error, 'error'); }
+          else {
+            showReceipt(data.order, data.items, amount, amount - total);
+            showToast('Pembayaran berhasil!');
           }
         }
 
         function setQuickPayment(amount) {
           const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-          const input = document.createElement('input');
-          input.type = 'hidden';
-          input.id = 'amount-paid';
-          if (amount === 'exact') {
-            input.value = total;
-          } else {
-            input.value = amount;
-          }
-          document.getElementById('summary-paid').textContent = parseInt(input.value).toLocaleString('id-ID');
-          const change = parseInt(input.value) - total;
+          let paidAmount = amount === 'exact' ? total : amount;
+          document.getElementById('amount-paid-input').value = paidAmount;
+          updatePaidAmount(paidAmount);
+          processPaymentWithAmount(paidAmount);
+        }
+
+        function updatePaidAmount(value) {
+          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
+          const paid = parseInt(value) || 0;
+          document.getElementById('summary-paid').textContent = paid.toLocaleString('id-ID');
+          const change = paid - total;
           document.getElementById('summary-change').textContent = change >= 0 ? change.toLocaleString('id-ID') : 'Kurang ' + Math.abs(change).toLocaleString('id-ID');
           document.getElementById('summary-change').style.color = change >= 0 ? 'var(--color-success)' : 'var(--color-error)';
-          processPaymentWithAmount(parseInt(input.value));
         }
 
         async function processPaymentWithAmount(amountPaid) {
