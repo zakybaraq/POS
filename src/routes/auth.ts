@@ -1,13 +1,20 @@
 import { Elysia, t } from 'elysia';
-import { cookie } from '@elysiajs/cookie';
 import * as authService from '../services/auth';
-import { createSessionCookie, getTokenFromCookie, verifyToken, createToken } from '../services/session';
+import { createToken } from '../services/session';
 
 const COOKIE_NAME = 'pos_session';
 
+function createSessionCookie() {
+  return {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax' as const,
+    maxAge: 24 * 60 * 60 * 1000,
+    path: '/',
+  };
+}
+
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
-  .use(cookie())
-  
   .post('/register', async ({ body }) => {
     const { email, password, name, role } = body as any;
     
@@ -34,7 +41,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .post('/login', async ({ body, cookies }) => {
+  .post('/login', async ({ body, set }) => {
     const { email, password } = body as any;
     
     if (!email || !password) {
@@ -44,7 +51,9 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     try {
       const result = await authService.login(email, password);
       const token = createToken(result.user);
-      cookies.set(COOKIE_NAME, token, createSessionCookie());
+      
+      set.headers['Set-Cookie'] = `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Lax; Max-Age=86400; Path=/`;
+      
       return { success: true, user: result.user };
     } catch (e: any) {
       return { error: e.message };
@@ -56,8 +65,8 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .post('/logout', async ({ cookies }) => {
-    cookies.delete(COOKIE_NAME, { path: '/' });
+  .post('/logout', async ({ set }) => {
+    set.headers['Set-Cookie'] = `${COOKIE_NAME}=; HttpOnly; SameSite=Lax; Max-Age=0; Path=/`;
     return { success: true };
   })
   
@@ -85,15 +94,19 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .get('/me', async ({ cookies }) => {
-    const token = getTokenFromCookie(cookies);
-    if (!token) {
-      return { error: 'Not authenticated' };
+  .get('/me', async ({ headers }) => {
+    const authHeader = headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { error: 'No token provided' };
     }
+    
+    const token = authHeader.slice(7);
+    
     try {
-      const user = verifyToken(token);
+      const user = authService.verifyToken(token);
       return { user };
-    } catch {
+    } catch (e: any) {
       return { error: 'Invalid token' };
     }
   });
