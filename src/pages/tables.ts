@@ -182,6 +182,7 @@ export const tablesPage = new Elysia()
         .table-card-actions { display: flex; gap: 6px; }
         .btn-sm { padding: 4px 8px; font-size: 11px; }
       </style>
+      ${getCommonScripts()}
       <script>
         let pendingDeleteId = null;
 
@@ -280,6 +281,5 @@ export const tablesPage = new Elysia()
           } catch (e) { showToast('Gagal menghapus meja', 'error'); }
         }
       </script>
-      ${getCommonScripts()}
     `);
   });
