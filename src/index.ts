@@ -15,10 +15,9 @@ const layoutHtml = existsSync(join(__dirname, 'views/layout.html'))
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Restaurant POS</title>
-  <script src="https://unpkg.com/htmx.org@1.9.10"></script>
-  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="stylesheet" href="/styles/global.css">
 </head>
-<body class="bg-gray-50 min-h-screen">
+<body>
   {{ content }}
 </body>
 </html>`;
@@ -71,27 +70,75 @@ function verifyToken(token: string): any {
 const app = new Elysia()
   .use(routes)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+  .get('/styles/:path', ({ params }) => {
+    const stylesDir = join(__dirname, 'public/styles');
+    const filePath = join(stylesDir, params.path);
+    if (existsSync(filePath)) {
+      const content = readFileSync(filePath, 'utf-8');
+      return new Response(content, { headers: { 'Content-Type': 'text/css' } });
+    }
+    return new Response('Not found', { status: 404 });
+  })
   
   .get('/login', () => {
     return htmlResponse(`
-      <div class="min-h-screen flex items-center justify-center bg-gray-100">
-        <div class="bg-white p-8 rounded-lg shadow-md w-96">
-          <h1 class="text-2xl font-bold text-center mb-6">Login POS</h1>
-          <form id="login-form" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Email</label>
-              <input type="email" name="email" required class="w-full border rounded p-2">
+      <div class="login-page">
+        <div class="login-card">
+          <div class="login-header">
+            <h1 class="login-logo">POS App</h1>
+            <p class="text-center text-secondary">Login ke akun Anda</p>
+          </div>
+          <form id="login-form">
+            <div class="input-group">
+              <label class="input-label">Email</label>
+              <input type="email" name="email" class="input" placeholder="email@example.com" required>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Password</label>
-              <input type="password" name="password" required class="w-full border rounded p-2">
+            <div class="input-group">
+              <label class="input-label">Password</label>
+              <input type="password" name="password" class="input" placeholder="••••••••" required>
             </div>
-            <button type="submit" class="w-full bg-blue-500 text-white py-2 rounded hover:bg-blue-600">Login</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Login</button>
           </form>
-          <p class="mt-4 text-center text-sm">Belum punya akun? <a href="/register" class="text-blue-500">Register</a></p>
-          <p class="mt-2 text-center text-sm"><a href="/forgot-password" class="text-gray-500">Lupa Password?</a></p>
+          <div class="login-footer">
+            <p>Belum punya akun? <a href="/register">Register</a></p>
+            <p><a href="/forgot-password" class="text-secondary">Lupa Password?</a></p>
+          </div>
         </div>
       </div>
+      <style>
+        .login-page {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #f5427e 0%, #ff7da3 100%);
+        }
+        .login-card {
+          background: var(--color-bg);
+          border-radius: var(--radius-lg);
+          padding: var(--space-xl);
+          width: 400px;
+          box-shadow: var(--shadow-lg);
+        }
+        .login-header {
+          text-align: center;
+          margin-bottom: var(--space-lg);
+        }
+        .login-logo {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--color-primary);
+          margin-bottom: var(--space-sm);
+        }
+        .login-footer {
+          margin-top: var(--space-lg);
+          text-align: center;
+          font-size: 14px;
+        }
+        .login-footer p {
+          margin: var(--space-xs) 0;
+        }
+      </style>
       <script>
         document.getElementById('login-form').addEventListener('submit', async (e) => {
           e.preventDefault();
@@ -115,27 +162,66 @@ const app = new Elysia()
   
   .get('/register', () => {
     return htmlResponse(`
-      <div class="min-h-screen flex items-center justify-center bg-gray-100">
-        <div class="bg-white p-8 rounded-lg shadow-md w-96">
-          <h1 class="text-2xl font-bold text-center mb-6">Register POS</h1>
-          <form id="register-form" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Nama</label>
-              <input type="text" name="name" required class="w-full border rounded p-2">
+      <div class="login-page">
+        <div class="login-card">
+          <div class="login-header">
+            <h1 class="login-logo">POS App</h1>
+            <p class="text-center text-secondary">Daftar akun baru</p>
+          </div>
+          <form id="register-form">
+            <div class="input-group">
+              <label class="input-label">Nama</label>
+              <input type="text" name="name" class="input" placeholder="Nama lengkap" required>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Email</label>
-              <input type="email" name="email" required class="w-full border rounded p-2">
+            <div class="input-group">
+              <label class="input-label">Email</label>
+              <input type="email" name="email" class="input" placeholder="email@example.com" required>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Password</label>
-              <input type="password" name="password" required class="w-full border rounded p-2">
+            <div class="input-group">
+              <label class="input-label">Password</label>
+              <input type="password" name="password" class="input" placeholder="••••••••" required>
             </div>
-            <button type="submit" class="w-full bg-green-500 text-white py-2 rounded hover:bg-green-600">Register</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Register</button>
           </form>
-          <p class="mt-4 text-center text-sm">Sudah punya akun? <a href="/login" class="text-blue-500">Login</a></p>
+          <div class="login-footer">
+            <p>Sudah punya akun? <a href="/login">Login</a></p>
+          </div>
         </div>
       </div>
+      <style>
+        .login-page {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #f5427e 0%, #ff7da3 100%);
+        }
+        .login-card {
+          background: var(--color-bg);
+          border-radius: var(--radius-lg);
+          padding: var(--space-xl);
+          width: 400px;
+          box-shadow: var(--shadow-lg);
+        }
+        .login-header {
+          text-align: center;
+          margin-bottom: var(--space-lg);
+        }
+        .login-logo {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--color-primary);
+          margin-bottom: var(--space-sm);
+        }
+        .login-footer {
+          margin-top: var(--space-lg);
+          text-align: center;
+          font-size: 14px;
+        }
+        .login-footer p {
+          margin: var(--space-xs) 0;
+        }
+      </style>
       <script>
         document.getElementById('register-form').addEventListener('submit', async (e) => {
           e.preventDefault();
@@ -159,23 +245,62 @@ const app = new Elysia()
   
   .get('/forgot-password', () => {
     return htmlResponse(`
-      <div class="min-h-screen flex items-center justify-center bg-gray-100">
-        <div class="bg-white p-8 rounded-lg shadow-md w-96">
-          <h1 class="text-2xl font-bold text-center mb-6">Reset Password</h1>
-          <form id="forgot-form" class="space-y-4">
-            <div>
-              <label class="block text-sm font-medium mb-1">Email</label>
-              <input type="email" name="email" required class="w-full border rounded p-2">
+      <div class="login-page">
+        <div class="login-card">
+          <div class="login-header">
+            <h1 class="login-logo">POS App</h1>
+            <p class="text-center text-secondary">Reset password</p>
+          </div>
+          <form id="forgot-form">
+            <div class="input-group">
+              <label class="input-label">Email</label>
+              <input type="email" name="email" class="input" placeholder="email@example.com" required>
             </div>
-            <div>
-              <label class="block text-sm font-medium mb-1">Password Baru</label>
-              <input type="password" name="newPassword" required class="w-full border rounded p-2">
+            <div class="input-group">
+              <label class="input-label">Password Baru</label>
+              <input type="password" name="newPassword" class="input" placeholder="••••••••" required>
             </div>
-            <button type="submit" class="w-full bg-orange-500 text-white py-2 rounded hover:bg-orange-600">Reset Password</button>
+            <button type="submit" class="btn btn-primary" style="width: 100%; margin-top: 24px;">Reset Password</button>
           </form>
-          <p class="mt-4 text-center text-sm"><a href="/login" class="text-blue-500">Kembali ke Login</a></p>
+          <div class="login-footer">
+            <p><a href="/login">Kembali ke Login</a></p>
+          </div>
         </div>
       </div>
+      <style>
+        .login-page {
+          min-height: 100vh;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #f5427e 0%, #ff7da3 100%);
+        }
+        .login-card {
+          background: var(--color-bg);
+          border-radius: var(--radius-lg);
+          padding: var(--space-xl);
+          width: 400px;
+          box-shadow: var(--shadow-lg);
+        }
+        .login-header {
+          text-align: center;
+          margin-bottom: var(--space-lg);
+        }
+        .login-logo {
+          font-size: 28px;
+          font-weight: 700;
+          color: var(--color-primary);
+          margin-bottom: var(--space-sm);
+        }
+        .login-footer {
+          margin-top: var(--space-lg);
+          text-align: center;
+          font-size: 14px;
+        }
+        .login-footer p {
+          margin: var(--space-xs) 0;
+        }
+      </style>
       <script>
         document.getElementById('forgot-form').addEventListener('submit', async (e) => {
           e.preventDefault();
@@ -197,8 +322,8 @@ const app = new Elysia()
     `);
   })
   
-  .get('/', async ({ cookies, headers }) => {
-    const token = getTokenFromCookies(cookies, headers);
+  .get('/', async ({ cookie, headers }) => {
+    const token = getTokenFromCookies(cookie, headers);
     if (!token) return redirectToLogin();
     
     let user = null;
@@ -209,18 +334,156 @@ const app = new Elysia()
     }
     
     return htmlResponse(`
-      <div class="container mx-auto p-4">
-        <div class="flex justify-between items-center mb-4">
-          <h1 class="text-2xl font-bold">Restaurant POS</h1>
-          <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout (${user.name})</button>
-        </div>
-        <div class="grid grid-cols-3 gap-4">
-          <a href="/pos" class="bg-blue-500 text-white p-4 rounded text-center hover:bg-blue-600">POS</a>
-          <a href="/menu" class="bg-green-500 text-white p-4 rounded text-center hover:bg-green-600">Menu</a>
-          <a href="/tables" class="bg-purple-500 text-white p-4 rounded text-center hover:bg-purple-600">Tables</a>
-          <a href="/orders" class="bg-yellow-500 text-white p-4 rounded text-center hover:bg-yellow-600">Orders</a>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-logo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+              </svg>
+              POS App
+            </div>
+          </div>
+          <nav class="sidebar-nav">
+            <ul class="sidebar-menu">
+              <li class="sidebar-menu-item">
+                <a href="/" class="sidebar-menu-link active">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  Dashboard
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/pos" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                  POS
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/menu" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  Menu
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/tables" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  Meja
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/orders" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                  Pesanan
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="navbar-user" onclick="logout()" style="cursor: pointer;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Logout (${user.name})</span>
+            </div>
+          </div>
+        </aside>
+        
+        <div class="app-content">
+          <header class="navbar">
+            <h1 class="navbar-title">Dashboard</h1>
+            <div class="navbar-right">
+              <div class="navbar-user">
+                <div class="navbar-user-avatar">${user.name.charAt(0).toUpperCase()}</div>
+                <span class="navbar-user-name">${user.name}</span>
+              </div>
+            </div>
+          </header>
+          
+          <main class="app-main">
+            <div class="stats-grid">
+              <div class="stats-card">
+                <div class="stats-label">Total Penjualan</div>
+                <div class="stats-value">Rp 0</div>
+                <div class="stats-change">Hari ini</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Total Pesanan</div>
+                <div class="stats-value">0</div>
+                <div class="stats-change">Hari ini</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Meja Terpakai</div>
+                <div class="stats-value">0</div>
+                <div class="stats-change">Dari 0 total</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Menu Tersedia</div>
+                <div class="stats-value">0</div>
+                <div class="stats-change">Total menu</div>
+              </div>
+            </div>
+            
+            <div class="card">
+              <div class="card-header">
+                <h3 class="card-title">Menu Cepat</h3>
+              </div>
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+                <a href="/pos" class="quick-link">
+                  <div class="quick-icon" style="background: var(--color-primary-10);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--color-primary)" stroke="none"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                  </div>
+                  <span>Buka POS</span>
+                </a>
+                <a href="/menu" class="quick-link">
+                  <div class="quick-icon" style="background: rgba(16, 185, 129, 0.1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--color-success)" stroke="none"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline></svg>
+                  </div>
+                  <span>Kelola Menu</span>
+                </a>
+                <a href="/tables" class="quick-link">
+                  <div class="quick-icon" style="background: rgba(245, 158, 11, 0.1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="var(--color-warning)" stroke="none"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  </div>
+                  <span>Kelola Meja</span>
+                </a>
+                <a href="/orders" class="quick-link">
+                  <div class="quick-icon" style="background: rgba(139, 92, 246, 0.1);">
+                    <svg width="24" height="24" viewBox="0 0 24 24" fill="#8b5cf6" stroke="none"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line></svg>
+                  </div>
+                  <span>Lihat Pesanan</span>
+                </a>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
+      <style>
+        .quick-link {
+          display: flex;
+          flex-direction: column;
+          align-items: center;
+          gap: 12px;
+          padding: 24px;
+          border-radius: var(--radius-lg);
+          background: var(--color-bg-alt);
+          transition: var(--transition);
+          text-decoration: none;
+          color: var(--color-text);
+        }
+        .quick-link:hover {
+          background: var(--color-bg-hover);
+          transform: translateY(-2px);
+        }
+        .quick-icon {
+          width: 48px;
+          height: 48px;
+          border-radius: var(--radius-md);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+        }
+        .quick-link span {
+          font-weight: 500;
+        }
+      </style>
       <script>
         function logout() {
           fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
@@ -230,8 +493,8 @@ const app = new Elysia()
     `);
   })
   
-  .get('/pos', async ({ cookies, headers }) => {
-    const token = getTokenFromCookies(cookies, headers);
+  .get('/pos', async ({ cookie, headers }) => {
+    const token = getTokenFromCookies(cookie, headers);
     if (!token) return redirectToLogin();
     
     let user = null;
@@ -252,35 +515,97 @@ const app = new Elysia()
     const todayTotal = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total || 0), 0);
     
     return htmlResponse(`
-      <div class="flex h-screen">
-        <div class="w-32 bg-gray-800 p-4 text-white">
-          <h2 class="text-lg font-bold mb-4">Meja</h2>
-          <div class="grid grid-cols-2 gap-2" id="tables-grid">
-            ${tables.map(t => `<button class="p-2 rounded ${t.status === 'available' ? 'bg-green-600 hover:bg-green-700' : 'bg-red-600 hover:bg-red-700'} table-btn" data-table-id="${t.id}">${t.tableNumber}</button>`).join('')}
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-logo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+              </svg>
+              POS App
+            </div>
           </div>
-          <button class="mt-4 w-full bg-gray-600 p-2 rounded hover:bg-gray-500" onclick="addTable()">+ Tambah</button>
-        </div>
+          <nav class="sidebar-nav">
+            <ul class="sidebar-menu">
+              <li class="sidebar-menu-item">
+                <a href="/" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  Dashboard
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/pos" class="sidebar-menu-link active">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                  POS
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/menu" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  Menu
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/tables" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  Meja
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/orders" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                  Pesanan
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="navbar-user" onclick="logout()" style="cursor: pointer;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Logout</span>
+            </div>
+          </div>
+        </aside>
         
-        <div class="flex-1 p-4 overflow-auto">
-          <div class="flex gap-2 mb-4">
-            <button class="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600" onclick="filterMenu('all')">Semua</button>
-            <button class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="filterMenu('makanan')">Makanan</button>
-            <button class="px-4 py-2 bg-gray-200 rounded hover:bg-gray-300" onclick="filterMenu('minuman')">Minuman</button>
-          </div>
+        <div class="app-content" style="margin-left: 0; width: 100%;">
+          <header class="navbar" style="left: 0;">
+            <h1 class="navbar-title">Point of Sale</h1>
+          </header>
           
-          <div class="grid grid-cols-4 gap-4" id="menu-grid">
-            ${menus.map(m => `<button class="p-4 bg-white rounded shadow hover:shadow-lg text-center menu-item" data-category="${m.category}" onclick="addToCart(${m.id}, '${m.name}', ${m.price})"><div class="font-bold">${m.name}</div><div class="text-green-600">${m.price.toLocaleString('id-ID')}</div></button>`).join('')}
-          </div>
-        </div>
-        
-        <div class="w-80 bg-white p-4 shadow-lg flex flex-col">
-          <h2 class="text-lg font-bold mb-4 border-b pb-2">Cart</h2>
-          <div id="cart-zone" class="flex-1 overflow-auto">
-            <p class="text-gray-500 text-center mt-4">Pilih meja terlebih dahulu</p>
-          </div>
+          <main class="app-main" style="padding: 0; display: flex; height: calc(100vh - 64px);">
+            <div class="pos-tables" style="width: 200px; background: var(--color-text); padding: 16px; overflow-y: auto;">
+              <h3 style="color: white; margin-bottom: 16px; font-size: 16px;">Meja</h3>
+              <div style="display: grid; grid-template-columns: repeat(2, 1fr); gap: 8px;">
+                ${tables.map(t => `<button class="table-btn" data-table-id="${t.id}" style="padding: 12px; border-radius: 8px; border: none; cursor: pointer; font-weight: 600; ${t.status === 'available' ? 'background: var(--color-success); color: white;' : 'background: var(--color-error); color: white;'}">${t.tableNumber}</button>`).join('')}
+              </div>
+              <button onclick="addTable()" style="margin-top: 16px; width: 100%; padding: 12px; background: var(--color-text-secondary); color: white; border: none; border-radius: 8px; cursor: pointer;">+ Tambah</button>
+            </div>
+            
+            <div class="pos-menu" style="flex: 1; padding: 16px; overflow-y: auto;">
+              <div style="display: flex; gap: 8px; margin-bottom: 16px;">
+                <button class="btn btn-primary" onclick="filterMenu('all')">Semua</button>
+                <button class="btn btn-secondary" onclick="filterMenu('makanan')">Makanan</button>
+                <button class="btn btn-secondary" onclick="filterMenu('minuman')">Minuman</button>
+              </div>
+              
+              <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px;">
+                ${menus.map(m => `<button class="menu-item" data-category="${m.category}" onclick="addToCart(${m.id}, '${m.name}', ${m.price})" style="padding: 16px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-lg); cursor: pointer; text-align: center; transition: var(--transition);"><div style="font-weight: 600; margin-bottom: 4px;">${m.name}</div><div style="color: var(--color-primary); font-weight: 700;">${m.price.toLocaleString('id-ID')}</div></button>`).join('')}
+              </div>
+            </div>
+            
+            <div class="pos-cart" style="width: 320px; background: var(--color-bg); border-left: 1px solid var(--color-border); padding: 16px; display: flex; flex-direction: column;">
+              <h3 style="margin-bottom: 16px; padding-bottom: 16px; border-bottom: 1px solid var(--color-border);">Cart</h3>
+              <div id="cart-zone" style="flex: 1; overflow-y: auto;">
+                <p class="text-center text-secondary" style="padding: 40px 0;">Pilih meja terlebih dahulu</p>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
-      
+      <style>
+        .menu-item:hover { border-color: var(--color-primary) !important; transform: translateY(-2px); box-shadow: var(--shadow-md); }
+        .table-btn:hover { opacity: 0.9; }
+      </style>
       <script>
         let currentOrderId = null;
         let currentUserId = ${user.userId};
@@ -303,18 +628,18 @@ const app = new Elysia()
         
         function renderCart(order, items) {
           const cartZone = document.getElementById('cart-zone');
-          if (!order || !items.length) { cartZone.innerHTML = '<p class="text-gray-500 text-center mt-4">Cart kosong</p>'; return; }
+          if (!order || !items.length) { cartZone.innerHTML = '<p class="text-center text-secondary" style="padding: 40px 0;">Cart kosong</p>'; return; }
           
-          let html = '<div class="space-y-2">';
+          let html = '<div style="display: flex; flex-direction: column; gap: 12px;">';
           items.forEach(item => {
-            html += '<div class="flex justify-between items-center border-b py-2"><div><div class="font-bold">' + (item.menuName || 'Item') + '</div><div class="text-sm text-gray-500">x' + item.quantity + '</div></div><div class="flex items-center gap-2"><span>' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</span><button class="text-red-500" onclick="removeItem(' + item.id + ')">x</button></div></div>';
+            html += '<div style="display: flex; justify-content: space-between; align-items: center; padding-bottom: 12px; border-bottom: 1px solid var(--color-border);"><div><div style="font-weight: 600;">' + (item.menuName || 'Item') + '</div><div style="font-size: 13px; color: var(--color-text-secondary);">x' + item.quantity + '</div></div><div style="display: flex; align-items: center; gap: 12px;"><span style="font-weight: 600;">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</span><button onclick="removeItem(' + item.id + ')" style="color: var(--color-error); background: none; border: none; cursor: pointer; font-size: 18px;">x</button></div></div>';
           });
           html += '</div>';
           
           const subtotal = order.subtotal || 0, tax = order.tax || 0, total = order.total || 0;
-          html += '<div class="mt-4 border-t pt-4"><div class="flex justify-between"><span>Subtotal:</span><span>' + subtotal.toLocaleString('id-ID') + '</span></div><div class="flex justify-between"><span>Pajak (10%):</span><span>' + tax.toLocaleString('id-ID') + '</span></div><div class="flex justify-between font-bold text-lg"><span>Total:</span><span>' + total.toLocaleString('id-ID') + '</span></div></div>';
-          html += '<div class="mt-4"><label class="block text-sm font-bold mb-1">Uang Diterima:</label><input type="number" id="amount-paid" class="w-full border rounded p-2" placeholder="0"><div class="mt-2 text-sm">Kembalian: <span id="change-due">0</span></div></div>';
-          html += '<div class="mt-4 flex gap-2"><button onclick="cancelOrder()" class="flex-1 bg-red-500 text-white py-2 rounded hover:bg-red-600">Batal</button><button onclick="processPayment()" class="flex-1 bg-green-500 text-white py-2 rounded hover:bg-green-600">Bayar</button></div>';
+          html += '<div style="margin-top: 16px; padding-top: 16px; border-top: 1px solid var(--color-border);"><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Subtotal:</span><span>' + subtotal.toLocaleString('id-ID') + '</span></div><div style="display: flex; justify-content: space-between; margin-bottom: 8px;"><span>Pajak (10%):</span><span>' + tax.toLocaleString('id-ID') + '</span></div><div style="display: flex; justify-content: space-between; font-weight: 700; font-size: 18px;"><span>Total:</span><span>' + total.toLocaleString('id-ID') + '</span></div></div>';
+          html += '<div style="margin-top: 16px;"><label style="display: block; font-weight: 600; margin-bottom: 8px;">Uang Diterima:</label><input type="number" id="amount-paid" class="input" placeholder="0" style="width: 100%;"><div style="margin-top: 8px; font-size: 13px;">Kembalian: <span id="change-due">0</span></div></div>';
+          html += '<div style="margin-top: 16px; display: flex; gap: 8px;"><button onclick="cancelOrder()" class="btn btn-danger" style="flex: 1;">Batal</button><button onclick="processPayment()" class="btn btn-primary" style="flex: 1;">Bayar</button></div>';
           
           cartZone.innerHTML = html;
           document.getElementById('amount-paid').addEventListener('input', function() {
@@ -341,14 +666,14 @@ const app = new Elysia()
           });
           const data = await response.json();
           if (data.error) { alert(data.error); }
-          else { alert('Pembayaran berhasil!\\n\\n' + data.receipt); currentOrderId = null; document.getElementById('cart-zone').innerHTML = '<p class="text-gray-500 text-center mt-4">Pilih meja terlebih dahulu</p>'; location.reload(); }
+          else { alert('Pembayaran berhasil!\\n\\n' + data.receipt); currentOrderId = null; document.getElementById('cart-zone').innerHTML = '<p class="text-center text-secondary" style="padding: 40px 0;">Pilih meja terlebih dahulu</p>'; location.reload(); }
         }
         
         async function cancelOrder() {
           if (!currentOrderId || !confirm('Batalkan pesanan?')) return;
           await fetch('/api/orders/' + currentOrderId + '/cancel', { method: 'POST' });
           currentOrderId = null;
-          document.getElementById('cart-zone').innerHTML = '<p class="text-gray-500 text-center mt-4">Pilih meja terlebih dahulu</p>';
+          document.getElementById('cart-zone').innerHTML = '<p class="text-center text-secondary" style="padding: 40px 0;">Pilih meja terlebih dahulu</p>';
           location.reload();
         }
         
@@ -381,12 +706,17 @@ const app = new Elysia()
           currentOrderId = newOrder.id;
           renderCart(newOrder, []);
         }
+        
+        function logout() {
+          fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .then(() => window.location.href = '/login');
+        }
       </script>
     `);
   })
   
-  .get('/menu', async ({ cookies, headers }) => {
-    const token = getTokenFromCookies(cookies, headers);
+  .get('/menu', async ({ cookie, headers }) => {
+    const token = getTokenFromCookies(cookie, headers);
     if (!token) return redirectToLogin();
     
     let user = null;
@@ -400,38 +730,100 @@ const app = new Elysia()
     const menus = await getAllMenus();
     
     return htmlResponse(`
-      <div class="container mx-auto p-4">
-        <div class="flex justify-between items-center mb-4">
-          <h1 class="text-2xl font-bold">Menu Management</h1>
-          <button onclick="showAddMenuModal()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">+ Tambah Menu</button>
-        </div>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-logo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+              </svg>
+              POS App
+            </div>
+          </div>
+          <nav class="sidebar-nav">
+            <ul class="sidebar-menu">
+              <li class="sidebar-menu-item">
+                <a href="/" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  Dashboard
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/pos" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                  POS
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/menu" class="sidebar-menu-link active">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  Menu
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/tables" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  Meja
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/orders" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                  Pesanan
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="navbar-user" onclick="logout()" style="cursor: pointer;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Logout</span>
+            </div>
+          </div>
+        </aside>
         
-        <div class="mb-4">
-          <button class="px-4 py-2 bg-blue-500 text-white rounded mr-2" onclick="filterMenus('all')">Semua</button>
-          <button class="px-4 py-2 bg-gray-200 rounded mr-2" onclick="filterMenus('makanan')">Makanan</button>
-          <button class="px-4 py-2 bg-gray-200 rounded" onclick="filterMenus('minuman')">Minuman</button>
-        </div>
-        
-        <div class="bg-white rounded shadow overflow-hidden">
-          <table class="w-full">
-            <thead class="bg-gray-100">
-              <tr><th class="p-3 text-left">Nama</th><th class="p-3 text-left">Harga</th><th class="p-3 text-left">Kategori</th><th class="p-3 text-left">Status</th><th class="p-3 text-left">Aksi</th></tr>
-            </thead>
-            <tbody>
-              ${menus.map(m => `
-                <tr class="border-t menu-row" data-category="${m.category}">
-                  <td class="p-3">${m.name}</td>
-                  <td class="p-3">${m.price.toLocaleString('id-ID')}</td>
-                  <td class="p-3"><span class="px-2 py-1 rounded text-sm ${m.category === 'makanan' ? 'bg-orange-100' : 'bg-blue-100'}">${m.category}</span></td>
-                  <td class="p-3"><button onclick="toggleMenu(${m.id})" class="px-2 py-1 rounded text-sm ${m.isAvailable ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${m.isAvailable ? 'Tersedia' : 'Tidak Tersedia'}</button></td>
-                  <td class="p-3"><button onclick="editMenu(${m.id}, '${m.name}', ${m.price})" class="text-blue-500 mr-2">Edit</button><button onclick="deleteMenu(${m.id})" class="text-red-500">Hapus</button></td>
-                </tr>
-              `).join('')}
-            </tbody>
-          </table>
+        <div class="app-content">
+          <header class="navbar">
+            <h1 class="navbar-title">Kelola Menu</h1>
+            <div class="navbar-right">
+              <button class="btn btn-primary" onclick="showAddMenuModal()">+ Tambah Menu</button>
+            </div>
+          </header>
+          
+          <main class="app-main">
+            <div class="card">
+              <div class="card-header">
+                <div style="display: flex; gap: 8px;">
+                  <button class="btn btn-primary" onclick="filterMenus('all')">Semua</button>
+                  <button class="btn btn-secondary" onclick="filterMenus('makanan')">Makanan</button>
+                  <button class="btn btn-secondary" onclick="filterMenus('minuman')">Minuman</button>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table">
+                  <thead>
+                    <tr><th>Nama</th><th>Harga</th><th>Kategori</th><th>Status</th><th>Aksi</th></tr>
+                  </thead>
+                  <tbody>
+                    ${menus.map(m => `
+                      <tr class="menu-row" data-category="${m.category}">
+                        <td><strong>${m.name}</strong></td>
+                        <td>Rp ${m.price.toLocaleString('id-ID')}</td>
+                        <td><span class="badge ${m.category === 'makanan' ? 'badge-warning' : 'badge-primary'}">${m.category}</span></td>
+                        <td><button onclick="toggleMenu(${m.id})" class="badge ${m.isAvailable ? 'badge-success' : 'badge-error'}">${m.isAvailable ? 'Tersedia' : 'Tidak Tersedia'}</button></td>
+                        <td>
+                          <button onclick="editMenu(${m.id}, '${m.name}', ${m.price})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</button>
+                          <button onclick="deleteMenu(${m.id})" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;">Hapus</button>
+                        </td>
+                      </tr>
+                    `).join('')}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </main>
         </div>
       </div>
-      
       <script>
         function filterMenus(cat) {
           document.querySelectorAll('.menu-row').forEach(row => { row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none'; });
@@ -454,12 +846,16 @@ const app = new Elysia()
           if (newPrice <= 0) { alert('Harga tidak valid'); return; }
           fetch('/api/menus/' + id, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: newName, price: newPrice }) }).then(() => location.reload());
         }
+        function logout() {
+          fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .then(() => window.location.href = '/login');
+        }
       </script>
     `);
   })
   
-  .get('/tables', async ({ cookies, headers }) => {
-    const token = getTokenFromCookies(cookies, headers);
+  .get('/tables', async ({ cookie, headers }) => {
+    const token = getTokenFromCookies(cookie, headers);
     if (!token) return redirectToLogin();
     
     let user = null;
@@ -473,25 +869,81 @@ const app = new Elysia()
     const tables = await getAllTables();
     
     return htmlResponse(`
-      <div class="container mx-auto p-4">
-        <div class="flex justify-between items-center mb-4">
-          <h1 class="text-2xl font-bold">Table Management</h1>
-          <button onclick="addTable()" class="bg-blue-500 text-white px-4 py-2 rounded hover:bg-blue-600">+ Tambah Meja</button>
-        </div>
-        
-        <div class="grid grid-cols-4 gap-4">
-          ${tables.map(t => `
-            <div class="bg-white rounded shadow p-4 text-center">
-              <div class="text-2xl font-bold mb-2">Meja ${t.tableNumber}</div>
-              <div class="mb-2">
-                <span class="px-2 py-1 rounded text-sm ${t.status === 'available' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}">${t.status === 'available' ? 'Tersedia' : 'Terisi'}</span>
-              </div>
-              <button onclick="deleteTable(${t.id})" class="text-red-500 text-sm">Hapus</button>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-logo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+              </svg>
+              POS App
             </div>
-          `).join('')}
+          </div>
+          <nav class="sidebar-nav">
+            <ul class="sidebar-menu">
+              <li class="sidebar-menu-item">
+                <a href="/" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  Dashboard
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/pos" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                  POS
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/menu" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  Menu
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/tables" class="sidebar-menu-link active">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  Meja
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/orders" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                  Pesanan
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="navbar-user" onclick="logout()" style="cursor: pointer;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Logout</span>
+            </div>
+          </div>
+        </aside>
+        
+        <div class="app-content">
+          <header class="navbar">
+            <h1 class="navbar-title">Kelola Meja</h1>
+            <div class="navbar-right">
+              <button class="btn btn-primary" onclick="addTable()">+ Tambah Meja</button>
+            </div>
+          </header>
+          
+          <main class="app-main">
+            <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
+              ${tables.map(t => `
+                <div class="card" style="text-align: center;">
+                  <div style="font-size: 32px; font-weight: 700; margin-bottom: 8px; color: var(--color-text);">Meja ${t.tableNumber}</div>
+                  <div style="margin-bottom: 16px;">
+                    <span class="badge ${t.status === 'available' ? 'badge-success' : 'badge-error'}">${t.status === 'available' ? 'Tersedia' : 'Terisi'}</span>
+                  </div>
+                  <button onclick="deleteTable(${t.id})" class="btn btn-danger" style="padding: 8px 16px; font-size: 13px;">Hapus</button>
+                </div>
+              `).join('')}
+            </div>
+          </main>
         </div>
       </div>
-      
       <script>
         async function addTable() {
           const num = parseInt(prompt('Nomor Meja:'));
@@ -506,12 +958,16 @@ const app = new Elysia()
           await fetch('/api/tables/' + id, { method: 'DELETE' });
           location.reload();
         }
+        function logout() {
+          fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .then(() => window.location.href = '/login');
+        }
       </script>
     `);
   })
   
-  .get('/orders', async ({ cookies, headers }) => {
-    const token = getTokenFromCookies(cookies, headers);
+  .get('/orders', async ({ cookie, headers }) => {
+    const token = getTokenFromCookies(cookie, headers);
     if (!token) return redirectToLogin();
     
     let user = null;
@@ -533,29 +989,98 @@ const app = new Elysia()
     const todayTotal = ordersWithUser.filter((o: any) => o.orders?.status === 'completed').reduce((sum: number, o: any) => sum + (o.orders?.total || 0), 0);
     
     return htmlResponse(`
-      <div class="container mx-auto p-4">
-        <div class="flex justify-between items-center mb-4">
-          <h1 class="text-2xl font-bold">Today's Orders</h1>
-          <div class="text-xl font-bold">Total: Rp ${todayTotal.toLocaleString('id-ID')}</div>
-        </div>
-        
-        <div class="space-y-4">
-          ${ordersWithUser.length === 0 ? '<p class="text-gray-500">Belum ada pesanan hari ini</p>' : ''}
-          ${ordersWithUser.map((o: any) => `
-            <div class="bg-white rounded shadow p-4">
-              <div class="flex justify-between items-start mb-2">
-                <div>
-                  <span class="font-bold">Meja ${o.tables?.tableNumber || '-'}</span>
-                  <span class="text-gray-500 ml-2">by ${o.userName}</span>
-                </div>
-                <span class="px-2 py-1 rounded text-sm ${o.orders?.status === 'completed' ? 'bg-green-100 text-green-800' : o.orders?.status === 'cancelled' ? 'bg-red-100 text-red-800' : 'bg-yellow-100 text-yellow-800'}">${o.orders?.status === 'active' ? 'Aktif' : o.orders?.status === 'completed' ? 'Selesai' : 'Dibatal'}</span>
-              </div>
-              <div class="text-lg font-bold">Rp ${(o.orders?.total || 0).toLocaleString('id-ID')}</div>
-              <div class="text-sm text-gray-500">${new Date(o.orders?.createdAt).toLocaleString('id-ID')}</div>
+      <div class="app-layout">
+        <aside class="sidebar">
+          <div class="sidebar-header">
+            <div class="sidebar-logo">
+              <svg width="24" height="24" viewBox="0 0 24 24" fill="currentColor">
+                <path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l4.59-4.58L18 11l-6 6z"/>
+              </svg>
+              POS App
             </div>
-          `).join('')}
+          </div>
+          <nav class="sidebar-nav">
+            <ul class="sidebar-menu">
+              <li class="sidebar-menu-item">
+                <a href="/" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="7"></rect><rect x="14" y="3" width="7" height="7"></rect><rect x="14" y="14" width="7" height="7"></rect><rect x="3" y="14" width="7" height="7"></rect></svg>
+                  Dashboard
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/pos" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2L2 7l10 5 10-5-10-5z"></path><path d="M2 17l10 5 10-5"></path><path d="M2 12l10 5 10-5"></path></svg>
+                  POS
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/menu" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
+                  Menu
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/tables" class="sidebar-menu-link">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="3" y1="10" x2="21" y2="10"></line></svg>
+                  Meja
+                </a>
+              </li>
+              <li class="sidebar-menu-item">
+                <a href="/orders" class="sidebar-menu-link active">
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M6 2L3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"></path><line x1="3" y1="6" x2="21" y2="6"></line><path d="M16 10a4 4 0 0 1-8 0"></path></svg>
+                  Pesanan
+                </a>
+              </li>
+            </ul>
+          </nav>
+          <div class="sidebar-footer">
+            <div class="navbar-user" onclick="logout()" style="cursor: pointer;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path><polyline points="16 17 21 12 16 7"></polyline><line x1="21" y1="12" x2="9" y2="12"></line></svg>
+              <span>Logout</span>
+            </div>
+          </div>
+        </aside>
+        
+        <div class="app-content">
+          <header class="navbar">
+            <h1 class="navbar-title">Pesanan Hari Ini</h1>
+            <div class="navbar-right">
+              <div style="font-size: 18px; font-weight: 600;">Total: Rp ${todayTotal.toLocaleString('id-ID')}</div>
+            </div>
+          </header>
+          
+          <main class="app-main">
+            <div class="card">
+              ${ordersWithUser.length === 0 ? '<p class="text-center text-secondary" style="padding: 40px;">Belum ada pesanan hari ini</p>' : `
+                <div class="table-container">
+                  <table class="table">
+                    <thead>
+                      <tr><th>Meja</th><th>Pelanggan</th><th>Total</th><th>Status</th><th>Waktu</th></tr>
+                    </thead>
+                    <tbody>
+                      ${ordersWithUser.map((o: any) => `
+                        <tr>
+                          <td><strong>Meja ${o.tables?.tableNumber || '-'}</strong></td>
+                          <td>${o.userName}</td>
+                          <td>Rp ${(o.orders?.total || 0).toLocaleString('id-ID')}</td>
+                          <td><span class="badge ${o.orders?.status === 'completed' ? 'badge-success' : o.orders?.status === 'cancelled' ? 'badge-error' : 'badge-warning'}">${o.orders?.status === 'active' ? 'Aktif' : o.orders?.status === 'completed' ? 'Selesai' : 'Dibatal'}</span></td>
+                          <td>${new Date(o.orders?.createdAt).toLocaleString('id-ID')}</td>
+                        </tr>
+                      `).join('')}
+                    </tbody>
+                  </table>
+                </div>
+              `}
+            </div>
+          </main>
         </div>
       </div>
+      <script>
+        function logout() {
+          fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .then(() => window.location.href = '/login');
+        }
+      </script>
     `);
   })
   .listen(process.env.PORT || 3000);
