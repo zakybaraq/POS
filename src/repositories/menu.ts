@@ -44,3 +44,10 @@ export async function toggleAvailability(id: number) {
   await db.update(menus).set({ isAvailable: !menu.isAvailable }).where(eq(menus.id, id));
   return getMenuById(id);
 }
+
+export async function getMenuStats() {
+  const allMenus = await db.select().from(menus);
+  const total = allMenus.length;
+  const available = allMenus.filter(m => m.isAvailable).length;
+  return { total, available };
+}

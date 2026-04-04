@@ -1,4 +1,4 @@
-import { eq } from 'drizzle-orm';
+import { eq, sql } from 'drizzle-orm';
 import { db } from '../db/index';
 import { tables } from '../db/schema';
 import type { Table, NewTable } from '../db/schema';
@@ -33,4 +33,12 @@ export async function updateTableStatus(id: number, status: 'available' | 'occup
 
 export async function deleteTable(id: number) {
   return db.delete(tables).where(eq(tables.id, id));
+}
+
+export async function getTableStats() {
+  const allTables = await db.select().from(tables);
+  const total = allTables.length;
+  const occupied = allTables.filter(t => t.status === 'occupied').length;
+  const available = total - occupied;
+  return { total, occupied, available };
 }

@@ -1,6 +1,6 @@
-import { eq, and, gte, desc } from 'drizzle-orm';
+import { eq, and, gte, desc, sql, sum } from 'drizzle-orm';
 import { db } from '../db/index';
-import { orders, orderItems, tables } from '../db/schema';
+import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
 
 function todayStart() {
@@ -84,4 +84,49 @@ export async function calculateTotals(orderId: number) {
   const total = subtotal + tax;
   await updateOrderTotals(orderId, subtotal, tax, total);
   return { subtotal, tax, total };
+}
+
+export async function getTodaySales() {
+  const result = await db.select({ total: sum(orders.total) })
+    .from(orders)
+    .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')));
+  return Number(result[0]?.total || 0);
+}
+
+export async function getTodayOrders() {
+  const result = await db.select({ count: sql<number>`count(*)` })
+    .from(orders)
+    .where(gte(orders.createdAt, todayStart()));
+  return Number(result[0]?.count || 0);
+}
+
+export async function getRecentOrders(limit: number = 5) {
+  return db.select({
+    id: orders.id,
+    tableId: orders.tableId,
+    total: orders.total,
+    status: orders.status,
+    createdAt: orders.createdAt,
+    tableNumber: tables.tableNumber,
+  })
+  .from(orders)
+  .leftJoin(tables, eq(orders.tableId, tables.id))
+  .where(gte(orders.createdAt, todayStart()))
+  .orderBy(desc(orders.createdAt))
+  .limit(limit);
+}
+
+export async function getTopMenus(limit: number = 5) {
+  return db.select({
+    name: menus.name,
+    totalSold: sum(orderItems.quantity).mapWith(Number),
+    revenue: sum(sql`${orderItems.priceAtOrder} * ${orderItems.quantity}`).mapWith(Number),
+  })
+  .from(orderItems)
+  .leftJoin(menus, eq(orderItems.menuId, menus.id))
+  .leftJoin(orders, eq(orderItems.orderId, orders.id))
+  .where(gte(orders.createdAt, todayStart()))
+  .groupBy(menus.name)
+  .orderBy(desc(sum(orderItems.quantity)))
+  .limit(limit);
 }
