@@ -188,9 +188,9 @@ export const tablesPage = new Elysia()
         function showToastLocal(msg, type) {
           const container = document.getElementById('toast-container');
           if (!container) { alert(msg); return; }
-          const colors = { success: 'var(--color-success)', warning: 'var(--color-warning)', error: 'var(--color-error)' };
+          const colors = { success: '#10b981', warning: '#f59e0b', error: '#ef4444' };
           const toast = document.createElement('div');
-          toast.style.cssText = 'padding:12px 20px;border-radius:var(--radius-md);color:white;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:var(--shadow-lg);min-width:250px;background:' + (colors[type] || colors.success);
+          toast.style.cssText = 'padding:12px 20px;border-radius:8px;color:white;font-size:14px;font-weight:500;display:flex;align-items:center;gap:8px;box-shadow:0 4px 6px rgba(0,0,0,0.1);min-width:250px;background:' + (colors[type] || colors.success);
           toast.innerHTML = '<span>' + msg + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">&times;</button>';
           container.appendChild(toast);
           setTimeout(() => toast.remove(), 3000);
