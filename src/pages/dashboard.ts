@@ -8,6 +8,7 @@ import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth
 import * as orderRepo from '../repositories/order';
 import * as tableRepo from '../repositories/table';
 import * as menuRepo from '../repositories/menu';
+import * as invRepo from '../repositories/inventory';
 
 function getGreeting(name: string) {
   const hour = new Date().getHours();
@@ -46,6 +47,7 @@ export const dashboardPage = new Elysia()
     const topMenus = await orderRepo.getTopMenus(5);
 
     const greeting = getGreeting(user.name);
+    const lowStockItems = await invRepo.getLowStockIngredients();
     const tablePercent = tableStats.total > 0 ? Math.round((tableStats.occupied / tableStats.total) * 100) : 0;
     const filledBar = '█'.repeat(Math.round(tablePercent / 10));
     const emptyBar = '░'.repeat(10 - Math.round(tablePercent / 10));
@@ -70,6 +72,12 @@ export const dashboardPage = new Elysia()
             <div style="margin-bottom: 24px;">
               <h2 style="margin: 0; font-size: 24px;">${greeting}</h2>
               <p style="color: var(--color-text-secondary); margin: 4px 0 0;">Ringkasan bisnis restoran Anda hari ini</p>
+              ${lowStockItems.length > 0 ? `
+              <div style="margin-top: 16px; padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--color-warning); border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px;">
+                <span style="font-size: 18px;">⚠️</span>
+                <span style="font-size: 14px; font-weight: 500;">${lowStockItems.length} bahan baku stok rendah: ${lowStockItems.map((i: any) => i.name).join(', ')}</span>
+                <a href="/inventory" style="margin-left: auto; color: var(--color-warning); font-weight: 600; font-size: 13px; text-decoration: none;">Lihat →</a>
+              </div>` : ''}
             </div>
 
             <div class="stats-grid">

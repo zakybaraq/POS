@@ -12,6 +12,8 @@ import { tablesPage } from './pages/tables';
 import { ordersPage } from './pages/orders';
 import { productsPage } from './pages/products';
 
+import { inventoryPage } from './pages/inventory';
+
 const app = new Elysia()
   .use(routes)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
@@ -32,6 +34,7 @@ const app = new Elysia()
   .use(tablesPage)
   .use(ordersPage)
   .use(productsPage)
+  .use(inventoryPage)
   .listen(process.env.PORT || 3000);
 
 console.log(`Server running at http://localhost:${process.env.PORT || 3000}`);

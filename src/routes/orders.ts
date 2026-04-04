@@ -91,6 +91,9 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     await tableRepo.updateTableStatus(tableId, 'occupied');
     await orderRepo.updateOrderStatus(Number(order.id), 'active');
 
+    const { decrementStockForOrder } = await import('../repositories/inventory');
+    await decrementStockForOrder(Number(order.id));
+
     const finalOrder = await orderRepo.getOrderById(Number(order.id));
     const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
     return { order: finalOrder, items: orderItems };

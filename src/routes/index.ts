@@ -7,6 +7,7 @@ import { authRoutes } from './auth';
 import { userRoutes } from './users';
 import { dashboardRoutes } from './dashboard';
 import { auditLogRoutes } from './audit-log';
+import { inventoryRoutes } from './inventory';
 
 export const routes = new Elysia()
   .use(cookie())
@@ -16,4 +17,5 @@ export const routes = new Elysia()
   .use(authRoutes)
   .use(userRoutes)
   .use(dashboardRoutes)
-  .use(auditLogRoutes);
+  .use(auditLogRoutes)
+  .use(inventoryRoutes);

@@ -1,6 +1,6 @@
 // src/db/schema.ts
 
-import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index } from 'drizzle-orm/mysql-core';
+import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index, decimal } from 'drizzle-orm/mysql-core';
 import { relations } from 'drizzle-orm';
 
 export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
@@ -128,6 +128,43 @@ export const auditLogs = mysqlTable('audit_logs', {
   createdAtIdx: index('idx_audit_logs_created_at').on(table.createdAt),
 }));
 
+export const ingredients = mysqlTable('ingredients', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(),
+  currentStock: decimal('current_stock', { precision: 10, scale: 2 }).notNull().default('0'),
+  minStock: decimal('min_stock', { precision: 10, scale: 2 }).notNull().default('0'),
+  costPerUnit: int('cost_per_unit').notNull().default(0),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+}, (table) => ({
+  nameIdx: index('idx_ingredients_name').on(table.name),
+}));
+
+export const recipes = mysqlTable('recipes', {
+  id: serial('id').primaryKey(),
+  menuId: int('menu_id').notNull(),
+  ingredientId: int('ingredient_id').notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+}, (table) => ({
+  menuIdx: index('idx_recipes_menu_id').on(table.menuId),
+  ingredientIdx: index('idx_recipes_ingredient_id').on(table.ingredientId),
+}));
+
+export const stockMovements = mysqlTable('stock_movements', {
+  id: serial('id').primaryKey(),
+  ingredientId: int('ingredient_id').notNull(),
+  type: mysqlEnum('type', ['in', 'out', 'adjustment', 'waste']).notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  reason: varchar('reason', { length: 255 }),
+  referenceId: int('reference_id'),
+  userId: int('user_id'),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+}, (table) => ({
+  ingredientIdx: index('idx_stock_movements_ingredient_id').on(table.ingredientId),
+  createdAtIdx: index('idx_stock_movements_created_at').on(table.createdAt),
+}));
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -141,3 +178,9 @@ export type User = typeof users.$inferSelect;
 export type NewUser = typeof users.$inferInsert;
 export type AuditLog = typeof auditLogs.$inferSelect;
 export type NewAuditLog = typeof auditLogs.$inferInsert;
+export type Ingredient = typeof ingredients.$inferSelect;
+export type NewIngredient = typeof ingredients.$inferInsert;
+export type Recipe = typeof recipes.$inferSelect;
+export type NewRecipe = typeof recipes.$inferInsert;
+export type StockMovement = typeof stockMovements.$inferSelect;
+export type NewStockMovement = typeof stockMovements.$inferInsert;
