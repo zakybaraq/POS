@@ -1,327 +1,297 @@
-# Rencana Transformasi: POS System → Production-Ready Business POS
+# Sub-Issue 1.1: Inventory/Stock Management
+
+## Parent Issue
+[#35 — Roadmap: Transform POS ke Production-Ready Business System](https://github.com/zakybaraq/POS/issues/35)
 
 ## Latar Belakang
 
-Sistem POS saat ini hanya memiliki modul dasar:
-- ✅ Dashboard (basic stats)
-- ✅ POS (order & payment)
-- ✅ Menu Management
-- ✅ Table Management
-- ✅ Orders (today's orders)
-- ✅ Admin (user management)
+Restoran nyata **harus** tahu stok bahan baku. Tanpa inventory management:
+- Tidak tahu bahan apa yang hampir habis
+- Tidak bisa track bahan baku yang terbuang
+- Tidak ada alert saat stok menipis
+- Tidak bisa hitung cost of goods sold (COGS)
+- Tidak bisa mapping resep ke bahan baku
 
-**Ini tidak cukup untuk menangani bisnis restoran nyata.** Sistem POS kompetitor seperti Moka POS, Majoo, Qasir, dan Pawoon memiliki puluhan modul yang saling terintegrasi.
-
----
-
-## Analisis: Modul yang HARUS Ada untuk Bisnis Nyata
-
-### 🔴 KRITIS — Tanpa ini, sistem tidak layak produksi
-
-| # | Modul | Kenapa Penting | Estimasi |
-|---|-------|---------------|----------|
-| 1 | **Inventory/Stock Management** | Restoran harus tahu stok bahan baku, auto-decrement saat pesanan, alert stok habis | 8-12 jam |
-| 2 | **Customer Management** | Database pelanggan, riwayat belanja, membership, loyalty points | 6-8 jam |
-| 3 | **Reporting & Analytics** | Laporan penjualan harian/mingguan/bulanan, profit/loss, best seller | 8-10 jam |
-| 4 | **Settings/Business Config** | Info restoran, pajak, metode pembayaran, template struk, jam operasional | 4-6 jam |
-| 5 | **Supplier & Purchase Order** | Manajemen supplier, PO, penerimaan barang, harga beli | 6-8 jam |
-| 6 | **Employee/Shift Management** | Shift kasir, attendance, performa karyawan, komisi | 6-8 jam |
-
-### 🟡 PENTING — Meningkatkan efisiensi operasional
-
-| # | Modul | Kenapa Penting | Estimasi |
-|---|-------|---------------|----------|
-| 7 | **Kitchen Display System (KDS)** | Layar dapur untuk lihat pesanan masuk, update status masak | 6-8 jam |
-| 8 | **Promotions & Discounts** | Voucher, promo code, happy hour, diskon member, buy 1 get 1 | 6-8 jam |
-| 9 | **Reservation/Booking** | Reservasi meja, booking online, waitlist | 4-6 jam |
-| 10 | **Split Bill** | Bagi tagihan per orang atau per item | 4-6 jam |
-| 11 | **Delivery/Takeaway** | Order delivery, status pengiriman, ongkir | 6-8 jam |
-| 12 | **Multi-Payment Methods** | Cash, kartu, QRIS, e-wallet (GoPay, OVO, Dana), split payment | 6-8 jam |
-
-### 🟢 NILAI TAMBAH — Membedakan dari kompetitor
-
-| # | Modul | Kenapa Penting | Estimasi |
-|---|-------|---------------|----------|
-| 13 | **Loyalty Program** | Poin reward, tier member, redeem poin | 4-6 jam |
-| 14 | **Email/SMS Receipt** | Kirim struk via email atau SMS | 2-4 jam |
-| 15 | **Expense Management** | Catat pengeluaran operasional (listrik, gaji, bahan) | 4-6 jam |
-| 16 | **Multi-branch Support** | Kelola banyak cabang dari satu dashboard | 12-16 jam |
-| 17 | **API Integration** | Integrasi dengan GoFood, GrabFood, ShopeeFood | 8-12 jam |
-| 18 | **Barcode/QR Scanner** | Scan barcode untuk inventory, QR untuk menu digital | 4-6 jam |
+Modul ini adalah **modul paling penting** setelah modul POS yang sudah ada.
 
 ---
 
-## Rencana Implementasi Bertahap
+## Scope
 
-### Fase 1: Foundation (Week 1-2) — Modul KRITIS
+### Yang HARUS ada (MVP)
+1. **CRUD Bahan Baku** — Nama, satuan (kg, liter, pcs), stok saat ini, minimum stok, harga beli per satuan, supplier
+2. **CRUD Resep** — Mapping menu ke bahan baku (1 Nasi Goreng = 200g beras, 1 telur, 50g ayam, dll)
+3. **Auto-decrement Stok** — Saat pesanan dibuat di POS, stok bahan baku otomatis berkurang berdasarkan resep
+4. **Stock Movement Log** — Riwayat semua perubahan stok (masuk, keluar, adjustment)
+5. **Low Stock Alert** — Notifikasi di dashboard saat stok di bawah minimum
+6. **Manual Stock Adjustment** — Input stok masuk/keluar manual (untuk penyesuaian, waste, dll)
 
-#### 1.1 Inventory/Stock Management
-**File baru**: `src/pages/inventory.ts`, `src/routes/inventory.ts`, `src/repositories/inventory.ts`
-
-**Fitur**:
-- Database bahan baku (nama, satuan, stok, minimum stok, harga beli)
-- Auto-decrement stok saat pesanan dibuat (recipe mapping)
-- Alert stok hampir habis / habis
-- Stock in/out manual (penyesuaian stok)
-- Riwayat pergerakan stok
-
-**Schema baru**:
-```typescript
-// ingredients — bahan baku
-// recipes — mapping menu ke bahan baku
-// stock_movements — riwayat stok masuk/keluar
-```
-
-#### 1.2 Customer Management
-**File baru**: `src/pages/customers.ts`, `src/routes/customers.ts`
-
-**Fitur**:
-- CRUD pelanggan (nama, telepon, email, alamat)
-- Riwayat belanja per pelanggan
-- Membership tier (Regular, Silver, Gold)
-- Loyalty points (1 poin per Rp 10.000 belanja)
-
-**Schema baru**:
-```typescript
-// customers
-// customer_memberships
-// loyalty_transactions
-```
-
-#### 1.3 Reporting & Analytics
-**File baru**: `src/pages/reports.ts`
-
-**Fitur**:
-- Laporan penjualan (harian, mingguan, bulanan, custom range)
-- Laporan menu terlaris
-- Laporan kasir (performa per kasir)
-- Laporan okupansi meja
-- Grafik penjualan (chart.js atau vanilla JS bar chart)
-- Export laporan ke PDF/Excel
-
-#### 1.4 Settings/Business Config
-**File baru**: `src/pages/settings.ts`
-
-**Fitur**:
-- Info bisnis (nama, alamat, telepon, logo)
-- Pengaturan pajak (persentase, inclusive/exclusive)
-- Metode pembayaran aktif (cash, card, QRIS, e-wallet)
-- Template struk (header, footer, ukuran kertas)
-- Jam operasional
-- Backup & restore database
-
-#### 1.5 Supplier & Purchase Order
-**File baru**: `src/pages/suppliers.ts`, `src/pages/purchase-orders.ts`
-
-**Fitur**:
-- CRUD supplier
-- Buat purchase order
-- Terima barang (update stok otomatis)
-- Riwayat PO
-
-**Schema baru**:
-```typescript
-// suppliers
-// purchase_orders
-// purchase_order_items
-```
-
-#### 1.6 Employee/Shift Management
-**File baru**: `src/pages/employees.ts`, `src/pages/shifts.ts`
-
-**Fitur**:
-- Data karyawan (sudah ada di users, tambah field: jabatan, gaji, telepon)
-- Shift management (buka/tutup shift, cash count)
-- Attendance (clock in/clock out)
-- Performa kasir (total transaksi, rata-rata per transaksi)
+### Yang NANTI bisa ditambahkan (Phase 2)
+- Purchase Order otomatis saat stok di bawah minimum
+- Multi-satuan (beli dalam kg, pakai dalam gram)
+- Expiry date tracking
+- Batch/lot tracking
+- Barcode scanning
 
 ---
 
-### Fase 2: Operational Excellence (Week 3-4) — Modul PENTING
+## Tahap 1: Database Schema
 
-#### 2.1 Kitchen Display System (KDS)
-**File baru**: `src/pages/kitchen.ts`
+Buat 4 tabel baru di `src/db/schema.ts`:
 
-**Fitur**:
-- Real-time display pesanan masuk (WebSocket atau polling)
-- Update status: Pending → Cooking → Ready → Served
-- Timer per pesanan (warning jika terlalu lama)
-- Filter by station (makanan/minuman)
-
-#### 2.2 Promotions & Discounts
-**Schema baru**:
+### `ingredients` — Bahan Baku
 ```typescript
-// promotions (kode, tipe, nilai, periode, minimum belanja)
-// promotion_usage
+export const ingredients = mysqlTable('ingredients', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(), // kg, liter, pcs, gram, ml
+  currentStock: decimal('current_stock', { precision: 10, scale: 2 }).notNull().default('0'),
+  minStock: decimal('min_stock', { precision: 10, scale: 2 }).notNull().default('0'),
+  costPerUnit: int('cost_per_unit').notNull().default(0), // harga beli per satuan
+  supplierId: int('supplier_id'), // FK ke suppliers (nanti)
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+});
 ```
 
-**Fitur**:
-- Voucher diskon (fixed/percentage)
-- Happy hour (diskon otomatis di jam tertentu)
-- Buy X Get Y
-- Diskon per kategori/menu
-- Promo code di POS
-
-#### 2.3 Reservation/Booking
-**Schema baru**:
+### `recipes` — Mapping Menu ke Bahan Baku
 ```typescript
-// reservations (nama, telepon, tanggal, jam, jumlah tamu, meja, status)
+export const recipes = mysqlTable('recipes', {
+  id: serial('id').primaryKey(),
+  menuId: int('menu_id').notNull(), // FK ke menus
+  ingredientId: int('ingredient_id').notNull(), // FK ke ingredients
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(), // berapa satuan bahan per menu
+});
 ```
 
-**Fitur**:
-- Buat reservasi
-- Calendar view
-- Assign meja otomatis
-- Status: Pending → Confirmed → Seated → Completed/No-show
-
-#### 2.4 Split Bill
-**Fitur di POS**:
-- Split by item (tiap orang pilih item sendiri)
-- Split equally (bagi rata)
-- Custom split (manual assign)
-
-#### 2.5 Delivery/Takeaway
-**Schema baru**:
+### `stock_movements` — Riwayat Pergerakan Stok
 ```typescript
-// delivery_orders (customer, alamat, ongkir, driver, status)
+export const stockMovements = mysqlTable('stock_movements', {
+  id: serial('id').primaryKey(),
+  ingredientId: int('ingredient_id').notNull(),
+  type: mysqlEnum('type', ['in', 'out', 'adjustment', 'waste']).notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  reason: varchar('reason', { length: 255 }), // "Pesanan #12", "Manual adjustment", "Waste"
+  referenceId: int('reference_id'), // order_id jika dari pesanan
+  userId: int('user_id'), // siapa yang melakukan
+  createdAt: datetime('created_at').notNull().default(new Date()),
+});
 ```
 
-**Fitur**:
-- Order type: Dine-in / Takeaway / Delivery
-- Input alamat pengiriman
-- Assign driver
-- Status tracking: Pending → Preparing → On the way → Delivered
+### SQL Migration
+```sql
+CREATE TABLE ingredients (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  name VARCHAR(255) NOT NULL,
+  unit VARCHAR(20) NOT NULL,
+  current_stock DECIMAL(10,2) NOT NULL DEFAULT 0,
+  min_stock DECIMAL(10,2) NOT NULL DEFAULT 0,
+  cost_per_unit INT NOT NULL DEFAULT 0,
+  created_at DATETIME NOT NULL DEFAULT NOW(),
+  updated_at DATETIME
+);
 
-#### 2.6 Multi-Payment Methods
-**Schema update**:
-```typescript
-// orders — tambah payment_method, split_payments
-// payment_methods — cash, card, qris, gopay, ovo, dana, shopeepay
+CREATE TABLE recipes (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  menu_id INT NOT NULL,
+  ingredient_id INT NOT NULL,
+  quantity DECIMAL(10,2) NOT NULL
+);
+
+CREATE TABLE stock_movements (
+  id BIGINT UNSIGNED AUTO_INCREMENT PRIMARY KEY,
+  ingredient_id INT NOT NULL,
+  type ENUM('in', 'out', 'adjustment', 'waste') NOT NULL,
+  quantity DECIMAL(10,2) NOT NULL,
+  reason VARCHAR(255),
+  reference_id INT,
+  user_id INT,
+  created_at DATETIME NOT NULL DEFAULT NOW()
+);
 ```
-
-**Fitur**:
-- Pilih metode pembayaran saat checkout
-- Split payment (bayar sebagian cash, sebagian QRIS)
-- Integration-ready untuk QRIS (struktur data siap)
 
 ---
 
-### Fase 3: Competitive Edge (Week 5-6) — Modul NILAI TAMBAH
+## Tahap 2: Repository Functions
 
-#### 3.1 Loyalty Program
-**Fitur**:
-- Earn points saat belanja
-- Redeem points untuk diskon
-- Tier upgrade (Regular → Silver → Gold)
-- Member-exclusive promo
+Buat `src/repositories/inventory.ts`:
 
-#### 3.2 Email/SMS Receipt
-**Fitur**:
-- Input email pelanggan saat checkout
-- Kirim struk via email (gunakan nodemailer atau API pihak ketiga)
-- Template struk email
-
-#### 3.3 Expense Management
-**Schema baru**:
 ```typescript
-// expenses (kategori, jumlah, keterangan, tanggal, bukti)
+// CRUD Ingredients
+export async function getAllIngredients()
+export async function getIngredientById(id: number)
+export async function createIngredient(data: NewIngredient)
+export async function updateIngredient(id: number, data: Partial<NewIngredient>)
+export async function deleteIngredient(id: number)
+
+// CRUD Recipes
+export async function getRecipesByMenuId(menuId: number)
+export async function createRecipe(data: NewRecipe)
+export async function updateRecipe(id: number, data: Partial<NewRecipe>)
+export async function deleteRecipe(id: number)
+export async function deleteRecipesByMenuId(menuId: number)
+
+// Stock Movements
+export async function getStockMovements(ingredientId?: number, limit?: number)
+export async function createStockMovement(data: NewStockMovement)
+
+// Stock Operations
+export async function adjustStock(ingredientId: number, quantity: number, type: string, reason: string, userId?: number, referenceId?: number)
+export async function decrementStockForOrder(orderId: number) // Auto-decrement berdasarkan resep
+export async function getLowStockIngredients() // Stok di bawah minimum
 ```
 
-**Fitur**:
-- Catat pengeluaran (bahan baku, listrik, gaji, dll)
-- Kategori pengeluaran
-- Laporan pengeluaran vs pendapatan
-- Profit/loss otomatis
+---
 
-#### 3.4 Multi-branch Support
-**Schema update**:
+## Tahap 3: API Endpoints
+
+Buat `src/routes/inventory.ts`:
+
+| Method | Path | Auth | Fungsi |
+|--------|------|------|--------|
+| GET | `/api/ingredients` | super_admin, admin_restoran | List semua bahan baku |
+| GET | `/api/ingredients/low-stock` | super_admin, admin_restoran | Bahan baku stok rendah |
+| GET | `/api/ingredients/:id` | super_admin, admin_restoran | Detail bahan baku |
+| POST | `/api/ingredients` | super_admin, admin_restoran | Tambah bahan baku |
+| PUT | `/api/ingredients/:id` | super_admin, admin_restoran | Update bahan baku |
+| DELETE | `/api/ingredients/:id` | super_admin | Hapus bahan baku |
+| GET | `/api/recipes/menu/:menuId` | super_admin, admin_restoran | Resep untuk menu tertentu |
+| POST | `/api/recipes` | super_admin, admin_restoran | Tambah resep item |
+| PUT | `/api/recipes/:id` | super_admin, admin_restoran | Update resep item |
+| DELETE | `/api/recipes/:id` | super_admin, admin_restoran | Hapus resep item |
+| POST | `/api/stock-movements` | super_admin, admin_restoran | Manual stock adjustment |
+| GET | `/api/stock-movements` | super_admin, admin_restoran | Riwayat pergerakan stok |
+
+---
+
+## Tahap 4: UI — Halaman Inventory
+
+Buat `src/pages/inventory.ts` dengan 3 tab:
+
+### Tab 1: Bahan Baku
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ [🔍 Cari bahan...]  [Semua Status ▼]  [Stok Rendah]  [+ Tambah Bahan]  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Nama        │ Satuan │ Stok   │ Min Stok │ Harga/Satuan │ Status │ Aksi │
+│ Beras       │ kg     │ 25.00  │ 10.00    │ Rp 15.000    │ ✅ OK  │ Edit │
+│ Telur       │ pcs    │ 8.00   │ 20.00    │ Rp 2.500     │ ⚠️ Low │ Edit │
+│ Ayam Fillet │ kg     │ 0.00   │ 5.00     │ Rp 45.000    │ ❌ Hbs │ Edit │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tab 2: Resep
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ Pilih Menu: [Nasi Goreng ▼]                          [+ Tambah Resep]  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Bahan Baku    │ Jumlah │ Satuan │ Stok Tersisa │ Aksi                  │
+│ Beras         │ 0.20   │ kg     │ 25.00 kg     │ Edit  Hapus           │
+│ Telur         │ 1.00   │ pcs    │ 8.00 pcs     │ Edit  Hapus           │
+│ Ayam Fillet   │ 0.10   │ kg     │ 0.00 kg      │ Edit  Hapus           │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Total Cost: Rp 8.500 per porsi                                        │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Tab 3: Riwayat Stok
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│ [🔍 Cari...]  [Semua Tipe ▼]  [Export]                                  │
+├─────────────────────────────────────────────────────────────────────────┤
+│ Tanggal     │ Bahan    │ Tipe       │ Jumlah │ Keterangan              │
+│ 04/04 10:30│ Beras    │ 📤 Out     │ -0.20  │ Pesanan #12             │
+│ 04/04 09:00│ Telur    │ 📥 In      │ +50.00 │ Manual adjustment       │
+│ 04/04 08:00│ Ayam     │ 🗑️ Waste   │ -0.50  │ Kadaluarsa              │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Tahap 5: Integrasi dengan POS
+
+### Auto-decrement Stok Saat Pesanan Dibuat
+
+Di `src/routes/orders.ts`, pada endpoint `POST /api/orders/with-items`:
+
 ```typescript
-// branches (nama, alamat, telepon, status)
-// Semua tabel utama — tambah branch_id
+// Setelah order berhasil dibuat
+await inventoryRepo.decrementStockForOrder(order.id);
 ```
 
-**Fitur**:
-- Kelola banyak cabang
-- Dashboard per cabang atau consolidated
-- Transfer stok antar cabang
-- Laporan per cabang
-
----
-
-## Prioritas Implementasi (Urutan yang Disarankan)
-
-Berdasarkan dampak bisnis, urutan pengerjaan yang optimal:
-
-1. **Settings** — Fondasi konfigurasi bisnis (4-6 jam)
-2. **Inventory** — Tanpa ini, stok tidak terkontrol (8-12 jam)
-3. **Reporting** — Owner butuh data untuk keputusan (8-10 jam)
-4. **Customer Management** — Retensi pelanggan (6-8 jam)
-5. **Supplier & PO** — Supply chain (6-8 jam)
-6. **Employee/Shift** — Operasional harian (6-8 jam)
-7. **Promotions** — Marketing (6-8 jam)
-8. **Kitchen Display** — Efisiensi dapur (6-8 jam)
-9. **Multi-Payment** — Fleksibilitas pembayaran (6-8 jam)
-10. **Split Bill** — UX pelanggan (4-6 jam)
-11. **Reservation** — Booking system (4-6 jam)
-12. **Delivery** — Revenue channel baru (6-8 jam)
-13. **Loyalty Program** — Retensi (4-6 jam)
-14. **Expense Management** — Financial control (4-6 jam)
-15. **Email Receipt** — Professional touch (2-4 jam)
-16. **Multi-branch** — Scale up (12-16 jam)
-
-**Total estimasi**: 96-134 jam kerja (~3-4 bulan untuk 1 developer)
-
----
-
-## Arsitektur File yang Disarankan
-
-```
-src/
-├── pages/
-│   ├── dashboard.ts          ✅ Sudah ada
-│   ├── pos.ts                ✅ Sudah ada
-│   ├── menu.ts               ✅ Sudah ada
-│   ├── tables.ts             ✅ Sudah ada
-│   ├── orders.ts             ✅ Sudah ada
-│   ├── admin.ts              ✅ Sudah ada
-│   ├── inventory.ts          🆕
-│   ├── customers.ts          🆕
-│   ├── reports.ts            🆕
-│   ├── settings.ts           🆕
-│   ├── suppliers.ts          🆕
-│   ├── purchase-orders.ts    🆕
-│   ├── employees.ts          🆕
-│   ├── shifts.ts             🆕
-│   ├── kitchen.ts            🆕
-│   ├── reservations.ts       🆕
-│   ├── promotions.ts         🆕
-│   ├── expenses.ts           🆕
-│   └── branches.ts           🆕
-├── routes/
-│   ├── inventory.ts          🆕
-│   ├── customers.ts          🆕
-│   ├── suppliers.ts          🆕
-│   ├── reservations.ts       🆕
-│   ├── promotions.ts         🆕
-│   └── expenses.ts           🆕
-├── repositories/
-│   ├── inventory.ts          🆕
-│   ├── customer.ts           🆕
-│   ├── supplier.ts           🆕
-│   ├── reservation.ts        🆕
-│   ├── promotion.ts          🆕
-│   └── expense.ts            🆕
-└── db/
-    └── schema.ts             🔄 Update — tambah semua tabel baru
+### Fungsi `decrementStockForOrder`
+```typescript
+export async function decrementStockForOrder(orderId: number) {
+  // 1. Ambil semua item di order
+  const items = await orderItemRepo.getItemsWithMenuByOrderId(orderId);
+  
+  // 2. Untuk setiap item, ambil resepnya
+  for (const item of items) {
+    const recipes = await getRecipesByMenuId(item.menuId);
+    
+    // 3. Untuk setiap bahan di resep, kurangi stok
+    for (const recipe of recipes) {
+      const totalQuantity = recipe.quantity * item.quantity;
+      await adjustStock(
+        recipe.ingredientId,
+        -totalQuantity,
+        'out',
+        `Pesanan #${orderId}`,
+        item.userId,
+        orderId
+      );
+    }
+  }
+}
 ```
 
 ---
+
+## Tahap 6: Low Stock Alert di Dashboard
+
+Tambahkan notifikasi di dashboard (`src/pages/dashboard.ts`):
+
+```typescript
+const lowStockItems = await inventoryRepo.getLowStockIngredients();
+if (lowStockItems.length > 0) {
+  // Tampilkan alert di dashboard
+  // "⚠️ 3 bahan baku stok rendah: Telur, Ayam, Minyak"
+}
+```
+
+---
+
+## Tahap 7: Testing
+
+### Skenario Test
+1. **CRUD Bahan Baku** — Tambah, edit, hapus bahan baku → data tersimpan benar
+2. **CRUD Resep** — Tambah resep untuk menu → mapping benar
+3. **Auto-decrement** — Buat pesanan di POS → stok bahan baku berkurang otomatis
+4. **Stock Movement Log** — Setiap perubahan stok tercatat di riwayat
+5. **Low Stock Alert** — Stok di bawah minimum → alert muncul di dashboard
+6. **Manual Adjustment** — Input stok masuk/keluar manual → stok terupdate + tercatat
+7. **Total Cost** — Hitung cost per porsi dari resep → angka benar
+8. **Edge case** — Menu tanpa resep → tidak error, stok tidak berkurang
+9. **Edge case** — Stok tidak cukup → tetap bisa decrement (jadi minus), ada warning
+
+---
+
+## File yang Perlu Diubah/Dibuat
+
+| File | Aksi |
+|------|------|
+| `src/db/schema.ts` | **Update** — tambah 3 tabel baru |
+| `src/repositories/inventory.ts` | **BARU** — semua fungsi inventory |
+| `src/routes/inventory.ts` | **BARU** — API endpoints |
+| `src/routes/index.ts` | **Update** — register inventory routes |
+| `src/routes/orders.ts` | **Update** — panggil decrementStockForOrder |
+| `src/pages/inventory.ts` | **BARU** — halaman inventory (3 tab) |
+| `src/pages/dashboard.ts` | **Update** — tambah low stock alert |
 
 ## Catatan Penting
 
-- **JANGAN hapus** modul yang sudah ada
-- **JANGAN ubah** API endpoint yang sudah ada (backward compatible)
-- **Setiap modul harus independent** — bisa diaktifkan/nonaktifkan
-- **Gunakan RBAC yang sudah ada** — setiap modul punya role access
-- **Semua modul harus punya search, filter, pagination** — konsisten dengan modul existing
-- **Estimasi per modul** termasuk: database migration, API, UI, testing
+- **Stok bisa minus** — Tidak boleh block pesanan jika stok tidak cukup (restoran nyata tetap bisa masak walau stok sistem belum update)
+- **Decimal untuk stok** — Gunakan DECIMAL(10,2) karena bahan baku bisa pecahan (0.2 kg, 1.5 liter)
+- **Setiap perubahan stok HARUS tercatat** di stock_movements
+- **JANGAN hapus** fitur yang sudah ada
+- **Estimasi total**: 8-12 jam kerja
