@@ -1,222 +1,234 @@
-# Rencana Refactor: `src/pages/pos.ts` (908 baris)
+# Rencana Improve: Modul Menu `/menu`
 
 ## Latar Belakang
 
-File `src/pages/pos.ts` saat ini memiliki **~908 baris** yang mencampur:
-- Route handler server (Elysia)
-- HTML template (inline, ~160 baris)
-- CSS styles (inline, ~80 baris)
-- JavaScript client-side (~600 baris) — cart, payment, hold/recall, toast, modals, keyboard shortcuts
+Modul menu saat ini (`src/pages/menu.ts`) hanya memiliki fitur dasar:
+- Tabel dengan 5 kolom: Nama, Harga, Kategori, Status, Aksi
+- Filter kategori (Semua, Makanan, Minuman)
+- Tambah menu via modal (nama, harga, kategori)
+- Edit via `prompt()` browser (hanya nama & harga)
+- Toggle ketersediaan
+- Hapus dengan `confirm()`
 
-File ini terlalu besar dan sulit di-maintain. Setiap perubahan UI butuh scroll ratusan baris. Bug fixing jadi lambat karena logika bercampur.
+### Masalah Saat Ini
+1. **Tidak ada search** — Jika menu banyak, harus scroll manual
+2. **Edit pakai `prompt()`** — UX buruk, tidak bisa edit deskripsi atau gambar
+3. **Tidak ada deskripsi menu** — Tidak bisa tambah info bahan, level pedas, dll
+4. **Tidak ada gambar menu** — Hanya teks, tidak ada visual
+5. **Tidak ada pagination** — Semua menu dimuat sekaligus
+6. **Tidak ada stats/summary** — Tidak tahu berapa total menu, tersedia, tidak tersedia
+7. **Tidak ada bulk action** — Tidak bisa hapus atau toggle banyak menu sekaligus
+8. **Tidak ada toast notification** — Pakai `alert()` yang mengganggu
+9. **Tidak ada konfirmasi delete yang proper** — Pakai `confirm()` browser native
+10. **Tidak ada sort** — Tidak bisa sort berdasarkan harga, nama, atau tanggal
+
+---
 
 ## Tujuan
 
-Pecah `src/pages/pos.ts` menjadi file-file kecil yang:
-- Masing-masing < 150 baris
-- Bertanggung jawab atas satu hal saja
-- Mudah di-test dan di-maintain
-- **Tidak mengubah fungsionalitas** yang sudah ada
+Improve modul menu agar:
+1. **Lebih informatif** — Stats, search, sort, deskripsi
+2. **Lebih efisien** — Edit via modal, bulk action, pagination
+3. **Lebih modern** — Toast notification, custom confirmation modal
+4. **Lebih visual** — Placeholder gambar/emoji untuk menu
 
 ---
 
-## Tahap 1: Buat Struktur Folder
+## Tahap 1: Tambah Stats Cards di Atas Tabel
 
-Buat folder dan file baru:
+Tambahkan ringkasan menu sebelum tabel utama.
 
+### Layout
 ```
-src/
-├── pages/
-│   └── pos.ts                    (route handler saja, ~50 baris)
-├── public/
-│   └── styles/
-│       └── pos.css               (semua CSS POS, ~80 baris)
-└── pos/
-    ├── cart.js                   (cart logic: local, server, render)
-    ├── payment.js                (payment: showPayment, processPayment, quickPay)
-    ├── modals.js                 (modals: held orders, transfer, receipt)
-    ├── toast.js                  (toast notification system)
-    ├── keyboard.js               (keyboard shortcuts)
-    └── init.js                   (init + event listeners + entry point)
+┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
+│  Total  │ │Tersedia │ │  Tidak  │ │ Kategori│
+│   22    │ │   18    │ │   4     │ │  2      │
+└─────────┘ └─────────┘ └─────────┘ └─────────┘
 ```
+
+### Implementasi
+- Hitung dari data menu yang sudah ada (tidak perlu API baru)
+- Total menu, tersedia, tidak tersedia, jumlah kategori
 
 ---
 
-## Tahap 2: Extract CSS ke `src/public/styles/pos.css`
+## Tahap 2: Tambah Search & Sort
 
-Pindahkan semua CSS dari `<style>` tag di pos.ts ke file terpisah.
-
-### CSS yang perlu di-extract
-- `.pos-main`, `.pos-left`, `.pos-panels`, `.pos-tables-panel`
-- `.panel-header`, `.tables-grid`, `.table-btn`
-- `.pos-menu-panel`, `.pos-menu-header`, `.menu-card`
-- `.pos-right`, `.cart-panel`, `.cart-header`, `.cart-meta`
-- `.cart-zone`, `.cart-item`, `.cart-footer`
-- `.payment-section`, `.quick-pay-buttons`, `.cart-buttons`
-- `.toast-container`, `.toast`, `.toast-success`, `.toast-warning`, `.toast-error`
-- `.held-order-item`, `.receipt-line`, `.receipt-row`
-- Animasi: `@keyframes pulse`, `@keyframes slideIn`
-
-### Update pos.ts
-Ganti `<style>...</style>` dengan:
-```html
-<link rel="stylesheet" href="/styles/pos.css">
+### Search Bar
 ```
+┌─────────────────────────────────────────────────────────┐
+│ [🔍 Cari menu...]    [Semua ▼]  [Harga ↑]  [+ Tambah]  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Fitur
+- **Search** — Filter berdasarkan nama menu (client-side)
+- **Sort** — Klik header kolom untuk sort: Nama A-Z/Z-A, Harga Rendah/Tinggi, Terbaru/Terlama
+- **Filter kategori** — Dropdown (bukan button) agar lebih compact
 
 ---
 
-## Tahap 3: Extract JavaScript ke File Terpisah
+## Tahap 3: Replace `prompt()` dengan Edit Modal
 
-### `src/pos/toast.js`
-```javascript
-// Fungsi showToast() saja
-function showToast(message, type = 'success') {
-  // ... existing code ...
-}
+Ganti `editMenu()` yang pakai `prompt()` dengan modal yang proper.
+
+### Modal Edit Menu
+```
+┌──────────────────────────────┐
+│ Edit Menu                    │
+├──────────────────────────────┤
+│ Nama:    [Nasi Goreng      ] │
+│ Harga:   [15000            ] │
+│ Kategori:[Makanan          ▼]│
+│ Deskripsi:[Nasi goreng spesial]│
+│           [dengan telur     ] │
+│ Status:  [✅ Tersedia      ▼] │
+├──────────────────────────────┤
+│         [Batal]  [Simpan]    │
+└──────────────────────────────┘
 ```
 
-### `src/pos/cart.js`
-```javascript
-// Semua fungsi cart
-// saveCart, loadCart, clearCart, getLocalCart
-// addToCartLocal, removeFromCartLocal, updateQuantityLocal, updateItemNotes
-// renderCartFromLocal, renderServerCart, renderEmptyCartForTable
-// selectTable, addToCart, addToCartServer
-// updateServerQty, removeServerItem
-// updateGuestCount, updateOrderType
-```
-
-### `src/pos/payment.js`
-```javascript
-// Semua fungsi payment
-// showPayment, processPaymentManual, setQuickPayment
-// updatePaidAmount, processPaymentWithAmount, submitOrder
-// processPayment (old function, bisa dihapus jika tidak dipakai)
-```
-
-### `src/pos/modals.js`
-```javascript
-// Semua fungsi modal
-// holdOrder, showHeldOrdersModal, closeHeldOrdersModal, recallOrder, updateHeldCount
-// showTransferModal, closeTransferModal, transferTable
-// showReceipt, closeReceiptModal, printReceipt
-```
-
-### `src/pos/keyboard.js`
-```javascript
-// Keyboard shortcuts
-document.addEventListener('keydown', function(e) {
-  // Ctrl+F, Ctrl+H, Escape
-});
-```
-
-### `src/pos/init.js`
-```javascript
-// Entry point — dipanggil saat DOM ready
-// - Panggil updateHeldCount()
-// - Load saved cart dari localStorage
-// - Setup event listeners
-// - Import semua modul lain
-```
+### Perubahan
+- Tambah field **deskripsi** (textarea, opsional)
+- Tambah field **status** toggle (Tersedia/Tidak Tersedia)
+- Ganti `prompt()` dengan form modal yang proper
 
 ---
 
-## Tahap 4: Update Route Handler di `src/pages/pos.ts`
+## Tahap 4: Tambah Field Deskripsi di Database
 
-Setelah semua di-extract, `src/pages/pos.ts` hanya berisi:
-- Route handler Elysia
-- HTML template (tanpa `<style>` dan `<script>` panjang)
-- Import CSS dan JS files
-
+### Schema Update
 ```typescript
-import { Elysia } from 'elysia';
-import { htmlResponse } from '../templates/html';
-import { getSidebarHtml } from '../templates/sidebar';
-// ... imports lain
+// Di src/db/schema.ts
+description: varchar('description', { length: 500 }),
+```
 
-export const posPage = new Elysia()
-  .get('/pos', async ({ cookie, headers }) => {
-    // ... auth check, fetch data ...
+### SQL Migration
+```sql
+ALTER TABLE menus ADD COLUMN description VARCHAR(500) DEFAULT '' AFTER price;
+```
 
-    return htmlResponse(`
-      <div class="app-layout">
-        <!-- HTML layout tanpa style/script inline -->
-      </div>
-      <link rel="stylesheet" href="/styles/pos.css">
-      <script src="/pos/init.js"></script>
-      <script>
-        // Inject server-side variables
-        window.POS_USER = ${JSON.stringify(user)};
-        window.POS_USER_ID = ${user.userId};
-        window.POS_TABLES = ${JSON.stringify(tables)};
-        window.POS_MENUS = ${JSON.stringify(menus)};
-      </script>
-    `);
-  });
+### Update Tabel
+Tambahkan kolom "Deskripsi" di tabel (tampilkan truncated, max 50 karakter):
+| Nama | Harga | Deskripsi | Kategori | Status | Aksi |
+
+---
+
+## Tahap 5: Tambah Placeholder Emoji/Gambar
+
+Tambahkan kolom emoji di tabel agar menu lebih visual.
+
+### Tampilan
+| | Nama | Harga | Kategori | Status | Aksi |
+|---|------|-------|----------|--------|------|
+| 🍛 | Nasi Goreng | 15.000 | Makanan | ✅ | Edit Hapus |
+| 🥤 | Es Teh | 5.000 | Minuman | ✅ | Edit Hapus |
+
+### Emoji Mapping
+- Makanan: 🍛 Nasi, 🍜 Mie, 🍗 Ayam, 🍚 Nasi Putih, 🥘 Sop, 🍲 Soto, 🥩 Steak, 🌮 dll
+- Minuman: 🥤 Es, ☕ Kopi, 🍵 Teh, 🧃 Jus, 🥛 Susu, dll
+
+---
+
+## Tahap 6: Tambah Pagination
+
+Jika menu lebih dari 15 item, tabel harus di-paginate.
+
+### Layout
+```
+┌─────────────────────────────────────────────────────────┐
+│ Tabel Menu                                              │
+│ ...                                                     │
+├─────────────────────────────────────────────────────────┤
+│ Menampilkan 1-15 dari 22    [← Prev] [1] [2] [Next →]  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Implementasi (Client-side)
+- Slice array menu di JavaScript
+- 15 item per halaman
+- Navigasi: Prev, Next, page numbers
+
+---
+
+## Tahap 7: Tambah Toast Notification
+
+Ganti semua `alert()` dengan toast notification (sudah ada di `src/templates/common-scripts.ts`).
+
+### Yang perlu diganti
+- `alert('Nama dan harga wajib diisi')` → `showToast('...', 'warning')`
+- `alert('Gagal menambahkan menu')` → `showToast('...', 'error')`
+- `alert('Harga tidak valid')` → `showToast('...', 'warning')`
+- `confirm('Hapus menu?')` → Custom confirmation modal
+
+---
+
+## Tahap 8: Tambah Custom Confirmation Modal untuk Delete
+
+Ganti `confirm()` browser dengan modal yang konsisten dengan UI.
+
+```
+┌──────────────────────────────┐
+│ Konfirmasi Hapus             │
+├──────────────────────────────┤
+│ Apakah Anda yakin ingin      │
+│ menghapus menu "Nasi Goreng"?│
+│ Tindakan ini tidak dapat     │
+│ dibatalkan.                  │
+├──────────────────────────────┤
+│         [Batal]  [Hapus]     │
+└──────────────────────────────┘
 ```
 
 ---
 
-## Tahap 5: Setup Static File Serving
+## Tahap 9: Tambah Fitur Bulk Action
 
-Pastikan Bun serve file statis dari `src/pos/` dan `src/public/styles/`.
+Tambahkan checkbox di setiap baris tabel untuk aksi massal.
 
-Di `src/index.ts`, tambahkan:
-```typescript
-.get('/pos/:path', ({ params }) => {
-  const filePath = join(__dirname, 'pos', params.path);
-  if (existsSync(filePath)) {
-    return new Response(Bun.file(filePath), {
-      headers: { 'Content-Type': params.path.endsWith('.css') ? 'text/css' : 'application/javascript' }
-    });
-  }
-  return new Response('Not found', { status: 404 });
-})
-.get('/styles/pos.css', () => {
-  const filePath = join(__dirname, 'public/styles/pos.css');
-  if (existsSync(filePath)) {
-    return new Response(Bun.file(filePath), { headers: { 'Content-Type': 'text/css' } });
-  }
-  return new Response('Not found', { status: 404 });
-})
+### Layout
 ```
+┌─────────────────────────────────────────────────────────┐
+│ ☑ Pilih Semua    [Hapus Terpilih] [Toggle Status]       │
+├─────────────────────────────────────────────────────────┤
+│ ☐ 🍛 Nasi Goreng | 15.000 | Makanan | ✅ | Edit Hapus  │
+│ ☐ 🥤 Es Teh     |  5.000 | Minuman | ✅ | Edit Hapus  │
+└─────────────────────────────────────────────────────────┘
+```
+
+### Aksi Bulk
+- **Hapus Terpilih** — Hapus semua menu yang dicentang
+- **Toggle Status** — Ubah semua menu terpilih jadi tersedia/tidak
 
 ---
 
-## Tahap 6: Testing
+## Tahap 10: Testing
 
 ### Skenario Test
-1. **Server start** — `bun run src/index.ts` tanpa error
-2. **POS page loads** — `/pos` tampil sama seperti sebelumnya
-3. **Cart** — tambah item, +/- qty, catatan, hapus item — semua berfungsi
-4. **Payment** — input manual + quick buttons — pembayaran berhasil, struk muncul
-5. **Hold/Recall** — hold pesanan, pilih meja lain, recall — berfungsi
-6. **Transfer meja** — pindah pesanan ke meja lain — berfungsi
-7. **Toast** — notifikasi muncul saat tambah item, bayar, hold, error
-8. **Keyboard** — Ctrl+F focus search, Escape unselect meja
-9. **Receipt** — struk tampil rapi, kembalian terhitung benar, print berfungsi
+1. Stats cards menampilkan angka yang benar
+2. Search menu berdasarkan nama → tabel ter-filter
+3. Sort berdasarkan harga → urutan benar
+4. Edit menu via modal → data ter-update
+5. Tambah deskripsi → tersimpan di database
+6. Emoji tampil di kolom tabel
+7. Pagination berfungsi (15 item per halaman)
+8. Toast muncul saat tambah/edit/hapus menu
+9. Custom confirmation modal untuk delete
+10. Bulk delete dan bulk toggle status berfungsi
 
 ---
 
 ## File yang Perlu Diubah/Dibuat
 
-| File | Aksi |
-|------|------|
-| `src/pages/pos.ts` | **Rewrite** — hanya route handler + HTML template |
-| `src/public/styles/pos.css` | **BARU** — semua CSS POS |
-| `src/pos/cart.js` | **BARU** — cart logic |
-| `src/pos/payment.js` | **BARU** — payment logic |
-| `src/pos/modals.js` | **BARU** — modal logic |
-| `src/pos/toast.js` | **BARU** — toast notification |
-| `src/pos/keyboard.js` | **BARU** — keyboard shortcuts |
-| `src/pos/init.js` | **BARU** — entry point + init |
-| `src/index.ts` | **Update** — tambah static file serving untuk `/pos/*` dan `/styles/pos.css` |
+| File | Perubahan |
+|------|-----------|
+| `src/db/schema.ts` | Tambah field `description` di menus |
+| `src/pages/menu.ts` | **Rewrite total** — stats, search, sort, edit modal, pagination, toast, bulk action, emoji |
+| `src/public/styles/global.css` | Tambah CSS untuk bulk action, pagination, edit modal |
 
 ## Catatan Penting
 
-- **JANGAN hapus** fitur yang sudah ada — hanya pindahkan
-- **JANGAN ubah** HTML yang di-render — harus sama persis
+- **JANGAN hapus** fitur yang sudah ada (filter kategori, toggle, delete)
 - **JANGAN ubah** API endpoint yang sudah ada
-- **Gunakan `window.POS_*`** untuk inject server-side variables ke client JS
-- **Test setiap tahap** — jangan extract semua dulu baru test
+- **Emoji sebagai placeholder** — nanti bisa diganti gambar asli
 - **Estimasi total**: 2-3 jam kerja
