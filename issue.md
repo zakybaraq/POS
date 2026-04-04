@@ -1,224 +1,171 @@
-# Issue: Perbaikan Session Authentication
+# Issue: Loading Loop pada Halaman Utama Meskipun Sudah Login
 
 ## Overview
 
-Saat ini aplikasi menggunakan client-side session check yang menyebabkan loading loop dan tidak aman. Ini perlu diganti dengan server-side session yang lebih reliable.
+Ketika user sudah login dan membuka halaman `/`, aplikasi terus-menerus menampilkan "Loading..." tanpa pernah selesai. User tidak pernah sampai ke halaman dashboard.
 
 ## Masalah Saat Ini
 
-1. **Loading Loop**: Halaman melakukan fetch ke `/api/auth/me` untuk cek auth, tapi endpoint ini perlu token Bearer - tapi halaman belum selesai load, jdi loop
-2. **Tidak Aman**: Token disimpan di localStorage bisa diakses via XSS
-3. **Tidak Robust**: Jika API gagal respond, user stuck di loading
+1. **Gejala**: Setelah login berhasil, user diarahkan ke `/` tapi stuck di "Loading..."
+2. **Penyebab**: Aplikasi melakukan fetch ke `/api/auth/me` untuk mendapatkan data user, tapi response tidak pernah diproses dengan benar
+3. **Loop**: Kemungkinan ada infinite loop atau response tidak handled dengan baik
+
+## Cara Reproduksi
+
+1. Buka `http://localhost:3000/login`
+2. Login dengan email dan password yang benar
+3. Setelah login berhasil, otomatis redirect ke `/`
+4. Halaman stuck di "Loading..." selamanya
 
 ## Solusi yang Dibutuhkan
 
-Ganti client-side auth check dengan server-side session menggunakan cookie yang httpOnly dan secure.
+Debug dan perbaiki mengapa response dari `/api/auth/me` tidak diproses dengan benar, atau ganti dengan pendekatan lain.
 
 ---
 
-## Tahap 1: Setup Cookie-Based Session
+## Tahap 1: Analisis Kode Saat Ini
 
-### 1.1 Install Dependencies
+Buka `src/index.ts` dan cari bagian ini:
+
+```javascript
+// Di dalam route '/'
+<script>
+  const token = localStorage.getItem('token');
+  fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
+    .then(res => res.json())
+    .then(data => {
+      if (data.error) { window.location.href = '/login'; return; }
+      const user = data.user;
+      document.getElementById('content').innerHTML = 
+        '<div class="flex justify-between items-center mb-4">...</div>';
+    })
+    .catch(() => window.location.href = '/login');
+</script>
+```
+
+Perhatikan:
+- Apakah `localStorage.getItem('token')` mengembalikan token?
+- Apakah fetch ke `/api/auth/me` berhasil?
+- Apakah response di-parse dengan benar?
+
+---
+
+## Tahap 2: Cek Endpoint /api/auth/me
+
+Buka `src/routes/auth.ts` dan lihat bagaimana `/me` endpoint bekerja:
+
+```typescript
+.get('/me', async ({ headers }) => {
+  const authHeader = headers.authorization;
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return { error: 'No token provided' };
+  }
+  
+  const token = authHeader.slice(7);
+  
+  try {
+    const user = authService.verifyToken(token);
+    return { user };
+  } catch (e: any) {
+    return { error: 'Invalid token' };
+  }
+});
+```
+
+Cek apakah:
+- Header `Authorization` dikirim dengan benar
+- Token valid
+- Response format benar
+
+---
+
+## Tahap 3: Testing Manual
+
+Test endpoint secara langsung:
 
 ```bash
-bun add cookie-parser
+# Login dulu untuk dapat token
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -d '{"email":"test@example.com","password":"password123"}'
+
+# Gunakan token dari response untuk test /me
+curl http://localhost:3000/api/auth/me \
+  -H "Authorization: Bearer <token_disini>"
 ```
 
-### 1.2 Update Auth Service
-
-Buat file `src/services/session.ts`:
-
-```typescript
-import jwt from 'jsonwebtoken';
-import type { CookieOptions } from 'elysia';
-
-const JWT_SECRET = process.env.JWT_SECRET || 'pos-secret-key-change-in-production';
-const COOKIE_NAME = 'pos_session';
-
-export function createSessionCookie(token: string): CookieOptions {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000, // 24 jam
-    path: '/',
-  };
-}
-
-export function getTokenFromCookie(cookies: any): string | null {
-  const sessionCookie = cookies[COOKIE_NAME];
-  if (!sessionCookie) return null;
-  try {
-    jwt.verify(sessionCookie, JWT_SECRET);
-    return sessionCookie;
-  } catch {
-    return null;
-  }
-}
-
-export function verifyToken(token: string): any {
-  return jwt.verify(token, JWT_SECRET);
-}
-```
-
-### 1.3 Update Auth Routes
-
-Update `src/routes/auth.ts`:
-
-```typescript
-import { cookie } from 'elysia';
-import { createSessionCookie, getTokenFromCookie, verifyToken } from '../services/session';
-
-const COOKIE_NAME = 'pos_session';
-
-export const authRoutes = new Elysia({ prefix: '/api/auth' })
-  .use(cookie())
-  
-  .post('/login', async ({ body, cookies }) => {
-    // ... existing login logic ...
-    
-    // Set cookie instead of returning token
-    cookies.set(COOKIE_NAME, token, createSessionCookie(token));
-    return { success: true, user: payload };
-  }, { ... })
-  
-  .post('/logout', async ({ cookies }) => {
-    cookies.delete(COOKIE_NAME, { path: '/' });
-    return { success: true };
-  })
-  
-  .get('/me', async ({ cookies }) => {
-    const token = getTokenFromCookie(cookies);
-    if (!token) return { error: 'Not authenticated' };
-    try {
-      const user = verifyToken(token);
-      return { user };
-    } catch {
-      return { error: 'Invalid token' };
-    }
-  });
-```
+Cek apakah response berisi `{"user": {...}}` atau `{"error": "..."}`.
 
 ---
 
-## Tahap 2: Update Frontend untuk Pakai Cookie
+## Tahap 4: Possible Solutions
 
-### 2.1 Hapus Token dari localStorage
+### Solution A: Fix Token Storage
+Pastikan token disimpan dengan benar di localStorage setelah login.
 
-Update halaman login di `src/index.ts`:
+Di `/login` route, cek script login:
 
-```typescript
-// Di script login:
-if (data.success) {
-  // Hapus localStorage token, cukup redirect
+```javascript
+// Cek apakah data.token ada
+if (data.token) {
+  localStorage.setItem('token', data.token);
   window.location.href = '/';
 }
-
-// Di script logout:
-function logout() {
-  fetch('/api/auth/logout', { method: 'POST' })
-    .then(() => window.location.href = '/login');
-}
 ```
 
-### 2.2 Hapus Auth Check Script dari Setiap Halaman
+### Solution B: Use Cookie-Based Session (Recommended)
+Hapus localStorage dan gunakan cookie untuk session:
 
-Hapus variabel `authCheckScript` dari setiap route yang ada. Biarkan halaman render biasa, kalau belum login akan di-redirect oleh server.
+1. Install cookie plugin: `bun add @elysiajs/cookie`
+2. Setup cookie di app
+3. Di login, server set cookie langsung
+4. Hapus semua client-side fetch ke `/api/auth/me`
 
----
-
-## Tahap 3: Server-Side Redirect
-
-### 3.1 Buat Middleware Auth
-
-Tambahkan di `src/index.ts` sebelum routes:
+### Solution C: Fix Server-Side Redirect
+Ganti client-side redirect dengan server-side redirect:
 
 ```typescript
-const app = new Elysia()
-  .use(cookie())
-  .derive(async ({ cookies }) => {
-    const { getTokenFromCookie, verifyToken } = await import('./services/session');
-    const token = getTokenFromCookie(cookies);
-    let user = null;
-    if (token) {
-      try {
-        user = verifyToken(token);
-      } catch {}
-    }
-    return { user };
-  })
+.get('/', async ({ headers }) => {
+  // Cek auth di server, bukan di client
+  const token = getTokenFromCookie(headers);
+  if (!token) {
+    return new Response(null, {
+      status: 302,
+      headers: { Location: '/login' }
+    });
+  }
   
-  // Public routes (tidak perlu auth)
-  .get('/login', ...)
-  .get('/register', ...)
-  .get('/forgot-password', ...)
-  .get('/health', ...)
-  
-  // Protected routes
-  .get('/', ({ user }) => {
-    if (!user) return new Response(null, { status: 302, headers: { Location: '/login' } });
-    // render dashboard...
-  })
-  
-  .get('/pos', ({ user }) => {
-    if (!user) return new Response(null, { status: 302, headers: { Location: '/login' } });
-    // render POS page...
-  });
+  // Render halaman langsung
+  return htmlResponse(`...`);
+})
 ```
 
 ---
 
-## Tahap 4: Testing
+## Tahap 5: Implementasi Solution B (Recommended)
 
-### 4.1 Test Login Flow
+Ini adalah solusi terbaik karena:
+- Tidak perlu client-side fetch
+- Lebih aman (cookie httpOnly)
+- Tidak ada loading loop
 
-1. Buka `/login`
-2. Isi form login
-3. Submit - harus redirect ke `/`
-4. Cek cookie `pos_session` di DevTools
-
-### 4.2 Test Logout
-
-1. Klik logout button
-2. Harus redirect ke `/login`
-3. Cookie harus dihapus
-
-### 4.3 Test Protected Routes
-
-1. Buka `/pos` tanpa login
-2. Harus otomatis redirect ke `/login`
-
-### 4.4 Test Session Expiry
-
-1. Login
-2. Tunggu 24 jam (atau ubah maxAge jadi 1 menit untuk test)
-3. Buka halaman mana saja
-4. Harus redirect ke `/login`
+Ikui langkah-langkah di issue lain untuk implement cookie-based session.
 
 ---
 
-## Files yang Perlu Diubah
+## Tahap 6: Verifikasi
 
-| File | Aksi |
-|------|------|
-| `src/services/session.ts` | Buat baru |
-| `src/routes/auth.ts` | Update |
-| `src/index.ts` | Update middleware + hapus client-side auth |
-
----
-
-## Catatan Penting
-
-- Cookie harus `httpOnly: true` agar tidak bisa diakses via JavaScript
-- Gunakan `sameSite: 'lax'` untuk keamanan
-- Semua protected route harus cek `user` dari context sebelum render
-- Jangan lupa handle case saat cookie expired atau invalid
+Setelah fix, test:
+1. Login → harus langsung ke dashboard tanpa loading
+2. Refresh halaman `/` → harus tetap login
+3. Logout → harus ke halaman login
+4. Buka `/` tanpa login → harus ke halaman login
 
 ---
 
-## Expected Result
+## Catatan
 
-- User bisa login dan session disimpan di cookie
-- Tidak ada loading loop saat buka halaman
-- Logout hapus session dengan baik
-- Semua protected route redirect ke login kalau belum auth
+- Masalah ini terjadi karena aplikasi bergantung pada client-side JavaScript untuk cek auth
+- Solusi terbaik adalah Pindahkan logic auth ke server-side
+- Cookie-based session adalah approach yang direkomendasikan
