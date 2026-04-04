@@ -235,6 +235,7 @@ function toggleSidebar() {
   const sidebar = document.getElementById('app-sidebar');
   const content = document.querySelector('.app-content');
   sidebar.classList.toggle('collapsed');
+  void sidebar.offsetWidth;
   if (content) {
     content.classList.toggle('collapsed-adjusted');
   }
@@ -1205,10 +1206,13 @@ const app = new Elysia()
           <main class="app-main">
             <div class="card">
               <div class="card-header">
-                <div style="display: flex; gap: 8px;">
-                  <button class="btn btn-primary" onclick="filterMenus('all')">Semua</button>
-                  <button class="btn btn-secondary" onclick="filterMenus('makanan')">Makanan</button>
-                  <button class="btn btn-secondary" onclick="filterMenus('minuman')">Minuman</button>
+                <div style="display: flex; justify-content: space-between; align-items: center; width: 100%;">
+                  <div style="display: flex; gap: 8px;">
+                    <button class="btn btn-primary" onclick="filterMenus('all')">Semua</button>
+                    <button class="btn btn-secondary" onclick="filterMenus('makanan')">Makanan</button>
+                    <button class="btn btn-secondary" onclick="filterMenus('minuman')">Minuman</button>
+                  </div>
+                  <button class="btn btn-primary" onclick="showAddMenuModal()">+ Tambah Menu</button>
                 </div>
               </div>
               <div class="table-container">
@@ -1224,7 +1228,7 @@ const app = new Elysia()
                         <td><span class="badge ${m.category === 'makanan' ? 'badge-warning' : 'badge-primary'}">${m.category}</span></td>
                         <td><button onclick="toggleMenu(${m.id})" class="badge ${m.isAvailable ? 'badge-success' : 'badge-error'}">${m.isAvailable ? 'Tersedia' : 'Tidak Tersedia'}</button></td>
                         <td>
-                          <button onclick="editMenu(${m.id}, '${m.name}', ${m.price})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</button>
+                          <button onclick="editMenu(${m.id}, '${m.name.replace(/'/g, "\\'")}', ${m.price})" class="btn btn-secondary" style="padding: 6px 12px; font-size: 12px;">Edit</button>
                           <button onclick="deleteMenu(${m.id})" class="btn btn-danger" style="padding: 6px 12px; font-size: 12px;">Hapus</button>
                         </td>
                       </tr>
@@ -1237,6 +1241,36 @@ const app = new Elysia()
           ${getFooterHtml()}
         </div>
       </div>
+      <div class="modal" id="add-menu-modal">
+        <div class="modal-backdrop" onclick="closeAddMenuModal()"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Tambah Menu</h3>
+            <button class="modal-close" onclick="closeAddMenuModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Nama Menu</label>
+              <input type="text" id="menu-name" class="input" placeholder="Masukkan nama menu">
+            </div>
+            <div class="form-group">
+              <label>Harga</label>
+              <input type="number" id="menu-price" class="input" placeholder="0">
+            </div>
+            <div class="form-group">
+              <label>Kategori</label>
+              <select id="menu-category" class="input">
+                <option value="makanan">Makanan</option>
+                <option value="minuman">Minuman</option>
+              </select>
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddMenuModal()">Batal</button>
+            <button class="btn btn-primary" onclick="saveMenu()">Simpan</button>
+          </div>
+        </div>
+      </div>
       <script>
         function filterMenus(cat) {
           document.querySelectorAll('.menu-row').forEach(row => { row.style.display = (cat === 'all' || row.dataset.category === cat) ? '' : 'none'; });
@@ -1244,13 +1278,36 @@ const app = new Elysia()
         async function toggleMenu(id) { await fetch('/api/menus/' + id + '/toggle', { method: 'PATCH' }); location.reload(); }
         async function deleteMenu(id) { if (!confirm('Hapus menu?')) return; await fetch('/api/menus/' + id, { method: 'DELETE' }); location.reload(); }
         function showAddMenuModal() {
-          const name = prompt('Nama Menu:');
-          if (!name) return;
-          const price = parseInt(prompt('Harga:') || '0');
-          if (price <= 0) { alert('Harga tidak valid'); return; }
-          const category = prompt('Kategori (makanan/minuman):');
-          if (category !== 'makanan' && category !== 'minuman') { alert('Kategori tidak valid'); return; }
-          fetch('/api/menus', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name, price, category }) }).then(() => location.reload());
+          document.getElementById('add-menu-modal').classList.add('show');
+        }
+        function closeAddMenuModal() {
+          document.getElementById('add-menu-modal').classList.remove('show');
+          document.getElementById('menu-name').value = '';
+          document.getElementById('menu-price').value = '';
+          document.getElementById('menu-category').value = 'makanan';
+        }
+        async function saveMenu() {
+          const name = document.getElementById('menu-name').value.trim();
+          const price = parseInt(document.getElementById('menu-price').value);
+          const category = document.getElementById('menu-category').value;
+          
+          if (!name || !price || price <= 0) {
+            alert('Nama dan harga wajib diisi dengan benar');
+            return;
+          }
+          
+          const response = await fetch('/api/menus', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, price, category })
+          });
+          
+          if (response.ok) {
+            closeAddMenuModal();
+            location.reload();
+          } else {
+            alert('Gagal menambahkan menu');
+          }
         }
         function editMenu(id, name, price) {
           const newName = prompt('Nama Menu:', name);
@@ -1286,6 +1343,10 @@ const app = new Elysia()
           ${getNavbarHtml('Kelola Meja', 'tables', user)}
           
           <main class="app-main">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px;">
+              <h2 style="margin: 0;">Daftar Meja</h2>
+              <button class="btn btn-primary" onclick="showAddTableModal()">+ Tambah Meja</button>
+            </div>
             <div style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px;">
               ${tables.map(t => `
                 <div class="card" style="text-align: center;">
@@ -1301,14 +1362,54 @@ const app = new Elysia()
           ${getFooterHtml()}
         </div>
       </div>
+      <div class="modal" id="add-table-modal">
+        <div class="modal-backdrop" onclick="closeAddTableModal()"></div>
+        <div class="modal-content">
+          <div class="modal-header">
+            <h3>Tambah Meja</h3>
+            <button class="modal-close" onclick="closeAddTableModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <div class="form-group">
+              <label>Nomor Meja</label>
+              <input type="number" id="table-number" class="input" placeholder="Masukkan nomor meja">
+            </div>
+          </div>
+          <div class="modal-footer">
+            <button class="btn btn-secondary" onclick="closeAddTableModal()">Batal</button>
+            <button class="btn btn-primary" onclick="saveTable()">Simpan</button>
+          </div>
+        </div>
+      </div>
       <script>
-        async function addTable() {
-          const num = parseInt(prompt('Nomor Meja:'));
-          if (!num) return;
-          const res = await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber: num }) });
-          const data = await res.json();
-          if (data.error) { alert(data.error); return; }
-          location.reload();
+        function showAddTableModal() {
+          document.getElementById('add-table-modal').classList.add('show');
+        }
+        function closeAddTableModal() {
+          document.getElementById('add-table-modal').classList.remove('show');
+          document.getElementById('table-number').value = '';
+        }
+        async function saveTable() {
+          const tableNumber = parseInt(document.getElementById('table-number').value);
+          
+          if (!tableNumber || tableNumber <= 0) {
+            alert('Nomor meja wajib diisi');
+            return;
+          }
+          
+          const response = await fetch('/api/tables', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tableNumber })
+          });
+          
+          if (response.ok) {
+            closeAddTableModal();
+            location.reload();
+          } else {
+            const data = await response.json();
+            alert(data.error || 'Gagal menambahkan meja');
+          }
         }
         async function deleteTable(id) {
           if (!confirm('Hapus meja?')) return;
