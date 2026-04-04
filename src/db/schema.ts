@@ -39,6 +39,8 @@ export const menus = mysqlTable('menus', {
 export const tables = mysqlTable('tables', {
   id: serial('id').primaryKey(),
   tableNumber: int('table_number').notNull().unique(),
+  capacity: int('capacity').default(4),
+  area: mysqlEnum('area', ['indoor', 'outdoor', 'vip']).default('indoor'),
   status: mysqlEnum('table_status', ['available', 'occupied']).notNull().default('available'),
 });
 

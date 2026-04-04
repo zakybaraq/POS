@@ -31,6 +31,11 @@ export async function updateTableStatus(id: number, status: 'available' | 'occup
   return getTableById(id);
 }
 
+export async function updateTable(id: number, data: Partial<{ tableNumber: number; capacity: number; area: 'indoor' | 'outdoor' | 'vip'; status: 'available' | 'occupied' }>) {
+  await db.update(tables).set(data).where(eq(tables.id, id));
+  return getTableById(id);
+}
+
 export async function deleteTable(id: number) {
   return db.delete(tables).where(eq(tables.id, id));
 }
