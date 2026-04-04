@@ -1,331 +1,222 @@
-# Rencana Rebuild Total: UI/UX Modul POS `/pos`
+# Rencana Refactor: `src/pages/pos.ts` (908 baris)
 
 ## Latar Belakang
 
-Modul POS saat ini (`src/pages/pos.ts`) sudah berfungsi dengan local-first cart system, namun UI/UX-nya masih sangat dasar dan tidak sesuai dengan standar POS restoran modern.
+File `src/pages/pos.ts` saat ini memiliki **~908 baris** yang mencampur:
+- Route handler server (Elysia)
+- HTML template (inline, ~160 baris)
+- CSS styles (inline, ~80 baris)
+- JavaScript client-side (~600 baris) — cart, payment, hold/recall, toast, modals, keyboard shortcuts
 
-### Masalah UI/UX Saat Ini
-1. **Layout sempit** — Panel meja hanya 140px, terlalu kecil untuk usability
-2. **Menu items polos** — Hanya nama + harga, tanpa gambar, tanpa kategori visual
-3. **Cart tidak informatif** — Tidak menampilkan nomor meja dengan jelas, tidak ada info waiter
-4. **Tidak ada fitur hold/recall** — Tidak bisa menyimpan pesanan sementara
-5. **Tidak ada transfer meja** — Tidak bisa pindah pesanan ke meja lain
-6. **Tidak ada split bill** — Tidak bisa bagi tagihan
-7. **Tidak ada jumlah tamu** — Tidak bisa input berapa orang di meja
-8. **Tidak ada receipt preview** — Struk hanya alert text, tidak ada preview
-9. **Tidak ada quick payment buttons** — Harus ketik manual jumlah uang
-10. **Tidak ada order type** — Tidak bisa pilih dine-in atau takeaway
-11. **Tidak ada visual feedback** — Tidak ada animasi saat tambah item, tidak ada toast notification
-12. **Tidak ada keyboard shortcuts** — Kasir harus klik semua, tidak bisa pakai keyboard
-
----
+File ini terlalu besar dan sulit di-maintain. Setiap perubahan UI butuh scroll ratusan baris. Bug fixing jadi lambat karena logika bercampur.
 
 ## Tujuan
 
-Rombak total UI/UX POS agar:
-1. **Modern & profesional** — Tampilan seperti POS restoran kelas atas
-2. **Efisien** — Minimal klik, maksimal produktivitas
-3. **Informatif** — Semua data penting terlihat jelas
-4. **Responsif** — Bisa dipakai di tablet dan desktop
+Pecah `src/pages/pos.ts` menjadi file-file kecil yang:
+- Masing-masing < 150 baris
+- Bertanggung jawab atas satu hal saja
+- Mudah di-test dan di-maintain
+- **Tidak mengubah fungsionalitas** yang sudah ada
 
 ---
 
-## Tahap 1: Redesign Layout POS
+## Tahap 1: Buat Struktur Folder
 
-### Layout Baru (3 Panel)
+Buat folder dan file baru:
+
 ```
-┌──────────────────────────────────────────────────────────────────┐
-│  Header: [Meja 5] [3 Tamu] [Dine-in ▼]      [🔍 Cari] [Hold]   │
-├──────────────┬───────────────────────────┬──────────────────────┤
-│              │                           │                      │
-│  MEJA        │      MENU                 │     ORDER/CART       │
-│  (200px)     │      (flex: 1)            │     (320px)          │
-│              │                           │                      │
-│  [1] [2] [3] │  [Semua] [Makanan] [Min]  │  📋 Meja 5 - Dine-in │
-│  [4] [5] [6] │                           │                      │
-│  [7] [8] [9] │  ┌────┐ ┌────┐ ┌────┐    │  Nasi Goreng    x2   │
-│  [10][11][12]│  │ 🍛 │ │ 🍜 │ │ 🥤 │    │  Rp 30.000           │
-│              │  │Nasi│ │ Mie│ │ Es │    │  [−] 2 [+] [🗑️]     │
-│              │  │Gor │ │Gor │ │ Teh│    │  Catatan: tidak pedas │
-│              │  │15K │ │12K │ │ 5K │    │                      │
-│              │  └────┘ └────┘ └────┘    │  ─────────────────    │
-│              │  ┌────┐ ┌────┐ ┌────┐    │  Subtotal:  30.000   │
-│              │  │ 🍗 │ │ 🍚 │ │ 🧃 │    │  Pajak:      3.000   │
-│              │  │Ayam│ │Nasi│ │Jus │    │  Diskon:         0   │
-│              │  │Gor │ │Put │ │ 8K │    │  ─────────────────    │
-│              │  │18K │ │ 8K │ │    │    │  TOTAL:     33.000   │
-│              │  └────┘ └────┘ └────┘    │                      │
-│  🟢: 7 🔴: 5 │                           │  [💳 Bayar] [📋 Hold] │
-│              │                           │  [↩️ Batal]           │
-└──────────────┴───────────────────────────┴──────────────────────┘
-```
-
-### Perubahan Utama
-- Panel meja diperbesar dari 140px → 200px
-- Menu items diperbesar dengan emoji/icon placeholder
-- Cart diperbesar dari 300px → 320px
-- Header POS menampilkan info meja yang aktif
-- Legend warna meja di bawah panel meja
-
----
-
-## Tahap 2: Improve Menu Display
-
-### Menu Card Baru
-```
-┌─────────────┐
-│     🍛      │  ← Emoji/icon placeholder (bisa diganti gambar nanti)
-│             │
-│ Nasi Goreng │  ← Nama menu (bold, 2 line max)
-│             │
-│  Rp 15.000  │  ← Harga (besar, warna primary)
-└─────────────┘
-```
-
-### Fitur Baru
-- **Grid responsif** — Auto-adjust berdasarkan ukuran layar
-- **Hover effect** — Scale up + shadow saat hover
-- **Active animation** — Pulse animation saat diklik
-- **Category filter** — Tab dengan icon, bukan hanya text
-- **Search dengan highlight** — Highlight text yang match di nama menu
-
----
-
-## Tahap 3: Improve Cart/Order Panel
-
-### Header Cart
-```
-📋 Meja 5 — Dine-in (3 tamu)
-```
-
-### Item di Cart
-```
-┌─────────────────────────────────┐
-│ Nasi Goreng Spesial        x2  │
-│ Rp 30.000                       │
-│ [−]  2  [+]        🗑️          │
-│ ┌─────────────────────────────┐ │
-│ │ Catatan: tidak pedas...     │ │
-│ └─────────────────────────────┘ │
-└─────────────────────────────────┘
-```
-
-### Summary Section
-```
-┌─────────────────────────────────┐
-│ Subtotal            Rp 30.000   │
-│ Pajak (10%)          Rp 3.000   │
-│ Diskon                   Rp 0   │
-│ ─────────────────────────────── │
-│ TOTAL              Rp 33.000    │
-│                                 │
-│ [💳 Bayar]  [📋 Hold]           │
-│ [↩️ Batal]                      │
-└─────────────────────────────────┘
-```
-
-### Fitur Baru
-- **Nomor meja + tipe order** di header cart
-- **Jumlah tamu** — bisa diubah
-- **Tipe order** — Dine-in / Takeaway dropdown
-- **Quick payment buttons** — Uang pas, 50K, 100K, 200K
-- **Hold/Recall** — Simpan pesanan sementara, recall nanti
-- **Toast notification** — Ganti alert() dengan toast yang lebih modern
-
----
-
-## Tahap 4: Tambah Fitur Hold/Recall Order
-
-### Hold Order
-Simpan pesanan sementara tanpa submit ke server. Berguna jika:
-- Pelanggan belum selesai pesan
-- Pelanggan mau lihat menu lagi
-- Ada gangguan (telepon, dll)
-
-### Implementasi
-```javascript
-// Hold: simpan cart ke localStorage dengan key berbeda
-function holdOrder() {
-  const cart = getLocalCart();
-  if (!cart || cart.items.length === 0) return;
-  const heldOrders = JSON.parse(localStorage.getItem('pos-held-orders') || '[]');
-  heldOrders.push({ ...cart, heldAt: new Date().toISOString() });
-  localStorage.setItem('pos-held-orders', JSON.stringify(heldOrders));
-  clearCart();
-  showToast('Pesanan disimpan (hold)');
-}
-
-// Recall: tampilkan daftar held orders
-function recallOrder(index) {
-  const heldOrders = JSON.parse(localStorage.getItem('pos-held-orders') || '[]');
-  const order = heldOrders.splice(index, 1)[0];
-  localStorage.setItem('pos-held-orders', JSON.stringify(heldOrders));
-  saveCart(order);
-  showToast('Pesanan dipanggil kembali');
-}
-```
-
-### UI
-- Tombol "Hold" di cart
-- Badge count menunjukkan berapa pesanan yang di-hold
-- Modal recall menampilkan daftar held orders dengan waktu hold
-
----
-
-## Tahap 5: Tambah Quick Payment Buttons
-
-### Di bawah input uang diterima
-```
-┌─────────────────────────────────┐
-│ Uang Diterima                   │
-│ [          50.000          ]    │
-│                                 │
-│ [Uang Pas] [50K] [100K] [200K]  │
-│                                 │
-│ Kembalian: Rp 17.000            │
-└─────────────────────────────────┘
-```
-
-### Implementasi
-```javascript
-function setQuickPayment(amount) {
-  document.getElementById('amount-paid').value = amount;
-  calculateChange();
-}
+src/
+├── pages/
+│   └── pos.ts                    (route handler saja, ~50 baris)
+├── public/
+│   └── styles/
+│       └── pos.css               (semua CSS POS, ~80 baris)
+└── pos/
+    ├── cart.js                   (cart logic: local, server, render)
+    ├── payment.js                (payment: showPayment, processPayment, quickPay)
+    ├── modals.js                 (modals: held orders, transfer, receipt)
+    ├── toast.js                  (toast notification system)
+    ├── keyboard.js               (keyboard shortcuts)
+    └── init.js                   (init + event listeners + entry point)
 ```
 
 ---
 
-## Tahap 6: Tambah Receipt Preview Modal
+## Tahap 2: Extract CSS ke `src/public/styles/pos.css`
 
-Ganti alert text dengan modal preview struk yang proper.
+Pindahkan semua CSS dari `<style>` tag di pos.ts ke file terpisah.
 
-### Layout Receipt
-```
-┌──────────────────────────────┐
-│         POS APP              │
-│     Jl. Contoh No. 123       │
-│    Telp: (021) 1234-5678     │
-│ ──────────────────────────── │
-│ Meja: 5    Kasir: Muhammad Z │
-│ Tgl: 04/04/2026 10:30        │
-│ ──────────────────────────── │
-│ Nasi Goreng      x2   30.000 │
-│ Es Teh           x1    5.000 │
-│ ──────────────────────────── │
-│ Subtotal            35.000   │
-│ Pajak (10%)          3.500   │
-│ TOTAL               38.500   │
-│ Bayar               50.000   │
-│ Kembali             11.500   │
-│ ──────────────────────────── │
-│       TERIMA KASIH!          │
-│                              │
-│ [🖨️ Print] [✕ Tutup]         │
-└──────────────────────────────┘
-```
+### CSS yang perlu di-extract
+- `.pos-main`, `.pos-left`, `.pos-panels`, `.pos-tables-panel`
+- `.panel-header`, `.tables-grid`, `.table-btn`
+- `.pos-menu-panel`, `.pos-menu-header`, `.menu-card`
+- `.pos-right`, `.cart-panel`, `.cart-header`, `.cart-meta`
+- `.cart-zone`, `.cart-item`, `.cart-footer`
+- `.payment-section`, `.quick-pay-buttons`, `.cart-buttons`
+- `.toast-container`, `.toast`, `.toast-success`, `.toast-warning`, `.toast-error`
+- `.held-order-item`, `.receipt-line`, `.receipt-row`
+- Animasi: `@keyframes pulse`, `@keyframes slideIn`
 
----
-
-## Tahap 7: Tambah Toast Notification System
-
-Ganti semua `alert()` dengan toast notification yang modern.
-
-### Implementasi
+### Update pos.ts
+Ganti `<style>...</style>` dengan:
 ```html
-<div id="toast-container" style="position: fixed; top: 20px; right: 20px; z-index: 9999;"></div>
+<link rel="stylesheet" href="/styles/pos.css">
 ```
-
-```javascript
-function showToast(message, type = 'success') {
-  const container = document.getElementById('toast-container');
-  const toast = document.createElement('div');
-  toast.className = `toast toast-${type}`;
-  toast.innerHTML = `<span>${message}</span><button onclick="this.parentElement.remove()">×</button>`;
-  container.appendChild(toast);
-  setTimeout(() => toast.remove(), 3000);
-}
-```
-
-### Toast Types
-- ✅ **Success** — "Item ditambahkan", "Pembayaran berhasil"
-- ⚠️ **Warning** — "Cart kosong", "Meja belum dipilih"
-- ❌ **Error** — "Gagal membuat pesanan", "Server error"
 
 ---
 
-## Tahap 8: Tambah Keyboard Shortcuts
+## Tahap 3: Extract JavaScript ke File Terpisah
 
-| Shortcut | Aksi |
-|----------|------|
-| `Ctrl+F` | Focus ke search menu |
-| `Ctrl+H` | Hold order |
-| `Ctrl+B` | Bayar (jika cart ada item) |
-| `Escape` | Unselect meja / tutup modal |
-| `1-9` | Pilih meja 1-9 |
-| `Enter` | Submit pembayaran (jika di payment mode) |
-
-### Implementasi
+### `src/pos/toast.js`
 ```javascript
+// Fungsi showToast() saja
+function showToast(message, type = 'success') {
+  // ... existing code ...
+}
+```
+
+### `src/pos/cart.js`
+```javascript
+// Semua fungsi cart
+// saveCart, loadCart, clearCart, getLocalCart
+// addToCartLocal, removeFromCartLocal, updateQuantityLocal, updateItemNotes
+// renderCartFromLocal, renderServerCart, renderEmptyCartForTable
+// selectTable, addToCart, addToCartServer
+// updateServerQty, removeServerItem
+// updateGuestCount, updateOrderType
+```
+
+### `src/pos/payment.js`
+```javascript
+// Semua fungsi payment
+// showPayment, processPaymentManual, setQuickPayment
+// updatePaidAmount, processPaymentWithAmount, submitOrder
+// processPayment (old function, bisa dihapus jika tidak dipakai)
+```
+
+### `src/pos/modals.js`
+```javascript
+// Semua fungsi modal
+// holdOrder, showHeldOrdersModal, closeHeldOrdersModal, recallOrder, updateHeldCount
+// showTransferModal, closeTransferModal, transferTable
+// showReceipt, closeReceiptModal, printReceipt
+```
+
+### `src/pos/keyboard.js`
+```javascript
+// Keyboard shortcuts
 document.addEventListener('keydown', function(e) {
-  if (e.ctrlKey && e.key === 'f') { e.preventDefault(); document.getElementById('menu-search').focus(); }
-  if (e.ctrlKey && e.key === 'h') { e.preventDefault(); holdOrder(); }
-  if (e.ctrlKey && e.key === 'b') { e.preventDefault(); if (currentOrderId) processPayment(); }
-  if (e.key === 'Escape') { unselectTable(); closeAllModals(); }
+  // Ctrl+F, Ctrl+H, Escape
 });
 ```
 
----
-
-## Tahap 9: Tambah Fitur Transfer Meja
-
-Bisa memindahkan pesanan dari satu meja ke meja lain.
-
-### UI
-- Tombol "Transfer" di cart (hanya muncul jika ada order aktif)
-- Modal pilih meja tujuan (hanya meja available yang tampil)
-- Konfirmasi sebelum transfer
-
-### Implementasi
+### `src/pos/init.js`
 ```javascript
-async function transferTable(fromTableId, toTableId) {
-  const res = await fetch('/api/orders/' + currentOrderId + '/transfer', {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ newTableId: toTableId })
-  });
-  // Update UI
-}
+// Entry point — dipanggil saat DOM ready
+// - Panggil updateHeldCount()
+// - Load saved cart dari localStorage
+// - Setup event listeners
+// - Import semua modul lain
 ```
 
 ---
 
-## Tahap 10: Testing
+## Tahap 4: Update Route Handler di `src/pages/pos.ts`
 
-### Skenario Test
-1. **Layout** — Tampilan rapi di desktop (1920x1080) dan tablet (1024x768)
-2. **Menu display** — Menu tampil dengan icon/emoji, hover effect berfungsi
-3. **Cart** — Info meja jelas, qty +/- berfungsi, catatan tersimpan
-4. **Hold/Recall** — Hold pesanan → pilih meja lain → recall pesanan hold
-5. **Quick payment** — Klik 50K → input terisi → kembalian terhitung
-6. **Receipt preview** — Modal struk tampil rapi, bisa print
-7. **Toast** — Toast muncul saat tambah item, bayar, hold, error
-8. **Keyboard** — Ctrl+F focus search, Escape unselect meja
-9. **Transfer meja** — Pindah order ke meja lain berhasil
+Setelah semua di-extract, `src/pages/pos.ts` hanya berisi:
+- Route handler Elysia
+- HTML template (tanpa `<style>` dan `<script>` panjang)
+- Import CSS dan JS files
+
+```typescript
+import { Elysia } from 'elysia';
+import { htmlResponse } from '../templates/html';
+import { getSidebarHtml } from '../templates/sidebar';
+// ... imports lain
+
+export const posPage = new Elysia()
+  .get('/pos', async ({ cookie, headers }) => {
+    // ... auth check, fetch data ...
+
+    return htmlResponse(`
+      <div class="app-layout">
+        <!-- HTML layout tanpa style/script inline -->
+      </div>
+      <link rel="stylesheet" href="/styles/pos.css">
+      <script src="/pos/init.js"></script>
+      <script>
+        // Inject server-side variables
+        window.POS_USER = ${JSON.stringify(user)};
+        window.POS_USER_ID = ${user.userId};
+        window.POS_TABLES = ${JSON.stringify(tables)};
+        window.POS_MENUS = ${JSON.stringify(menus)};
+      </script>
+    `);
+  });
+```
 
 ---
 
-## File yang Perlu Diubah
+## Tahap 5: Setup Static File Serving
 
-| File | Perubahan |
-|------|-----------|
-| `src/pages/pos.ts` | **Rebuild total** — layout baru, menu cards, cart, modals, toast, shortcuts |
-| `src/routes/orders.ts` | Tambah endpoint `PUT /:id/transfer` |
-| `src/public/styles/global.css` | Tambah CSS untuk toast, receipt, quick-pay buttons |
+Pastikan Bun serve file statis dari `src/pos/` dan `src/public/styles/`.
+
+Di `src/index.ts`, tambahkan:
+```typescript
+.get('/pos/:path', ({ params }) => {
+  const filePath = join(__dirname, 'pos', params.path);
+  if (existsSync(filePath)) {
+    return new Response(Bun.file(filePath), {
+      headers: { 'Content-Type': params.path.endsWith('.css') ? 'text/css' : 'application/javascript' }
+    });
+  }
+  return new Response('Not found', { status: 404 });
+})
+.get('/styles/pos.css', () => {
+  const filePath = join(__dirname, 'public/styles/pos.css');
+  if (existsSync(filePath)) {
+    return new Response(Bun.file(filePath), { headers: { 'Content-Type': 'text/css' } });
+  }
+  return new Response('Not found', { status: 404 });
+})
+```
+
+---
+
+## Tahap 6: Testing
+
+### Skenario Test
+1. **Server start** — `bun run src/index.ts` tanpa error
+2. **POS page loads** — `/pos` tampil sama seperti sebelumnya
+3. **Cart** — tambah item, +/- qty, catatan, hapus item — semua berfungsi
+4. **Payment** — input manual + quick buttons — pembayaran berhasil, struk muncul
+5. **Hold/Recall** — hold pesanan, pilih meja lain, recall — berfungsi
+6. **Transfer meja** — pindah pesanan ke meja lain — berfungsi
+7. **Toast** — notifikasi muncul saat tambah item, bayar, hold, error
+8. **Keyboard** — Ctrl+F focus search, Escape unselect meja
+9. **Receipt** — struk tampil rapi, kembalian terhitung benar, print berfungsi
+
+---
+
+## File yang Perlu Diubah/Dibuat
+
+| File | Aksi |
+|------|------|
+| `src/pages/pos.ts` | **Rewrite** — hanya route handler + HTML template |
+| `src/public/styles/pos.css` | **BARU** — semua CSS POS |
+| `src/pos/cart.js` | **BARU** — cart logic |
+| `src/pos/payment.js` | **BARU** — payment logic |
+| `src/pos/modals.js` | **BARU** — modal logic |
+| `src/pos/toast.js` | **BARU** — toast notification |
+| `src/pos/keyboard.js` | **BARU** — keyboard shortcuts |
+| `src/pos/init.js` | **BARU** — entry point + init |
+| `src/index.ts` | **Update** — tambah static file serving untuk `/pos/*` dan `/styles/pos.css` |
 
 ## Catatan Penting
 
-- **JANGAN hapus** fitur yang sudah ada (local cart, notes, discount, kirim ke dapur)
-- **Backward compatible** — semua API endpoint yang ada tetap berfungsi
-- **Emoji sebagai placeholder** — icon menu pakai emoji dulu, nanti bisa diganti gambar
-- **Estimasi total**: 5-7 jam kerja
+- **JANGAN hapus** fitur yang sudah ada — hanya pindahkan
+- **JANGAN ubah** HTML yang di-render — harus sama persis
+- **JANGAN ubah** API endpoint yang sudah ada
+- **Gunakan `window.POS_*`** untuk inject server-side variables ke client JS
+- **Test setiap tahap** — jangan extract semua dulu baru test
+- **Estimasi total**: 2-3 jam kerja
