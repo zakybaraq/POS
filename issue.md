@@ -1,180 +1,173 @@
-# Rencana Improve: Modul Menu `/menu`
+# Rencana Improve: Modul Meja `/tables`
 
 ## Latar Belakang
 
-Modul menu saat ini (`src/pages/menu.ts`) hanya memiliki fitur dasar:
-- Tabel dengan 5 kolom: Nama, Harga, Kategori, Status, Aksi
-- Filter kategori (Semua, Makanan, Minuman)
-- Tambah menu via modal (nama, harga, kategori)
-- Edit via `prompt()` browser (hanya nama & harga)
-- Toggle ketersediaan
-- Hapus dengan `confirm()`
+Modul meja saat ini (`src/pages/tables.ts`) sangat dasar:
+- Grid card dengan nomor meja, status badge, tombol hapus
+- Tambah meja via modal (hanya nomor meja)
+- Hapus dengan `confirm()` browser
 
 ### Masalah Saat Ini
-1. **Tidak ada search** — Jika menu banyak, harus scroll manual
-2. **Edit pakai `prompt()`** — UX buruk, tidak bisa edit deskripsi atau gambar
-3. **Tidak ada deskripsi menu** — Tidak bisa tambah info bahan, level pedas, dll
-4. **Tidak ada gambar menu** — Hanya teks, tidak ada visual
-5. **Tidak ada pagination** — Semua menu dimuat sekaligus
-6. **Tidak ada stats/summary** — Tidak tahu berapa total menu, tersedia, tidak tersedia
-7. **Tidak ada bulk action** — Tidak bisa hapus atau toggle banyak menu sekaligus
-8. **Tidak ada toast notification** — Pakai `alert()` yang mengganggu
-9. **Tidak ada konfirmasi delete yang proper** — Pakai `confirm()` browser native
-10. **Tidak ada sort** — Tidak bisa sort berdasarkan harga, nama, atau tanggal
+1. **Tidak ada stats/summary** — Tidak tahu berapa total meja, tersedia, terisi
+2. **Tidak ada search** — Jika meja banyak, harus scroll manual
+3. **Tidak bisa edit nomor meja** — Hanya bisa hapus dan buat ulang
+4. **Tidak ada visual floor plan** — Hanya card statis, tidak ada layout visual
+5. **Tidak ada info pesanan aktif** — Tidak tahu meja yang terisi sedang pesan apa
+6. **Tidak ada kapasitas tamu** — Tidak bisa set berapa orang per meja
+7. **Tidak ada area/zona** — Tidak bisa kelompokkan meja (indoor, outdoor, VIP)
+8. **Tidak ada bulk action** — Tidak bisa hapus atau toggle banyak meja sekaligus
+9. **Tidak ada toast notification** — Pakai `alert()` yang mengganggu
+10. **Tidak ada custom confirmation modal** — Pakai `confirm()` browser native
 
 ---
 
 ## Tujuan
 
-Improve modul menu agar:
-1. **Lebih informatif** — Stats, search, sort, deskripsi
-2. **Lebih efisien** — Edit via modal, bulk action, pagination
+Improve modul meja agar:
+1. **Lebih informatif** — Stats, info pesanan aktif, kapasitas tamu
+2. **Lebih efisien** — Edit via modal, search, bulk action
 3. **Lebih modern** — Toast notification, custom confirmation modal
-4. **Lebih visual** — Placeholder gambar/emoji untuk menu
+4. **Lebih visual** — Floor plan view, area/zona grouping
 
 ---
 
-## Tahap 1: Tambah Stats Cards di Atas Tabel
+## Tahap 1: Tambah Stats Cards
 
-Tambahkan ringkasan menu sebelum tabel utama.
+Tambahkan ringkasan meja sebelum grid utama.
 
 ### Layout
 ```
 ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│  Total  │ │Tersedia │ │  Tidak  │ │ Kategori│
-│   22    │ │   18    │ │   4     │ │  2      │
+│  Total  │ │Tersedia │ │ Terisi  │ % Okupansi│
+│   12    │ │    7    │ │    5    │ │   42%   │
 └─────────┘ └─────────┘ └─────────┘ └─────────┘
 ```
 
 ### Implementasi
-- Hitung dari data menu yang sudah ada (tidak perlu API baru)
-- Total menu, tersedia, tidak tersedia, jumlah kategori
+- Hitung dari data meja yang sudah ada
+- Total meja, tersedia, terisi, persentase okupansi
 
 ---
 
-## Tahap 2: Tambah Search & Sort
+## Tahap 2: Tambah Search & Filter
 
-### Search Bar
+### Toolbar
 ```
 ┌─────────────────────────────────────────────────────────┐
-│ [🔍 Cari menu...]    [Semua ▼]  [Harga ↑]  [+ Tambah]  │
+│ [🔍 Cari meja...]  [Semua Status ▼]  [Semua Area ▼]  [+ Tambah] │
 └─────────────────────────────────────────────────────────┘
 ```
 
 ### Fitur
-- **Search** — Filter berdasarkan nama menu (client-side)
-- **Sort** — Klik header kolom untuk sort: Nama A-Z/Z-A, Harga Rendah/Tinggi, Terbaru/Terlama
-- **Filter kategori** — Dropdown (bukan button) agar lebih compact
+- **Search** — Filter berdasarkan nomor meja (client-side)
+- **Filter status** — Semua, Tersedia, Terisi
+- **Filter area** — Semua, Indoor, Outdoor, VIP (jika sudah ada field area)
 
 ---
 
-## Tahap 3: Replace `prompt()` dengan Edit Modal
+## Tahap 3: Tambah Field Kapasitas dan Area di Database
 
-Ganti `editMenu()` yang pakai `prompt()` dengan modal yang proper.
+### Schema Update
+```typescript
+// Di src/db/schema.ts
+capacity: int('capacity').default(4),
+area: mysqlEnum('area', ['indoor', 'outdoor', 'vip']).default('indoor'),
+```
 
-### Modal Edit Menu
+### SQL Migration
+```sql
+ALTER TABLE tables ADD COLUMN capacity INT DEFAULT 4 AFTER table_number;
+ALTER TABLE tables ADD COLUMN area ENUM('indoor', 'outdoor', 'vip') DEFAULT 'indoor' AFTER capacity;
+```
+
+---
+
+## Tahap 4: Improve Card Meja dengan Info Lebih Detail
+
+### Card Baru
+```
+┌─────────────────────┐
+│   🪑 Meja 5         │
+│   🟢 Tersedia       │
+│   👥 4 orang        │
+│   📍 Indoor         │
+│                     │
+│  [Edit]  [Hapus]    │
+└─────────────────────┘
+```
+
+### Jika Meja Terisi
+```
+┌─────────────────────┐
+│   🪑 Meja 3         │
+│   🔴 Terisi         │
+│   👥 2 orang        │
+│   📍 VIP            │
+│                     │
+│   📋 Order #12      │
+│   Rp 85.000         │
+│   2 item            │
+│                     │
+│  [Lihat]  [Edit]    │
+└─────────────────────┘
+```
+
+---
+
+## Tahap 5: Replace `prompt()` dengan Edit Modal
+
+Ganti edit yang tidak ada (saat ini hanya hapus) dengan modal edit yang proper.
+
+### Modal Edit Meja
 ```
 ┌──────────────────────────────┐
-│ Edit Menu                    │
+│ Edit Meja                    │
 ├──────────────────────────────┤
-│ Nama:    [Nasi Goreng      ] │
-│ Harga:   [15000            ] │
-│ Kategori:[Makanan          ▼]│
-│ Deskripsi:[Nasi goreng spesial]│
-│           [dengan telur     ] │
-│ Status:  [✅ Tersedia      ▼] │
+│ Nomor:   [5               ]  │
+│ Kapasitas:[4              ]  │
+│ Area:    [Indoor         ▼]  │
+│ Status:  [✅ Tersedia    ▼]  │
 ├──────────────────────────────┤
 │         [Batal]  [Simpan]    │
 └──────────────────────────────┘
 ```
 
-### Perubahan
-- Tambah field **deskripsi** (textarea, opsional)
-- Tambah field **status** toggle (Tersedia/Tidak Tersedia)
-- Ganti `prompt()` dengan form modal yang proper
-
 ---
 
-## Tahap 4: Tambah Field Deskripsi di Database
+## Tahap 6: Tambah Link ke Pesanan Aktif
 
-### Schema Update
-```typescript
-// Di src/db/schema.ts
-description: varchar('description', { length: 500 }),
-```
+Jika meja terisi, tampilkan info pesanan aktif dan link untuk melihat detail.
 
-### SQL Migration
-```sql
-ALTER TABLE menus ADD COLUMN description VARCHAR(500) DEFAULT '' AFTER price;
-```
-
-### Update Tabel
-Tambahkan kolom "Deskripsi" di tabel (tampilkan truncated, max 50 karakter):
-| Nama | Harga | Deskripsi | Kategori | Status | Aksi |
-
----
-
-## Tahap 5: Tambah Placeholder Emoji/Gambar
-
-Tambahkan kolom emoji di tabel agar menu lebih visual.
-
-### Tampilan
-| | Nama | Harga | Kategori | Status | Aksi |
-|---|------|-------|----------|--------|------|
-| 🍛 | Nasi Goreng | 15.000 | Makanan | ✅ | Edit Hapus |
-| 🥤 | Es Teh | 5.000 | Minuman | ✅ | Edit Hapus |
-
-### Emoji Mapping
-- Makanan: 🍛 Nasi, 🍜 Mie, 🍗 Ayam, 🍚 Nasi Putih, 🥘 Sop, 🍲 Soto, 🥩 Steak, 🌮 dll
-- Minuman: 🥤 Es, ☕ Kopi, 🍵 Teh, 🧃 Jus, 🥛 Susu, dll
-
----
-
-## Tahap 6: Tambah Pagination
-
-Jika menu lebih dari 15 item, tabel harus di-paginate.
-
-### Layout
-```
-┌─────────────────────────────────────────────────────────┐
-│ Tabel Menu                                              │
-│ ...                                                     │
-├─────────────────────────────────────────────────────────┤
-│ Menampilkan 1-15 dari 22    [← Prev] [1] [2] [Next →]  │
-└─────────────────────────────────────────────────────────┘
-```
-
-### Implementasi (Client-side)
-- Slice array menu di JavaScript
-- 15 item per halaman
-- Navigasi: Prev, Next, page numbers
+### Implementasi
+- Fetch order aktif dari API `/api/orders/table/:tableId`
+- Tampilkan: nomor order, total, jumlah item
+- Klik untuk redirect ke halaman orders dengan filter meja tersebut
 
 ---
 
 ## Tahap 7: Tambah Toast Notification
 
-Ganti semua `alert()` dengan toast notification (sudah ada di `src/templates/common-scripts.ts`).
+Ganti semua `alert()` dengan toast notification.
 
 ### Yang perlu diganti
-- `alert('Nama dan harga wajib diisi')` → `showToast('...', 'warning')`
-- `alert('Gagal menambahkan menu')` → `showToast('...', 'error')`
-- `alert('Harga tidak valid')` → `showToast('...', 'warning')`
-- `confirm('Hapus menu?')` → Custom confirmation modal
+- `alert('Nomor meja wajib diisi')` → `showToast('...', 'warning')`
+- `alert(data.error || 'Gagal menambahkan meja')` → `showToast('...', 'error')`
+- `confirm('Hapus meja?')` → Custom confirmation modal
 
 ---
 
 ## Tahap 8: Tambah Custom Confirmation Modal untuk Delete
 
-Ganti `confirm()` browser dengan modal yang konsisten dengan UI.
+Ganti `confirm()` browser dengan modal yang konsisten.
 
 ```
 ┌──────────────────────────────┐
 │ Konfirmasi Hapus             │
 ├──────────────────────────────┤
 │ Apakah Anda yakin ingin      │
-│ menghapus menu "Nasi Goreng"?│
-│ Tindakan ini tidak dapat     │
-│ dibatalkan.                  │
+│ menghapus Meja 5?            │
+│ Meja yang sedang terisi      │
+│ tidak dapat dihapus.         │
 ├──────────────────────────────┤
 │         [Batal]  [Hapus]     │
 └──────────────────────────────┘
@@ -184,21 +177,11 @@ Ganti `confirm()` browser dengan modal yang konsisten dengan UI.
 
 ## Tahap 9: Tambah Fitur Bulk Action
 
-Tambahkan checkbox di setiap baris tabel untuk aksi massal.
-
-### Layout
-```
-┌─────────────────────────────────────────────────────────┐
-│ ☑ Pilih Semua    [Hapus Terpilih] [Toggle Status]       │
-├─────────────────────────────────────────────────────────┤
-│ ☐ 🍛 Nasi Goreng | 15.000 | Makanan | ✅ | Edit Hapus  │
-│ ☐ 🥤 Es Teh     |  5.000 | Minuman | ✅ | Edit Hapus  │
-└─────────────────────────────────────────────────────────┘
-```
+Tambahkan checkbox di setiap card untuk aksi massal.
 
 ### Aksi Bulk
-- **Hapus Terpilih** — Hapus semua menu yang dicentang
-- **Toggle Status** — Ubah semua menu terpilih jadi tersedia/tidak
+- **Hapus Terpilih** — Hapus semua meja yang dicentang (hanya yang tersedia)
+- **Toggle Status** — Set semua meja terpilih jadi tersedia/terisi
 
 ---
 
@@ -206,15 +189,15 @@ Tambahkan checkbox di setiap baris tabel untuk aksi massal.
 
 ### Skenario Test
 1. Stats cards menampilkan angka yang benar
-2. Search menu berdasarkan nama → tabel ter-filter
-3. Sort berdasarkan harga → urutan benar
-4. Edit menu via modal → data ter-update
-5. Tambah deskripsi → tersimpan di database
-6. Emoji tampil di kolom tabel
-7. Pagination berfungsi (15 item per halaman)
-8. Toast muncul saat tambah/edit/hapus menu
-9. Custom confirmation modal untuk delete
-10. Bulk delete dan bulk toggle status berfungsi
+2. Search meja berdasarkan nomor → card ter-filter
+3. Filter berdasarkan status → hanya meja dengan status tersebut tampil
+4. Edit meja via modal → data ter-update
+5. Tambah kapasitas dan area → tersimpan di database
+6. Meja terisi menampilkan info pesanan aktif
+7. Toast muncul saat tambah/edit/hapus meja
+8. Custom confirmation modal untuk delete
+9. Bulk delete hanya menghapus meja yang tersedia
+10. Meja terisi tidak bisa dihapus (error message)
 
 ---
 
@@ -222,13 +205,14 @@ Tambahkan checkbox di setiap baris tabel untuk aksi massal.
 
 | File | Perubahan |
 |------|-----------|
-| `src/db/schema.ts` | Tambah field `description` di menus |
-| `src/pages/menu.ts` | **Rewrite total** — stats, search, sort, edit modal, pagination, toast, bulk action, emoji |
-| `src/public/styles/global.css` | Tambah CSS untuk bulk action, pagination, edit modal |
+| `src/db/schema.ts` | Tambah field `capacity`, `area` di tables |
+| `src/pages/tables.ts` | **Rewrite total** — stats, search, edit modal, bulk action, toast, info pesanan |
+| `src/routes/tables.ts` | Update API untuk accept capacity, area |
+| `src/repositories/table.ts` | Update query untuk field baru |
 
 ## Catatan Penting
 
-- **JANGAN hapus** fitur yang sudah ada (filter kategori, toggle, delete)
-- **JANGAN ubah** API endpoint yang sudah ada
-- **Emoji sebagai placeholder** — nanti bisa diganti gambar asli
+- **JANGAN hapus** fitur yang sudah ada (tambah, hapus, toggle status)
+- **JANGAN ubah** API endpoint yang sudah ada (hanya tambah field)
+- **Meja terisi tidak bisa dihapus** — validasi di backend
 - **Estimasi total**: 2-3 jam kerja
