@@ -1,7 +1,11 @@
 import { Elysia } from 'elysia';
+import { cookie } from '@elysiajs/cookie';
 import { routes } from './routes';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import jwt from 'jsonwebtoken';
+
+const JWT_SECRET = process.env.JWT_SECRET || 'pos-secret-key-change-in-production';
 
 const layoutHtml = existsSync(join(__dirname, 'views/layout.html')) 
   ? readFileSync(join(__dirname, 'views/layout.html'), 'utf-8')
@@ -26,19 +30,46 @@ function htmlResponse(content: string) {
   });
 }
 
-const authCheckScript = `
-<script>
-  const token = localStorage.getItem('token');
-  if (!token) { window.location.href = '/login'; }
-  else {
-    fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-      .then(res => res.json())
-      .then(data => { if (data.error) window.location.href = '/login'; })
-      .catch(() => window.location.href = '/login');
+function redirectToLogin() {
+  return new Response(null, {
+    status: 302,
+    headers: { Location: '/login' }
+  });
+}
+
+function getTokenFromCookies(cookies: any, headers: any): string | null {
+  if (cookies?.pos_session) {
+    const sessionCookie = cookies.pos_session;
+    const token = sessionCookie?.value || sessionCookie;
+    if (token) {
+      try {
+        jwt.verify(token, JWT_SECRET);
+        return token;
+      } catch {}
+    }
   }
-</script>`;
+  
+  const cookieHeader = headers?.cookie;
+  if (!cookieHeader) return null;
+  
+  const match = cookieHeader.match(/pos_session=([^;]+)/);
+  if (!match) return null;
+  
+  const token = match[1];
+  try {
+    jwt.verify(token, JWT_SECRET);
+    return token;
+  } catch {
+    return null;
+  }
+}
+
+function verifyToken(token: string): any {
+  return jwt.verify(token, JWT_SECRET);
+}
 
 const app = new Elysia()
+  .use(cookie())
   .use(routes)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
   
@@ -69,12 +100,11 @@ const app = new Elysia()
           const response = await fetch('/api/auth/login', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: formData.get('email'), password: formData.get('password') })
+            body: JSON.stringify({ email: formData.get('email'), password: formData.get('password') }),
+            credentials: 'include'
           });
           const data = await response.json();
-          if (data.token) {
-            localStorage.setItem('token', data.token);
-            localStorage.setItem('user', JSON.stringify(data.user));
+          if (data.success) {
             window.location.href = '/';
           } else {
             alert(data.error || 'Login failed');
@@ -168,39 +198,50 @@ const app = new Elysia()
     `);
   })
   
-  .get('/', () => {
-    return htmlResponse(authCheckScript + `
+  .get('/', async ({ cookies, headers }) => {
+    const token = getTokenFromCookies(cookies, headers);
+    if (!token) return redirectToLogin();
+    
+    let user = null;
+    try {
+      user = verifyToken(token);
+    } catch {
+      return redirectToLogin();
+    }
+    
+    return htmlResponse(`
       <div class="container mx-auto p-4">
-        <div id="content">
-          <h1 class="text-2xl font-bold mb-4">Loading...</h1>
+        <div class="flex justify-between items-center mb-4">
+          <h1 class="text-2xl font-bold">Restaurant POS</h1>
+          <button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout (${user.name})</button>
+        </div>
+        <div class="grid grid-cols-3 gap-4">
+          <a href="/pos" class="bg-blue-500 text-white p-4 rounded text-center hover:bg-blue-600">POS</a>
+          <a href="/menu" class="bg-green-500 text-white p-4 rounded text-center hover:bg-green-600">Menu</a>
+          <a href="/tables" class="bg-purple-500 text-white p-4 rounded text-center hover:bg-purple-600">Tables</a>
+          <a href="/orders" class="bg-yellow-500 text-white p-4 rounded text-center hover:bg-yellow-600">Orders</a>
         </div>
       </div>
       <script>
-        const token = localStorage.getItem('token');
-        fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } })
-          .then(res => res.json())
-          .then(data => {
-            if (data.error) { window.location.href = '/login'; return; }
-            const user = data.user;
-            document.getElementById('content').innerHTML = 
-              '<div class="flex justify-between items-center mb-4"><h1 class="text-2xl font-bold">Restaurant POS</h1><button onclick="logout()" class="bg-red-500 text-white px-4 py-2 rounded">Logout (' + user.name + ')</button></div>' +
-              '<div class="grid grid-cols-3 gap-4">' +
-              '<a href="/pos" class="bg-blue-500 text-white p-4 rounded text-center hover:bg-blue-600">POS</a>' +
-              '<a href="/menu" class="bg-green-500 text-white p-4 rounded text-center hover:bg-green-600">Menu</a>' +
-              '<a href="/tables" class="bg-purple-500 text-white p-4 rounded text-center hover:bg-purple-600">Tables</a>' +
-              '<a href="/orders" class="bg-yellow-500 text-white p-4 rounded text-center hover:bg-yellow-600">Orders</a></div>';
-          })
-          .catch(() => window.location.href = '/login');
         function logout() {
-          localStorage.removeItem('token');
-          localStorage.removeItem('user');
-          window.location.href = '/login';
+          fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+            .then(() => window.location.href = '/login');
         }
       </script>
     `);
   })
   
-  .get('/pos', async () => {
+  .get('/pos', async ({ cookies, headers }) => {
+    const token = getTokenFromCookies(cookies, headers);
+    if (!token) return redirectToLogin();
+    
+    let user = null;
+    try {
+      user = verifyToken(token);
+    } catch {
+      return redirectToLogin();
+    }
+    
     const { getAllTables } = await import('./repositories/table');
     const { getAvailableMenus } = await import('./repositories/menu');
     const { getOrdersToday } = await import('./repositories/order');
@@ -211,7 +252,7 @@ const app = new Elysia()
     
     const todayTotal = orders.filter(o => o.status === 'completed').reduce((sum, o) => sum + (o.total || 0), 0);
     
-    return htmlResponse(authCheckScript + `
+    return htmlResponse(`
       <div class="flex h-screen">
         <div class="w-32 bg-gray-800 p-4 text-white">
           <h2 class="text-lg font-bold mb-4">Meja</h2>
@@ -243,6 +284,7 @@ const app = new Elysia()
       
       <script>
         let currentOrderId = null;
+        let currentUserId = ${user.userId};
         
         function filterMenu(category) {
           document.querySelectorAll('.menu-item').forEach(item => {
@@ -331,14 +373,10 @@ const app = new Elysia()
             if (orderData.order) { currentOrderId = orderData.order.id; renderCart(orderData.order, orderData.items); }
             return;
           }
-          const token = localStorage.getItem('token');
-          if (!token) { alert('Silakan login!'); window.location.href = '/login'; return; }
-          const userRes = await fetch('/api/auth/me', { headers: { 'Authorization': 'Bearer ' + token } });
-          const userData = await userRes.json();
           const createRes = await fetch('/api/orders', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
-            body: JSON.stringify({ tableId: parseInt(tableId), userId: userData.user.userId })
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ tableId: parseInt(tableId), userId: currentUserId })
           });
           const newOrder = await createRes.json();
           currentOrderId = newOrder.id;
@@ -348,11 +386,21 @@ const app = new Elysia()
     `);
   })
   
-  .get('/menu', async () => {
+  .get('/menu', async ({ cookies, headers }) => {
+    const token = getTokenFromCookies(cookies, headers);
+    if (!token) return redirectToLogin();
+    
+    let user = null;
+    try {
+      user = verifyToken(token);
+    } catch {
+      return redirectToLogin();
+    }
+    
     const { getAllMenus } = await import('./repositories/menu');
     const menus = await getAllMenus();
     
-    return htmlResponse(authCheckScript + `
+    return htmlResponse(`
       <div class="container mx-auto p-4">
         <div class="flex justify-between items-center mb-4">
           <h1 class="text-2xl font-bold">Menu Management</h1>
@@ -411,11 +459,21 @@ const app = new Elysia()
     `);
   })
   
-  .get('/tables', async () => {
+  .get('/tables', async ({ cookies, headers }) => {
+    const token = getTokenFromCookies(cookies, headers);
+    if (!token) return redirectToLogin();
+    
+    let user = null;
+    try {
+      user = verifyToken(token);
+    } catch {
+      return redirectToLogin();
+    }
+    
     const { getAllTables } = await import('./repositories/table');
     const tables = await getAllTables();
     
-    return htmlResponse(authCheckScript + `
+    return htmlResponse(`
       <div class="container mx-auto p-4">
         <div class="flex justify-between items-center mb-4">
           <h1 class="text-2xl font-bold">Table Management</h1>
@@ -453,7 +511,17 @@ const app = new Elysia()
     `);
   })
   
-  .get('/orders', async () => {
+  .get('/orders', async ({ cookies, headers }) => {
+    const token = getTokenFromCookies(cookies, headers);
+    if (!token) return redirectToLogin();
+    
+    let user = null;
+    try {
+      user = verifyToken(token);
+    } catch {
+      return redirectToLogin();
+    }
+    
     const { getOrdersTodayWithTables } = await import('./repositories/order');
     const { getUserById } = await import('./repositories/user');
     const orders = await getOrdersTodayWithTables();
@@ -465,7 +533,7 @@ const app = new Elysia()
     
     const todayTotal = ordersWithUser.filter((o: any) => o.orders?.status === 'completed').reduce((sum: number, o: any) => sum + (o.orders?.total || 0), 0);
     
-    return htmlResponse(authCheckScript + `
+    return htmlResponse(`
       <div class="container mx-auto p-4">
         <div class="flex justify-between items-center mb-4">
           <h1 class="text-2xl font-bold">Today's Orders</h1>
