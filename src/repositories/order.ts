@@ -13,6 +13,7 @@ export async function createOrder(tableId: number, userId: number) {
   const result = await db.insert(orders).values({
     tableId,
     userId,
+    servedBy: '',
     status: 'active',
     subtotal: 0,
     tax: 0,

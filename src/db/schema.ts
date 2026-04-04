@@ -36,13 +36,14 @@ export const menus = mysqlTable('menus', {
 export const tables = mysqlTable('tables', {
   id: serial('id').primaryKey(),
   tableNumber: int('table_number').notNull().unique(),
-  status: tableStatusEnum.notNull().default('available'),
+  status: mysqlEnum('table_status', ['available', 'occupied']).notNull().default('available'),
 });
 
 export const orders = mysqlTable('orders', {
   id: serial('id').primaryKey(),
   tableId: int('table_id').notNull(),
   userId: int('user_id').notNull(),
+  servedBy: varchar('served_by', { length: 100 }).notNull().default(''),
   status: orderStatusEnum.notNull().default('active'),
   subtotal: int('subtotal').notNull().default(0),
   tax: int('tax').notNull().default(0),
