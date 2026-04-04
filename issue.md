@@ -1,193 +1,327 @@
-# Rencana Improve: Modul Pesanan `/orders`
+# Rencana Transformasi: POS System → Production-Ready Business POS
 
 ## Latar Belakang
 
-Modul pesanan saat ini (`src/pages/orders.ts`) sangat dasar — hanya 66 baris:
-- Tabel sederhana dengan 5 kolom: Meja, Pelanggan, Total, Status, Waktu
-- Menampilkan semua pesanan hari ini tanpa filter
-- Tidak ada stats, search, pagination, atau detail pesanan
+Sistem POS saat ini hanya memiliki modul dasar:
+- ✅ Dashboard (basic stats)
+- ✅ POS (order & payment)
+- ✅ Menu Management
+- ✅ Table Management
+- ✅ Orders (today's orders)
+- ✅ Admin (user management)
 
-### Masalah Saat Ini
-1. **Tidak ada stats/summary** — Tidak tahu total penjualan, pesanan aktif, selesai, dibatalkan
-2. **Tidak ada search** — Tidak bisa cari berdasarkan nama pelanggan atau nomor meja
-3. **Tidak ada filter** — Tidak bisa filter berdasarkan status (aktif, selesai, dibatalkan)
-4. **Tidak ada detail pesanan** — Tidak bisa lihat item apa saja yang dipesan
-5. **Tidak ada pagination** — Semua pesanan dimuat sekaligus
-6. **Tidak ada sort** — Tidak bisa sort berdasarkan waktu, total, atau status
-7. **Tidak ada export** — Tidak bisa download laporan pesanan
-8. **Tidak ada toast notification** — Tidak ada feedback visual
-9. **Tidak ada info kasir** — Tidak tahu siapa yang menangani pesanan
-10. **Tidak ada cetak ulang struk** — Tidak bisa reprint struk pesanan selesai
+**Ini tidak cukup untuk menangani bisnis restoran nyata.** Sistem POS kompetitor seperti Moka POS, Majoo, Qasir, dan Pawoon memiliki puluhan modul yang saling terintegrasi.
 
 ---
 
-## Tujuan
+## Analisis: Modul yang HARUS Ada untuk Bisnis Nyata
 
-Improve modul pesanan agar:
-1. **Lebih informatif** — Stats, detail pesanan, info kasir
-2. **Lebih efisien** — Search, filter, sort, pagination
-3. **Lebih modern** — Toast notification, export, cetak ulang struk
+### 🔴 KRITIS — Tanpa ini, sistem tidak layak produksi
 
----
+| # | Modul | Kenapa Penting | Estimasi |
+|---|-------|---------------|----------|
+| 1 | **Inventory/Stock Management** | Restoran harus tahu stok bahan baku, auto-decrement saat pesanan, alert stok habis | 8-12 jam |
+| 2 | **Customer Management** | Database pelanggan, riwayat belanja, membership, loyalty points | 6-8 jam |
+| 3 | **Reporting & Analytics** | Laporan penjualan harian/mingguan/bulanan, profit/loss, best seller | 8-10 jam |
+| 4 | **Settings/Business Config** | Info restoran, pajak, metode pembayaran, template struk, jam operasional | 4-6 jam |
+| 5 | **Supplier & Purchase Order** | Manajemen supplier, PO, penerimaan barang, harga beli | 6-8 jam |
+| 6 | **Employee/Shift Management** | Shift kasir, attendance, performa karyawan, komisi | 6-8 jam |
 
-## Tahap 1: Tambah Stats Cards
+### 🟡 PENTING — Meningkatkan efisiensi operasional
 
-Tambahkan ringkasan pesanan sebelum tabel utama.
+| # | Modul | Kenapa Penting | Estimasi |
+|---|-------|---------------|----------|
+| 7 | **Kitchen Display System (KDS)** | Layar dapur untuk lihat pesanan masuk, update status masak | 6-8 jam |
+| 8 | **Promotions & Discounts** | Voucher, promo code, happy hour, diskon member, buy 1 get 1 | 6-8 jam |
+| 9 | **Reservation/Booking** | Reservasi meja, booking online, waitlist | 4-6 jam |
+| 10 | **Split Bill** | Bagi tagihan per orang atau per item | 4-6 jam |
+| 11 | **Delivery/Takeaway** | Order delivery, status pengiriman, ongkir | 6-8 jam |
+| 12 | **Multi-Payment Methods** | Cash, kartu, QRIS, e-wallet (GoPay, OVO, Dana), split payment | 6-8 jam |
 
-### Layout
-```
-┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐ ┌─────────┐
-│  Total  │ │  Aktif  │ │ Selesai │ │Dibatal  │ Penjualan │
-│   24    │ │    5    │ │   17    │ │    2    │  Rp 1.2jt │
-└─────────┘ └─────────┘ └─────────┘ └─────────┘ └─────────┘
-```
+### 🟢 NILAI TAMBAH — Membedakan dari kompetitor
 
-### Implementasi
-- Hitung dari data pesanan hari ini
-- Total pesanan, aktif, selesai, dibatalkan, total penjualan
-
----
-
-## Tahap 2: Tambah Search & Filter
-
-### Toolbar
-```
-┌─────────────────────────────────────────────────────────────────────────┐
-│ [🔍 Cari pesanan...]  [Semua Status ▼]  [Export CSV]  [Refresh]       │
-└─────────────────────────────────────────────────────────────────────────┘
-```
-
-### Fitur
-- **Search** — Filter berdasarkan nama pelanggan, nomor meja, atau nama kasir
-- **Filter status** — Semua, Aktif, Selesai, Dibatalkan
-- **Export CSV** — Download laporan pesanan hari ini
+| # | Modul | Kenapa Penting | Estimasi |
+|---|-------|---------------|----------|
+| 13 | **Loyalty Program** | Poin reward, tier member, redeem poin | 4-6 jam |
+| 14 | **Email/SMS Receipt** | Kirim struk via email atau SMS | 2-4 jam |
+| 15 | **Expense Management** | Catat pengeluaran operasional (listrik, gaji, bahan) | 4-6 jam |
+| 16 | **Multi-branch Support** | Kelola banyak cabang dari satu dashboard | 12-16 jam |
+| 17 | **API Integration** | Integrasi dengan GoFood, GrabFood, ShopeeFood | 8-12 jam |
+| 18 | **Barcode/QR Scanner** | Scan barcode untuk inventory, QR untuk menu digital | 4-6 jam |
 
 ---
 
-## Tahap 3: Tambah Modal Detail Pesanan
+## Rencana Implementasi Bertahap
 
-Klik baris pesanan untuk melihat detail item yang dipesan.
+### Fase 1: Foundation (Week 1-2) — Modul KRITIS
 
-### Layout Modal
-```
-┌──────────────────────────────────────────────┐
-│ Detail Pesanan #12                           │
-├──────────────────────────────────────────────┤
-│ Meja: 5          Kasir: Muhammad Zaki       │
-│ Tgl: 04/04/2026 10:30    Status: Selesai    │
-├──────────────────────────────────────────────┤
-│ Item                  Qty    Harga    Total  │
-│ Nasi Goreng Spesial  x2   15.000   30.000  │
-│ Es Teh Manis         x1    5.000    5.000  │
-│ Ayam Goreng          x1   18.000   18.000  │
-├──────────────────────────────────────────────┤
-│ Subtotal                    53.000           │
-│ Pajak (10%)                  5.300           │
-│ TOTAL                       58.300           │
-│ Bayar                       60.000           │
-│ Kembali                      1.700           │
-├──────────────────────────────────────────────┤
-│         [🖨️ Cetak Struk]  [✕ Tutup]         │
-└──────────────────────────────────────────────┘
+#### 1.1 Inventory/Stock Management
+**File baru**: `src/pages/inventory.ts`, `src/routes/inventory.ts`, `src/repositories/inventory.ts`
+
+**Fitur**:
+- Database bahan baku (nama, satuan, stok, minimum stok, harga beli)
+- Auto-decrement stok saat pesanan dibuat (recipe mapping)
+- Alert stok hampir habis / habis
+- Stock in/out manual (penyesuaian stok)
+- Riwayat pergerakan stok
+
+**Schema baru**:
+```typescript
+// ingredients — bahan baku
+// recipes — mapping menu ke bahan baku
+// stock_movements — riwayat stok masuk/keluar
 ```
 
-### Implementasi
-- Fetch detail order dari API `/api/orders/:id`
-- Tampilkan items dengan quantity, harga, total
-- Tombol cetak struk (reuse receipt modal dari POS)
+#### 1.2 Customer Management
+**File baru**: `src/pages/customers.ts`, `src/routes/customers.ts`
 
----
+**Fitur**:
+- CRUD pelanggan (nama, telepon, email, alamat)
+- Riwayat belanja per pelanggan
+- Membership tier (Regular, Silver, Gold)
+- Loyalty points (1 poin per Rp 10.000 belanja)
 
-## Tahap 4: Tambah Kolom Kasir di Tabel
-
-Tambahkan kolom "Kasir" di tabel pesanan.
-
-### Tabel Baru
-| Meja | Pelanggan | Kasir | Total | Status | Waktu | Aksi |
-|------|-----------|-------|-------|--------|-------|------|
-| 5 | Walk-in | Muhammad Zaki | Rp 58.300 | Selesai | 10:30 | 👁️ |
-
-### Implementasi
-- Data kasir sudah ada dari `getUserById()` di backend
-- Tampilkan nama kasir di kolom baru
-- Tambah kolom "Aksi" dengan tombol "Lihat Detail" (👁️)
-
----
-
-## Tahap 5: Tambah Pagination
-
-Jika pesanan lebih dari 15 item, tabel harus di-paginate.
-
-### Implementasi (Client-side)
-- Slice array pesanan di JavaScript
-- 15 item per halaman
-- Navigasi: Prev, Next, page numbers
-
----
-
-## Tahap 6: Tambah Sort
-
-Klik header kolom untuk sort:
-- **Waktu** — Terbaru/Terlama (default: terbaru)
-- **Total** — Tertinggi/Terendah
-- **Meja** — Nomor kecil/besar
-
----
-
-## Tahap 7: Tambah Fitur Export CSV
-
-Download laporan pesanan hari ini dalam format CSV.
-
-### Kolom CSV
-```
-No Order,Meja,Pelanggan,Kasir,Subtotal,Pajak,Total,Status,Waktu
-12,5,Walk-in,Muhammad Zaki,53000,5300,58300,Selesai,2026-04-04 10:30
+**Schema baru**:
+```typescript
+// customers
+// customer_memberships
+// loyalty_transactions
 ```
 
+#### 1.3 Reporting & Analytics
+**File baru**: `src/pages/reports.ts`
+
+**Fitur**:
+- Laporan penjualan (harian, mingguan, bulanan, custom range)
+- Laporan menu terlaris
+- Laporan kasir (performa per kasir)
+- Laporan okupansi meja
+- Grafik penjualan (chart.js atau vanilla JS bar chart)
+- Export laporan ke PDF/Excel
+
+#### 1.4 Settings/Business Config
+**File baru**: `src/pages/settings.ts`
+
+**Fitur**:
+- Info bisnis (nama, alamat, telepon, logo)
+- Pengaturan pajak (persentase, inclusive/exclusive)
+- Metode pembayaran aktif (cash, card, QRIS, e-wallet)
+- Template struk (header, footer, ukuran kertas)
+- Jam operasional
+- Backup & restore database
+
+#### 1.5 Supplier & Purchase Order
+**File baru**: `src/pages/suppliers.ts`, `src/pages/purchase-orders.ts`
+
+**Fitur**:
+- CRUD supplier
+- Buat purchase order
+- Terima barang (update stok otomatis)
+- Riwayat PO
+
+**Schema baru**:
+```typescript
+// suppliers
+// purchase_orders
+// purchase_order_items
+```
+
+#### 1.6 Employee/Shift Management
+**File baru**: `src/pages/employees.ts`, `src/pages/shifts.ts`
+
+**Fitur**:
+- Data karyawan (sudah ada di users, tambah field: jabatan, gaji, telepon)
+- Shift management (buka/tutup shift, cash count)
+- Attendance (clock in/clock out)
+- Performa kasir (total transaksi, rata-rata per transaksi)
+
 ---
 
-## Tahap 8: Tambah Auto-Refresh
+### Fase 2: Operational Excellence (Week 3-4) — Modul PENTING
 
-Pesanan aktif harus auto-refresh setiap 30 detik agar status terbaru tampil.
+#### 2.1 Kitchen Display System (KDS)
+**File baru**: `src/pages/kitchen.ts`
 
-### Implementasi
-```javascript
-setInterval(async () => {
-  const response = await fetch('/api/orders/today');
-  const data = await response.json();
-  updateOrdersTable(data);
-}, 30000);
+**Fitur**:
+- Real-time display pesanan masuk (WebSocket atau polling)
+- Update status: Pending → Cooking → Ready → Served
+- Timer per pesanan (warning jika terlalu lama)
+- Filter by station (makanan/minuman)
+
+#### 2.2 Promotions & Discounts
+**Schema baru**:
+```typescript
+// promotions (kode, tipe, nilai, periode, minimum belanja)
+// promotion_usage
+```
+
+**Fitur**:
+- Voucher diskon (fixed/percentage)
+- Happy hour (diskon otomatis di jam tertentu)
+- Buy X Get Y
+- Diskon per kategori/menu
+- Promo code di POS
+
+#### 2.3 Reservation/Booking
+**Schema baru**:
+```typescript
+// reservations (nama, telepon, tanggal, jam, jumlah tamu, meja, status)
+```
+
+**Fitur**:
+- Buat reservasi
+- Calendar view
+- Assign meja otomatis
+- Status: Pending → Confirmed → Seated → Completed/No-show
+
+#### 2.4 Split Bill
+**Fitur di POS**:
+- Split by item (tiap orang pilih item sendiri)
+- Split equally (bagi rata)
+- Custom split (manual assign)
+
+#### 2.5 Delivery/Takeaway
+**Schema baru**:
+```typescript
+// delivery_orders (customer, alamat, ongkir, driver, status)
+```
+
+**Fitur**:
+- Order type: Dine-in / Takeaway / Delivery
+- Input alamat pengiriman
+- Assign driver
+- Status tracking: Pending → Preparing → On the way → Delivered
+
+#### 2.6 Multi-Payment Methods
+**Schema update**:
+```typescript
+// orders — tambah payment_method, split_payments
+// payment_methods — cash, card, qris, gopay, ovo, dana, shopeepay
+```
+
+**Fitur**:
+- Pilih metode pembayaran saat checkout
+- Split payment (bayar sebagian cash, sebagian QRIS)
+- Integration-ready untuk QRIS (struktur data siap)
+
+---
+
+### Fase 3: Competitive Edge (Week 5-6) — Modul NILAI TAMBAH
+
+#### 3.1 Loyalty Program
+**Fitur**:
+- Earn points saat belanja
+- Redeem points untuk diskon
+- Tier upgrade (Regular → Silver → Gold)
+- Member-exclusive promo
+
+#### 3.2 Email/SMS Receipt
+**Fitur**:
+- Input email pelanggan saat checkout
+- Kirim struk via email (gunakan nodemailer atau API pihak ketiga)
+- Template struk email
+
+#### 3.3 Expense Management
+**Schema baru**:
+```typescript
+// expenses (kategori, jumlah, keterangan, tanggal, bukti)
+```
+
+**Fitur**:
+- Catat pengeluaran (bahan baku, listrik, gaji, dll)
+- Kategori pengeluaran
+- Laporan pengeluaran vs pendapatan
+- Profit/loss otomatis
+
+#### 3.4 Multi-branch Support
+**Schema update**:
+```typescript
+// branches (nama, alamat, telepon, status)
+// Semua tabel utama — tambah branch_id
+```
+
+**Fitur**:
+- Kelola banyak cabang
+- Dashboard per cabang atau consolidated
+- Transfer stok antar cabang
+- Laporan per cabang
+
+---
+
+## Prioritas Implementasi (Urutan yang Disarankan)
+
+Berdasarkan dampak bisnis, urutan pengerjaan yang optimal:
+
+1. **Settings** — Fondasi konfigurasi bisnis (4-6 jam)
+2. **Inventory** — Tanpa ini, stok tidak terkontrol (8-12 jam)
+3. **Reporting** — Owner butuh data untuk keputusan (8-10 jam)
+4. **Customer Management** — Retensi pelanggan (6-8 jam)
+5. **Supplier & PO** — Supply chain (6-8 jam)
+6. **Employee/Shift** — Operasional harian (6-8 jam)
+7. **Promotions** — Marketing (6-8 jam)
+8. **Kitchen Display** — Efisiensi dapur (6-8 jam)
+9. **Multi-Payment** — Fleksibilitas pembayaran (6-8 jam)
+10. **Split Bill** — UX pelanggan (4-6 jam)
+11. **Reservation** — Booking system (4-6 jam)
+12. **Delivery** — Revenue channel baru (6-8 jam)
+13. **Loyalty Program** — Retensi (4-6 jam)
+14. **Expense Management** — Financial control (4-6 jam)
+15. **Email Receipt** — Professional touch (2-4 jam)
+16. **Multi-branch** — Scale up (12-16 jam)
+
+**Total estimasi**: 96-134 jam kerja (~3-4 bulan untuk 1 developer)
+
+---
+
+## Arsitektur File yang Disarankan
+
+```
+src/
+├── pages/
+│   ├── dashboard.ts          ✅ Sudah ada
+│   ├── pos.ts                ✅ Sudah ada
+│   ├── menu.ts               ✅ Sudah ada
+│   ├── tables.ts             ✅ Sudah ada
+│   ├── orders.ts             ✅ Sudah ada
+│   ├── admin.ts              ✅ Sudah ada
+│   ├── inventory.ts          🆕
+│   ├── customers.ts          🆕
+│   ├── reports.ts            🆕
+│   ├── settings.ts           🆕
+│   ├── suppliers.ts          🆕
+│   ├── purchase-orders.ts    🆕
+│   ├── employees.ts          🆕
+│   ├── shifts.ts             🆕
+│   ├── kitchen.ts            🆕
+│   ├── reservations.ts       🆕
+│   ├── promotions.ts         🆕
+│   ├── expenses.ts           🆕
+│   └── branches.ts           🆕
+├── routes/
+│   ├── inventory.ts          🆕
+│   ├── customers.ts          🆕
+│   ├── suppliers.ts          🆕
+│   ├── reservations.ts       🆕
+│   ├── promotions.ts         🆕
+│   └── expenses.ts           🆕
+├── repositories/
+│   ├── inventory.ts          🆕
+│   ├── customer.ts           🆕
+│   ├── supplier.ts           🆕
+│   ├── reservation.ts        🆕
+│   ├── promotion.ts          🆕
+│   └── expense.ts            🆕
+└── db/
+    └── schema.ts             🔄 Update — tambah semua tabel baru
 ```
 
 ---
-
-## Tahap 9: Testing
-
-### Skenario Test
-1. Stats cards menampilkan angka yang benar
-2. Search pesanan berdasarkan nama pelanggan → tabel ter-filter
-3. Filter berdasarkan status → hanya pesanan dengan status tersebut tampil
-4. Klik detail pesanan → modal muncul dengan item lengkap
-5. Cetak struk dari detail pesanan → struk tampil rapi
-6. Export CSV → file ter-download dengan data yang benar
-7. Pagination berfungsi (15 item per halaman)
-8. Sort berdasarkan waktu/total → urutan benar
-9. Auto-refresh update status pesanan aktif
-10. Kolom kasir menampilkan nama kasir yang benar
-
----
-
-## File yang Perlu Diubah/Dibuat
-
-| File | Perubahan |
-|------|-----------|
-| `src/pages/orders.ts` | **Rewrite total** — stats, search, filter, detail modal, pagination, sort, export, auto-refresh |
-| `src/routes/orders.ts` | Tambah endpoint `GET /api/orders/:id` (sudah ada), pastikan response lengkap |
-| `src/repositories/order.ts` | Pastikan `getOrdersTodayWithTables()` return data lengkap dengan user/kasir |
 
 ## Catatan Penting
 
-- **JANGAN hapus** fitur yang sudah ada
-- **JANGAN ubah** API endpoint yang sudah ada (hanya tambah jika perlu)
-- **Auto-refresh** hanya untuk pesanan aktif, bukan semua pesanan
-- **Estimasi total**: 2-3 jam kerja
+- **JANGAN hapus** modul yang sudah ada
+- **JANGAN ubah** API endpoint yang sudah ada (backward compatible)
+- **Setiap modul harus independent** — bisa diaktifkan/nonaktifkan
+- **Gunakan RBAC yang sudah ada** — setiap modul punya role access
+- **Semua modul harus punya search, filter, pagination** — konsisten dengan modul existing
+- **Estimasi per modul** termasuk: database migration, API, UI, testing
