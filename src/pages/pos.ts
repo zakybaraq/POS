@@ -1,8 +1,5 @@
 import { Elysia } from 'elysia';
 import { htmlResponse } from '../templates/html';
-import { getSidebarHtml } from '../templates/sidebar';
-import { getNavbarHtml } from '../templates/navbar';
-import { getFooterHtml } from '../templates/footer';
 import { getCommonScripts } from '../templates/common-scripts';
 import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth';
 
@@ -40,179 +37,393 @@ export const posPage = new Elysia()
     const menus = await getAvailableMenus();
 
     return htmlResponse(`
-      <div class="app-layout">
-        ${getSidebarHtml('pos', user)}
-        <div class="app-content">
-          ${getNavbarHtml('Point of Sale', 'pos', user)}
-          <main class="app-main pos-main">
-            <div class="pos-left">
-              <div class="pos-panels">
-                <div class="pos-tables-panel">
-                  <div class="panel-header">
-                    <h3>Meja</h3>
-                    ${['super_admin', 'admin_restoran'].includes(user.role) ? `<button class="btn-icon" onclick="addTable()" title="Tambah Meja">+</button>` : ''}
-                  </div>
-                  <div class="tables-grid">
-                    ${tables.map(t => `<button class="table-btn ${t.status === 'available' ? 'available' : 'occupied'}" data-table-id="${t.id}" data-status="${t.status}" onclick="selectTable(${t.id}, ${t.tableNumber}, '${t.status}')">${t.tableNumber}</button>`).join('')}
-                  </div>
-                  ${tables.length === 0 ? '<p class="text-muted text-center" style="padding: 16px;">Belum ada meja</p>' : ''}
-                  <div class="table-legend">
-                    <span class="legend-item"><span class="legend-dot available"></span> Tersedia</span>
-                    <span class="legend-item"><span class="legend-dot occupied"></span> Terisi</span>
-                    <span class="legend-item"><span class="legend-dot selected"></span> Dipilih</span>
-                  </div>
-                </div>
-
-                <div class="pos-menu-panel">
-                  <div class="pos-menu-header">
-                    <div class="category-tabs">
-                      <button class="category-tab active" onclick="filterMenu('all', this)">🍽️ Semua</button>
-                      <button class="category-tab" onclick="filterMenu('makanan', this)">🍛 Makanan</button>
-                      <button class="category-tab" onclick="filterMenu('minuman', this)">🥤 Minuman</button>
-                    </div>
-                    <div class="pos-search">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
-                      <input type="text" id="menu-search" placeholder="Cari menu... (Ctrl+F)" oninput="searchMenu(this.value)">
-                    </div>
-                  </div>
-                  <div class="menu-grid" id="menu-grid">
-                    ${menus.map((m, i) => `
-                      <button class="menu-card" data-category="${m.category}" data-name="${m.name.toLowerCase()}" onclick="addToCart(${m.id}, '${m.name.replace(/'/g, "\\'")}', ${m.price})">
-                        <div class="menu-card-emoji">${getMenuEmoji(m.category, i)}</div>
-                        <div class="menu-card-name">${m.name}</div>
-                        <div class="menu-card-price">${m.price.toLocaleString('id-ID')}</div>
-                      </button>
-                    `).join('')}
-                  </div>
-                  ${menus.length === 0 ? '<p class="text-muted text-center" style="padding: 40px;">Menu kosong</p>' : ''}
-                </div>
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Point of Sale</title>
+        <link rel="stylesheet" href="/styles/global.css">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { height: 100%; overflow: hidden; }
+          body { 
+            background: var(--color-bg); 
+            color: var(--color-text); 
+            font-family: system-ui, -apple-system, sans-serif;
+          }
+          
+          .pos-container {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            grid-template-rows: auto 1fr;
+            height: 100vh;
+            gap: 12px;
+            padding: 12px;
+          }
+          
+          .pos-header { 
+            grid-column: 1 / -1;
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 12px 20px; 
+            background: var(--color-card); 
+            border-radius: var(--radius-lg); 
+            border: 1px solid var(--color-border);
+          }
+          .pos-header-left { display: flex; align-items: center; gap: 12px; }
+          .pos-header h1 { font-size: 18px; font-weight: 700; }
+          .pos-header-right { display: flex; gap: 8px; }
+          
+          .pos-btn { 
+            padding: 8px 16px; 
+            background: var(--color-bg-secondary); 
+            border: 1px solid var(--color-border); 
+            border-radius: var(--radius-md); 
+            color: var(--color-text); 
+            font-size: 12px; 
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .pos-btn:hover { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+          .pos-btn-primary { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+          .pos-btn-success { background: var(--color-success); color: white; border-color: var(--color-success); }
+          .pos-btn-danger { background: var(--color-error); color: white; border-color: var(--color-error); }
+          
+          .pos-left {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden;
+          }
+          
+          .pos-tables {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 12px;
+          }
+          .pos-tables-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+          .pos-tables-header h2 { font-size: 14px; font-weight: 600; }
+          .pos-tables-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+          }
+          .pos-table {
+            min-width: 45px;
+            height: 45px;
+            border-radius: var(--radius-md);
+            border: 2px solid var(--color-border);
+            background: var(--color-bg-secondary);
+            color: var(--color-text);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .pos-table.available { background: var(--color-success); color: white; border-color: var(--color-success); }
+          .pos-table.occupied { background: var(--color-error); color: white; border-color: var(--color-error); }
+          .pos-table.selected { box-shadow: 0 0 0 3px var(--color-primary); }
+          .pos-tables-legend { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--color-text-secondary); }
+          .pos-legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+          
+          .pos-menu {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 12px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          }
+          .pos-menu-header { display: flex; gap: 8px; margin-bottom: 10px; }
+          .pos-category {
+            padding: 6px 12px;
+            border: 2px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-text);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+          }
+          .pos-category:hover { border-color: var(--color-primary); }
+          .pos-category.active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
+          .pos-search {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: 12px;
+          }
+          .pos-search:focus { outline: none; border-color: var(--color-primary); }
+          
+          .pos-menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+            gap: 6px;
+            overflow-y: auto;
+            padding-right: 4px;
+          }
+          .pos-menu-item {
+            padding: 10px 6px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            text-align: center;
+          }
+          .pos-menu-item:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+          .pos-menu-item.added { background: var(--color-success); color: white; }
+          .pos-menu-emoji { font-size: 22px; margin-bottom: 2px; }
+          .pos-menu-name { font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .pos-menu-price { font-size: 10px; color: var(--color-text-secondary); }
+          
+          .pos-cart {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          }
+          .pos-cart-header {
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--color-border);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+          }
+          .pos-cart-title { font-size: 14px; font-weight: 700; }
+          
+          .pos-cart-meta {
+            display: flex;
+            gap: 8px;
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border);
+            font-size: 11px;
+          }
+          .pos-cart-meta input, .pos-cart-meta select {
+            flex: 1;
+            padding: 4px 8px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: 11px;
+          }
+          
+          .pos-cart-items {
+            flex: 1;
+            overflow-y: auto;
+            padding: 10px;
+          }
+          .pos-cart-empty { text-align: center; padding: 20px; color: var(--color-text-secondary); font-size: 12px; }
+          
+          .pos-cart-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px;
+            background: var(--color-bg);
+            border-radius: var(--radius-md);
+            margin-bottom: 6px;
+          }
+          .pos-cart-item-info { flex: 1; min-width: 0; }
+          .pos-cart-item-name { font-size: 12px; font-weight: 600; }
+          .pos-cart-item-qty { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
+          .pos-cart-item-qty button {
+            width: 20px;
+            height: 20px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 700;
+            font-size: 12px;
+          }
+          .pos-cart-item-qty span { font-size: 11px; font-weight: 600; min-width: 20px; text-align: center; }
+          .pos-cart-item-price { font-size: 12px; font-weight: 700; }
+          .pos-cart-item-remove { background: none; border: none; color: var(--color-error); font-size: 16px; cursor: pointer; }
+          
+          .pos-cart-footer {
+            padding: 12px;
+            border-top: 1px solid var(--color-border);
+          }
+          .pos-cart-summary { margin-bottom: 8px; }
+          .pos-cart-row { display: flex; justify-content: space-between; font-size: 11px; padding: 2px 0; }
+          .pos-cart-total { font-size: 14px; font-weight: 700; border-top: 2px solid var(--color-border); padding-top: 6px; margin-top: 4px; }
+          
+          .pos-cart-discount { display: flex; gap: 6px; margin: 6px 0; }
+          .pos-cart-discount input { flex: 1; padding: 4px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 11px; }
+          .pos-cart-discount select { padding: 4px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 11px; }
+          
+          .pos-payment { display: none; margin-bottom: 8px; padding: 10px; background: var(--color-bg-secondary); border-radius: var(--radius-md); }
+          .pos-payment.show { display: block; }
+          .pos-payment input { width: 100%; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 14px; font-weight: 600; margin-bottom: 6px; }
+          .pos-payment-row { display: flex; justify-content: space-between; font-size: 11px; margin-bottom: 4px; }
+          .pos-payment-change { color: var(--color-success); }
+          .pos-quick-pay { display: flex; gap: 4px; margin-bottom: 6px; }
+          .pos-quick-pay button { flex: 1; padding: 6px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 10px; cursor: pointer; }
+          
+          .pos-cart-actions { display: flex; gap: 6px; }
+          .pos-cart-actions button { flex: 1; padding: 10px; border: none; border-radius: var(--radius-md); font-size: 11px; font-weight: 600; cursor: pointer; }
+          
+          .pos-toast {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            padding: 10px 14px;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 12px;
+            z-index: 9999;
+            animation: slideIn 0.3s;
+          }
+          .pos-toast-success { background: var(--color-success); }
+          .pos-toast-error { background: var(--color-error); }
+          .pos-toast-warning { background: var(--color-warning); }
+          @keyframes slideIn { from { transform: translateX(100%); } to { transform: translateX(0); } }
+          
+          .pos-modal { display: none; }
+          .pos-modal.show { display: block; }
+          .pos-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; }
+          .pos-modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--color-card); border-radius: var(--radius-lg); width: 90%; max-width: 400px; z-index: 101; }
+          .pos-modal-header { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--color-border); }
+          .pos-modal-header h3 { font-size: 14px; font-weight: 700; }
+          .pos-modal-close { background: none; border: none; font-size: 20px; cursor: pointer; }
+          .pos-modal-body { padding: 12px; max-height: 250px; overflow-y: auto; }
+          .pos-modal-footer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--color-border); justify-content: flex-end; }
+          
+          .pos-held-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 6px; cursor: pointer; }
+          .pos-held-item:hover { border-color: var(--color-primary); }
+          
+          ::-webkit-scrollbar { width: 4px; }
+          ::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
+          ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
+        </style>
+      </head>
+      <body>
+        <div class="pos-container">
+          <div class="pos-header">
+            <div class="pos-header-left">
+              <a href="/" class="pos-btn">Dashboard</a>
+              <h1>Point of Sale</h1>
+            </div>
+            <div class="pos-header-right">
+              <button class="pos-btn" onclick="showHeldOrders()">Hold (<span id="held-count">0</span>)</button>
+              <button class="pos-btn" id="btn-transfer" style="display:none;" onclick="showTransfer()">Transfer</button>
+            </div>
+          </div>
+          
+          <div class="pos-left">
+            <div class="pos-tables">
+              <div class="pos-tables-header">
+                <h2>Meja</h2>
+                ${['super_admin', 'admin_restoran'].includes(user.role) ? `<button class="pos-btn" onclick="addTable()">+ Tambah</button>` : ''}
+              </div>
+              <div class="pos-tables-grid">
+                ${tables.map(t => `<button class="pos-table ${t.status}" data-id="${t.id}" data-status="${t.status}" onclick="selectTable(${t.id},${t.tableNumber},'${t.status}')">${t.tableNumber}</button>`).join('')}
+              </div>
+              <div class="pos-tables-legend">
+                <span><span class="pos-legend-dot" style="background:var(--color-success)"></span>Tersedia</span>
+                <span><span class="pos-legend-dot" style="background:var(--color-error)"></span>Terisi</span>
+                <span><span class="pos-legend-dot" style="background:var(--color-primary)"></span>Dipilih</span>
               </div>
             </div>
-
-            <div class="pos-right">
-              <div class="cart-panel">
-                <div class="cart-header">
-                  <div class="cart-title">
-                    <span id="cart-table-info">Pilih Meja</span>
-                    <span id="cart-order-type" class="badge badge-primary" style="display: none;">Dine-in</span>
-                  </div>
-                  <div class="cart-actions-header">
-                    <button class="btn-icon" onclick="showHeldOrdersModal()" title="Recall">📋 <span id="held-count" style="display: none;">0</span></button>
-                    <button class="btn-icon" onclick="showTransferModal()" title="Transfer Meja" id="btn-transfer" style="display: none;">↔️</button>
-                  </div>
-                </div>
-
-                <div class="cart-meta" id="cart-meta" style="display: none;">
-                  <div class="meta-row">
-                    <label>Tamu</label>
-                    <input type="number" id="guest-count" class="meta-input" value="1" min="1" max="20" onchange="updateGuestCount(this.value)">
-                  </div>
-                  <div class="meta-row">
-                    <label>Tipe</label>
-                    <select id="order-type" class="meta-input" onchange="updateOrderType(this.value)">
-                      <option value="dine-in">Dine-in</option>
-                      <option value="takeaway">Takeaway</option>
-                    </select>
-                  </div>
-                </div>
-
-                <div class="cart-zone" id="cart-zone">
-                  <div class="cart-empty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;">
-                      <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                    </svg>
-                    <p>Pilih meja terlebih dahulu</p>
-                  </div>
-                </div>
-
-                <div class="cart-footer" id="cart-footer" style="display: none;">
-                  <div class="cart-summary">
-                    <div class="cart-row"><span>Subtotal</span><span id="summary-subtotal">0</span></div>
-                    <div class="cart-row"><span>Pajak (10%)</span><span id="summary-tax">0</span></div>
-                    <div class="cart-discount-row">
-                      <input type="number" id="discount-amount" class="discount-input" placeholder="Diskon" value="0" onchange="renderCartFromLocal()">
-                      <select id="discount-type" class="discount-select" onchange="renderCartFromLocal()">
-                        <option value="fixed">Rp</option>
-                        <option value="percentage">%</option>
-                      </select>
-                    </div>
-                    <div class="cart-row total"><span>TOTAL</span><span id="summary-total">0</span></div>
-                  </div>
-
-                  <div class="payment-section" id="payment-section" style="display: none;">
-                    <div style="margin-bottom: 6px;">
-                      <input type="number" id="amount-paid-input" class="discount-input" placeholder="Masukkan nominal..." oninput="updatePaidAmount(this.value)" onkeyup="updatePaidAmount(this.value)" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 600;">
-                    </div>
-                    <div class="cart-row"><span>Bayar</span><span id="summary-paid">0</span></div>
-                    <div class="cart-row"><span>Kembali</span><span id="summary-change" style="color: var(--color-success);">0</span></div>
-                    <div class="quick-pay-buttons">
-                      <button class="quick-pay-btn" onclick="setQuickPayment('exact')">Uang Pas</button>
-                      <button class="quick-pay-btn" onclick="setQuickPayment(50000)">50K</button>
-                      <button class="quick-pay-btn" onclick="setQuickPayment(100000)">100K</button>
-                      <button class="quick-pay-btn" onclick="setQuickPayment(200000)">200K</button>
-                    </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="processPaymentManual()">💳 Bayar Sekarang</button>
-                  </div>
-
-                  <div class="cart-buttons">
-                    <button class="btn btn-secondary btn-hold" onclick="holdOrder()">📋 Hold</button>
-                    <button class="btn btn-primary btn-pay" onclick="showPayment()">💳 Bayar</button>
-                    <button class="btn btn-danger btn-cancel" onclick="cancelOrder()">↩️ Batal</button>
-                  </div>
-                </div>
+            
+            <div class="pos-menu">
+              <div class="pos-menu-header">
+                <button class="pos-category active" onclick="filterCategory('all',this)">Semua</button>
+                <button class="pos-category" onclick="filterCategory('makanan',this)">Makanan</button>
+                <button class="pos-category" onclick="filterCategory('minuman',this)">Minuman</button>
+                <input type="text" class="pos-search" placeholder="Cari menu..." oninput="searchMenu(this.value)">
+              </div>
+              <div class="pos-menu-grid" id="menu-grid">
+                ${menus.map((m,i) => `<div class="pos-menu-item" data-category="${m.category}" data-name="${m.name.toLowerCase()}" onclick="addToCart(${m.id},'${m.name.replace(/'/g,"\\'")}',${m.price})">
+                  <div class="pos-menu-emoji">${getMenuEmoji(m.category,i)}</div>
+                  <div class="pos-menu-name">${m.name}</div>
+                  <div class="pos-menu-price">${m.price.toLocaleString('id-ID')}</div>
+                </div>`).join('')}
               </div>
             </div>
-          </main>
-          ${getFooterHtml()}
+          </div>
+          
+          <div class="pos-cart">
+            <div class="pos-cart-header">
+              <span class="pos-cart-title" id="cart-title">Pilih Meja</span>
+            </div>
+            <div class="pos-cart-meta" id="cart-meta" style="display:none;">
+              <input type="number" id="guest-count" value="1" min="1" max="20" onchange="updateGuest(this.value)" placeholder="Tamu">
+              <select id="order-type" onchange="updateType(this.value)">
+                <option value="dine-in">Dine-in</option>
+                <option value="takeaway">Takeaway</option>
+              </select>
+            </div>
+            <div class="pos-cart-items" id="cart-items">
+              <div class="pos-cart-empty">Pilih meja terlebih dahulu</div>
+            </div>
+            <div class="pos-cart-footer" id="cart-footer" style="display:none;">
+              <div class="pos-cart-discount">
+                <input type="number" id="discount-input" value="0" onchange="updateDiscount()" placeholder="Diskon">
+                <select id="discount-type" onchange="updateDiscount()">
+                  <option value="fixed">Rp</option>
+                  <option value="percentage">%</option>
+                </select>
+              </div>
+              <div class="pos-cart-summary">
+                <div class="pos-cart-row"><span>Subtotal</span><span id="summary-subtotal">0</span></div>
+                <div class="pos-cart-row"><span>Pajak (10%)</span><span id="summary-tax">0</span></div>
+                <div class="pos-cart-row pos-cart-total"><span>TOTAL</span><span id="summary-total">0</span></div>
+              </div>
+              <div class="pos-payment" id="payment-section">
+                <input type="number" id="paid-input" placeholder="Nominal pembayaran..." oninput="updatePaid(this.value)">
+                <div class="pos-quick-pay">
+                  <button onclick="setPaid('exact')">Uang Pas</button>
+                  <button onclick="setPaid(50000)">50K</button>
+                  <button onclick="setPaid(100000)">100K</button>
+                  <button onclick="setPaid(200000)">200K</button>
+                </div>
+                <div class="pos-payment-row"><span>Bayar</span><span id="paid-amount">0</span></div>
+                <div class="pos-payment-row"><span>Kembali</span><span id="paid-change" class="pos-payment-change">0</span></div>
+                <button class="pos-btn pos-btn-success" style="width:100%;margin-top:8px;" onclick="processPayment()">BAYAR</button>
+              </div>
+              <div class="pos-cart-actions">
+                <button class="pos-btn" onclick="holdOrder()">Hold</button>
+                <button class="pos-btn pos-btn-primary" onclick="togglePayment()">Bayar</button>
+                <button class="pos-btn pos-btn-danger" onclick="cancelOrder()">Batal</button>
+              </div>
+            </div>
+          </div>
         </div>
-      </div>
-
-      <div id="toast-container" class="toast-container"></div>
-
-      <div class="modal" id="held-orders-modal">
-        <div class="modal-backdrop" onclick="closeHeldOrdersModal()"></div>
-        <div class="modal-content" style="max-width: 500px;">
-          <div class="modal-header">
-            <h3>Pesanan Ditahan (Hold)</h3>
-            <button class="modal-close" onclick="closeHeldOrdersModal()">&times;</button>
-          </div>
-          <div class="modal-body" id="held-orders-list"></div>
-        </div>
-      </div>
-
-      <div class="modal" id="transfer-modal">
-        <div class="modal-backdrop" onclick="closeTransferModal()"></div>
-        <div class="modal-content" style="max-width: 400px;">
-          <div class="modal-header">
-            <h3>Transfer Meja</h3>
-            <button class="modal-close" onclick="closeTransferModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <p style="margin-bottom: 16px; color: var(--color-text-secondary);">Pindah pesanan dari Meja <strong id="transfer-from"></strong> ke:</p>
-            <div id="transfer-tables" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;"></div>
+        
+        <div class="pos-toast" id="toast" style="display:none;"></div>
+        
+        <div class="pos-modal" id="held-modal">
+          <div class="pos-modal-backdrop" onclick="closeHeld()"></div>
+          <div class="pos-modal-content">
+            <div class="pos-modal-header"><h3>Pesanan Hold</h3><button class="pos-modal-close" onclick="closeHeld()">&times;</button></div>
+            <div class="pos-modal-body" id="held-list"></div>
           </div>
         </div>
-      </div>
-
-      <div class="modal" id="receipt-modal">
-        <div class="modal-backdrop" onclick="closeReceiptModal()"></div>
-        <div class="modal-content" style="max-width: 380px;">
-          <div class="modal-header">
-            <h3>Struk Pembayaran</h3>
-            <button class="modal-close" onclick="closeReceiptModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div id="receipt-content" style="font-family: monospace; font-size: 13px; background: var(--color-bg-alt); padding: 20px; border-radius: var(--radius-md);"></div>
-          </div>
-          <div class="modal-footer">
-            <button onclick="printReceipt()" class="btn btn-secondary">🖨️ Print</button>
-            <button onclick="closeReceiptModal()" class="btn btn-primary">Tutup</button>
+        
+        <div class="pos-modal" id="transfer-modal">
+          <div class="pos-modal-backdrop" onclick="closeTransfer()"></div>
+          <div class="pos-modal-content">
+            <div class="pos-modal-header"><h3>Transfer Meja</h3><button class="pos-modal-close" onclick="closeTransfer()">&times;</button></div>
+            <div class="pos-modal-body">
+              <p style="margin-bottom:12px;font-size:12px;color:var(--color-text-secondary)">Dari Meja <strong id="transfer-from"></strong> ke:</p>
+              <div id="transfer-targets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;"></div>
+            </div>
           </div>
         </div>
-      </div>
-
-      <link rel="stylesheet" href="/styles/pos.css">
-      <script>
+        
+        <script>
         let currentOrderId = null;
         let currentUserId = ${user.userId};
         let selectedTableId = null;
@@ -220,587 +431,417 @@ export const posPage = new Elysia()
         let isServerOrder = false;
         let orderType = 'dine-in';
         let guestCount = 1;
-        let lastReceipt = null;
 
-        function showToast(message, type = 'success') {
-          const container = document.getElementById('toast-container');
-          const toast = document.createElement('div');
-          const icons = { success: '✅', warning: '⚠️', error: '❌' };
-          toast.className = 'toast toast-' + type;
-          toast.innerHTML = '<span>' + (icons[type] || '') + ' ' + message + '</span><button onclick="this.parentElement.remove()" style="background:none;border:none;color:white;cursor:pointer;font-size:16px;">&times;</button>';
-          container.appendChild(toast);
-          setTimeout(() => toast.remove(), 3000);
+        function toast(msg, type = 'success') {
+          const t = document.getElementById('toast');
+          t.textContent = msg;
+          t.className = 'pos-toast pos-toast-' + type;
+          t.style.display = 'block';
+          setTimeout(() => t.style.display = 'none', 3000);
         }
 
-        function filterMenu(category, btn) {
-          document.querySelectorAll('.category-tab').forEach(tab => tab.classList.remove('active'));
+        function filterCategory(cat, btn) {
+          document.querySelectorAll('.pos-category').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
-          document.querySelectorAll('.menu-card').forEach(item => {
-            const matchesCategory = category === 'all' || item.dataset.category === category;
-            const matchesSearch = !document.getElementById('menu-search')?.value || item.dataset.name.includes(document.getElementById('menu-search').value.toLowerCase());
-            item.style.display = (matchesCategory && matchesSearch) ? '' : 'none';
+          const search = document.querySelector('.pos-search').value.toLowerCase();
+          document.querySelectorAll('.pos-menu-item').forEach(item => {
+            const matchCat = cat === 'all' || item.dataset.category === cat;
+            const matchSearch = !search || item.dataset.name.includes(search);
+            item.style.display = (matchCat && matchSearch) ? '' : 'none';
           });
         }
 
         function searchMenu(query) {
-          query = query.toLowerCase();
-          document.querySelectorAll('.menu-card').forEach(item => {
-            const activeTab = document.querySelector('.category-tab.active');
-            const category = activeTab?.textContent?.includes('Makanan') ? 'makanan' : activeTab?.textContent?.includes('Minuman') ? 'minuman' : 'all';
-            const matchesCategory = category === 'all' || item.dataset.category === category;
-            item.style.display = (!query || item.dataset.name.includes(query)) && matchesCategory ? '' : 'none';
+          const active = document.querySelector('.pos-category.active');
+          const cat = active?.textContent?.includes('Makanan') ? 'makanan' : active?.textContent?.includes('Minuman') ? 'minuman' : 'all';
+          document.querySelectorAll('.pos-menu-item').forEach(item => {
+            const matchCat = cat === 'all' || item.dataset.category === cat;
+            const matchSearch = !query || item.dataset.name.includes(query.toLowerCase());
+            item.style.display = (matchCat && matchSearch) ? '' : 'none';
           });
         }
 
         function saveCart(cart) { localStorage.setItem('pos-cart', JSON.stringify(cart)); }
-        function loadCart() { try { return JSON.parse(localStorage.getItem('pos-cart') || 'null'); } catch { return null; } }
+        function loadCart() { try { return JSON.parse(localStorage.getItem('pos-cart')); } catch { return null; } }
         function clearCart() { localStorage.removeItem('pos-cart'); }
 
-        function getLocalCart() {
-          const cart = loadCart();
-          if (cart && cart.tableId === selectedTableId) return cart;
-          return null;
+        function getCart() {
+          const c = loadCart();
+          return c && c.tableId === selectedTableId ? c : null;
         }
 
-        function addToCartLocal(menuId, name, price) {
-          let cart = getLocalCart();
-          if (!cart) {
-            cart = { tableId: selectedTableId, tableNumber: currentTableNumber, items: [], orderType: orderType, guestCount: guestCount };
-          }
-          const existing = cart.items.find(i => i.menuId === menuId);
-          if (existing) { existing.quantity += 1; }
-          else { cart.items.push({ menuId, name, price, quantity: 1, notes: '' }); }
-          saveCart(cart);
-          renderCartFromLocal();
+        function addToCartLocal(id, name, price) {
+          let c = getCart();
+          if (!c) c = { tableId: selectedTableId, tableNumber: currentTableNumber, items: [], orderType, guestCount };
+          const exist = c.items.find(i => i.menuId === id);
+          if (exist) exist.quantity += 1;
+          else c.items.push({ menuId: id, name, price, quantity: 1, notes: '' });
+          saveCart(c);
+          renderCart();
+          const el = event.target.closest('.pos-menu-item');
+          if (el) { el.classList.add('added'); setTimeout(() => el.classList.remove('added'), 200); }
+          toast(name + ' ditambahkan');
         }
 
-        function removeFromCartLocal(menuId) {
-          let cart = getLocalCart();
-          if (!cart) return;
-          cart.items = cart.items.filter(i => i.menuId !== menuId);
-          if (cart.items.length === 0) clearCart();
-          else saveCart(cart);
-          renderCartFromLocal();
+        function removeItem(id) {
+          let c = getCart();
+          if (!c) return;
+          c.items = c.items.filter(i => i.menuId !== id);
+          if (c.items.length === 0) clearCart();
+          else saveCart(c);
+          renderCart();
         }
 
-        function updateQuantityLocal(menuId, delta) {
-          let cart = getLocalCart();
-          if (!cart) return;
-          const item = cart.items.find(i => i.menuId === menuId);
+        function qtyChange(id, delta) {
+          let c = getCart();
+          if (!c) return;
+          const item = c.items.find(i => i.menuId === id);
           if (!item) return;
           item.quantity += delta;
-          if (item.quantity <= 0) { removeFromCartLocal(menuId); return; }
-          saveCart(cart);
-          renderCartFromLocal();
+          if (item.quantity <= 0) { removeItem(id); return; }
+          saveCart(c);
+          renderCart();
         }
 
-        function updateItemNotes(menuId, notes) {
-          let cart = getLocalCart();
-          if (!cart) return;
-          const item = cart.items.find(i => i.menuId === menuId);
-          if (item) { item.notes = notes; saveCart(cart); }
-        }
+        function renderCart() {
+          const c = getCart();
+          const itemsEl = document.getElementById('cart-items');
+          const footer = document.getElementById('cart-footer');
+          const meta = document.getElementById('cart-meta');
 
-        function updateGuestCount(val) { guestCount = parseInt(val) || 1; }
-        function updateOrderType(val) {
-          orderType = val;
-          document.getElementById('cart-order-type').textContent = val === 'dine-in' ? 'Dine-in' : 'Takeaway';
-        }
-
-        function renderCartFromLocal() {
-          const cart = getLocalCart();
-          const cartZone = document.getElementById('cart-zone');
-          const cartCount = document.getElementById('cart-count');
-          const cartFooter = document.getElementById('cart-footer');
-          const cartMeta = document.getElementById('cart-meta');
-
-          if (!cart || cart.items.length === 0) {
-            cartZone.innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Cart kosong</p></div>';
-            cartFooter.style.display = 'none';
-            cartMeta.style.display = 'none';
+          if (!c || c.items.length === 0) {
+            itemsEl.innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
+            footer.style.display = 'none';
+            meta.style.display = 'none';
             return;
           }
 
-          cartFooter.style.display = 'block';
-          cartMeta.style.display = 'flex';
-          document.getElementById('guest-count').value = cart.guestCount || 1;
-          document.getElementById('order-type').value = cart.orderType || 'dine-in';
+          footer.style.display = 'block';
+          meta.style.display = 'flex';
+          document.getElementById('guest-count').value = c.guestCount || 1;
+          document.getElementById('order-type').value = c.orderType || 'dine-in';
 
           let html = '';
-          cart.items.forEach(item => {
-            html += '<div class="cart-item">' +
-              '<div class="cart-item-info">' +
-                '<div class="cart-item-name">' + item.name + '</div>' +
-                '<div class="cart-item-notes"><input type="text" placeholder="Catatan..." value="' + (item.notes || '') + '" onchange="updateItemNotes(' + item.menuId + ', this.value)"></div>' +
-                '<div class="cart-item-qty">' +
-                  '<button onclick="updateQuantityLocal(' + item.menuId + ', -1)">-</button>' +
-                  '<span>x' + item.quantity + '</span>' +
-                  '<button onclick="updateQuantityLocal(' + item.menuId + ', 1)">+</button>' +
-                '</div>' +
-              '</div>' +
-              '<div class="cart-item-price">' + (item.price * item.quantity).toLocaleString('id-ID') + '</div>' +
-              '<div class="cart-item-actions"><button class="cart-item-btn" onclick="removeFromCartLocal(' + item.menuId + ')">&times;</button></div>' +
-            '</div>';
+          c.items.forEach(item => {
+            html += '<div class="pos-cart-item">' +
+              '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + item.name + '</div>' +
+              '<div class="pos-cart-item-qty"><button onclick="qtyChange(' + item.menuId + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="qtyChange(' + item.menuId + ',1)">+</button></div></div>' +
+              '<div class="pos-cart-item-price">' + (item.price * item.quantity).toLocaleString('id-ID') + '</div>' +
+              '<button class="pos-cart-item-remove" onclick="removeItem(' + item.menuId + ')">&times;</button></div>';
           });
-          cartZone.innerHTML = html;
+          itemsEl.innerHTML = html;
 
-          const subtotal = cart.items.reduce((sum, i) => sum + (i.price * i.quantity), 0);
+          const subtotal = c.items.reduce((s, i) => s + i.price * i.quantity, 0);
           const tax = Math.round(subtotal * 0.1);
-          const discount = parseInt(document.getElementById('discount-amount')?.value || '0') || 0;
-          const discountType = document.getElementById('discount-type')?.value || 'fixed';
-          const discountAmount = discountType === 'percentage' ? Math.round(subtotal * discount / 100) : discount;
-          const total = subtotal + tax - discountAmount;
+          const disc = parseInt(document.getElementById('discount-input').value) || 0;
+          const discType = document.getElementById('discount-type').value;
+          const discAmt = discType === 'percentage' ? Math.round(subtotal * disc / 100) : disc;
+          const total = subtotal + tax - discAmt;
 
           document.getElementById('summary-subtotal').textContent = subtotal.toLocaleString('id-ID');
           document.getElementById('summary-tax').textContent = tax.toLocaleString('id-ID');
           document.getElementById('summary-total').textContent = total.toLocaleString('id-ID');
-          document.getElementById('payment-section').style.display = 'none';
+          document.getElementById('payment-section').classList.remove('show');
         }
 
-        async function selectTable(tableId, tableNumber, status) {
-          if (selectedTableId === tableId) {
+        async function selectTable(id, num, status) {
+          if (selectedTableId === id) {
             selectedTableId = null;
             currentTableNumber = null;
             currentOrderId = null;
             isServerOrder = false;
-            document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
-            document.getElementById('cart-table-info').textContent = 'Pilih Meja';
-            document.getElementById('cart-order-type').style.display = 'none';
+            document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+            document.getElementById('cart-title').textContent = 'Pilih Meja';
             document.getElementById('btn-transfer').style.display = 'none';
-            document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>';
+            document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
             document.getElementById('cart-footer').style.display = 'none';
             document.getElementById('cart-meta').style.display = 'none';
             return;
           }
 
-          document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
-          document.querySelector('[data-table-id="' + tableId + '"]').classList.add('selected');
-          selectedTableId = tableId;
-          currentTableNumber = tableNumber;
+          document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+          document.querySelector('[data-id="' + id + '"]').classList.add('selected');
+          selectedTableId = id;
+          currentTableNumber = num;
           currentOrderId = null;
           isServerOrder = false;
 
-          const tableBtn = document.querySelector('[data-table-id="' + tableId + '"]');
-          const currentStatus = tableBtn?.dataset.status || status;
-
-          if (currentStatus === 'occupied') {
-            const orderRes = await fetch('/api/orders/table/' + tableId);
-            const orderData = await orderRes.json();
-            if (orderData.order) {
-              currentOrderId = orderData.order.id;
+          if (status === 'occupied') {
+            const res = await fetch('/api/orders/table/' + id);
+            const data = await res.json();
+            if (data.order) {
+              currentOrderId = data.order.id;
               isServerOrder = true;
-              document.getElementById('cart-table-info').textContent = 'Meja ' + tableNumber;
-              document.getElementById('cart-order-type').style.display = 'inline';
+              document.getElementById('cart-title').textContent = 'Meja ' + num;
               document.getElementById('btn-transfer').style.display = 'inline';
-              renderServerCart(orderData.order, orderData.items);
+              renderServerCart(data.order, data.items);
             }
             return;
           }
 
-          const localCart = loadCart();
-          if (localCart && localCart.tableId === tableId) {
-            document.getElementById('cart-table-info').textContent = 'Meja ' + tableNumber;
-            document.getElementById('cart-order-type').style.display = 'inline';
-            renderCartFromLocal();
+          const local = loadCart();
+          if (local && local.tableId === id) {
+            document.getElementById('cart-title').textContent = 'Meja ' + num;
+            renderCart();
             return;
           }
 
           clearCart();
           orderType = 'dine-in';
           guestCount = 1;
-          renderEmptyCartForTable(tableNumber);
-        }
-
-        function renderEmptyCartForTable(tableNumber) {
-          document.getElementById('cart-table-info').textContent = 'Meja ' + tableNumber;
-          document.getElementById('cart-order-type').style.display = 'inline';
-          document.getElementById('cart-order-type').textContent = 'Dine-in';
-          document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Meja ' + tableNumber + ' — Tambahkan menu</p></div>';
+          document.getElementById('cart-title').textContent = 'Meja ' + num;
+          document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
           document.getElementById('cart-footer').style.display = 'none';
           document.getElementById('cart-meta').style.display = 'none';
         }
 
-        function addToCart(menuId, name, price) {
-          if (!selectedTableId) { showToast('Pilih meja terlebih dahulu!', 'warning'); return; }
-          const btn = event.target.closest('.menu-card');
-          if (btn) { btn.classList.add('added'); setTimeout(() => btn.classList.remove('added'), 200); }
-          if (isServerOrder && currentOrderId) { addToCartServer(menuId); }
-          else { addToCartLocal(menuId, name, price); showToast(name + ' ditambahkan'); }
+        function renderServerCart(order, items) {
+          document.getElementById('cart-meta').style.display = 'flex';
+          document.getElementById('cart-footer').style.display = 'block';
+          
+          let html = '';
+          items.forEach(item => {
+            html += '<div class="pos-cart-item">' +
+              '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
+              '<div class="pos-cart-item-qty"><button onclick="updateServerQty(' + item.id + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="updateServerQty(' + item.id + ',1)">+</button></div></div>' +
+              '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div>' +
+              '<button class="pos-cart-item-remove" onclick="removeServerItem(' + item.id + ')">&times;</button></div>';
+          });
+          document.getElementById('cart-items').innerHTML = html;
+
+          document.getElementById('summary-subtotal').textContent = (order.subtotal || 0).toLocaleString('id-ID');
+          document.getElementById('summary-tax').textContent = (order.tax || 0).toLocaleString('id-ID');
+          document.getElementById('summary-total').textContent = (order.total || 0).toLocaleString('id-ID');
+          document.getElementById('payment-section').classList.remove('show');
+        }
+
+        function addToCart(id, name, price) {
+          if (!selectedTableId) { toast('Pilih meja terlebih dahulu!', 'warning'); return; }
+          if (isServerOrder && currentOrderId) { addToCartServer(id); }
+          else { addToCartLocal(id, name, price); }
         }
 
         async function addToCartServer(menuId) {
-          const response = await fetch('/api/orders/' + currentOrderId + '/items', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ menuId, quantity: 1 })
-          });
-          if (response.ok) {
-            const data = await response.json();
+          const res = await fetch('/api/orders/' + currentOrderId + '/items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ menuId, quantity: 1 }) });
+          if (res.ok) {
+            const data = await res.json();
             renderServerCart(data.order, data.items);
-            showToast('Item ditambahkan');
+            toast('Item ditambahkan');
           }
         }
 
-        function renderServerCart(order, items) {
-          const cartZone = document.getElementById('cart-zone');
-          const cartFooter = document.getElementById('cart-footer');
-          const cartMeta = document.getElementById('cart-meta');
-          cartFooter.style.display = 'block';
-          cartMeta.style.display = 'flex';
-
-          let html = '';
-          items.forEach(item => {
-            html += '<div class="cart-item">' +
-              '<div class="cart-item-info">' +
-                '<div class="cart-item-name">' + (item.menuName || 'Item') + '</div>' +
-                '<div class="cart-item-qty">' +
-                  '<button onclick="updateServerQty(' + item.id + ', -1)">-</button>' +
-                  '<span>x' + item.quantity + '</span>' +
-                  '<button onclick="updateServerQty(' + item.id + ', 1)">+</button>' +
-                '</div>' +
-              '</div>' +
-              '<div class="cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div>' +
-              '<div class="cart-item-actions"><button class="cart-item-btn" onclick="removeServerItem(' + item.id + ')">&times;</button></div>' +
-            '</div>';
-          });
-          cartZone.innerHTML = html;
-
-          const subtotal = order.subtotal || 0, tax = order.tax || 0, total = order.total || 0;
-          document.getElementById('summary-subtotal').textContent = subtotal.toLocaleString('id-ID');
-          document.getElementById('summary-tax').textContent = tax.toLocaleString('id-ID');
-          document.getElementById('summary-total').textContent = total.toLocaleString('id-ID');
-          document.getElementById('payment-section').style.display = 'none';
-        }
-
         async function updateServerQty(itemId, delta) {
-          const qtySpan = document.querySelector('[onclick*="updateServerQty(' + itemId + '"]')?.parentElement?.querySelector('span');
-          const currentQty = parseInt(qtySpan?.textContent?.replace('x', '') || '1');
-          const newQty = currentQty + delta;
-          if (newQty <= 0) { removeServerItem(itemId); return; }
-          await fetch('/api/orders/' + currentOrderId + '/items/' + itemId, {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ quantity: newQty })
-          });
-          const response = await fetch('/api/orders/' + currentOrderId);
-          const data = await response.json();
+          const span = document.querySelector('[onclick*="updateServerQty(' + itemId + '"]')?.parentElement?.querySelector('span');
+          const qty = parseInt(span?.textContent?.replace('x','') || '1') + delta;
+          if (qty <= 0) { removeServerItem(itemId); return; }
+          await fetch('/api/orders/' + currentOrderId + '/items/' + itemId, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ quantity: qty }) });
+          const res = await fetch('/api/orders/' + currentOrderId);
+          const data = await res.json();
           if (data.order) renderServerCart(data.order, data.items);
         }
 
         async function removeServerItem(itemId) {
           await fetch('/api/orders/' + currentOrderId + '/items/' + itemId, { method: 'DELETE' });
-          const response = await fetch('/api/orders/' + currentOrderId);
-          const data = await response.json();
+          const res = await fetch('/api/orders/' + currentOrderId);
+          const data = await res.json();
           if (data.order) renderServerCart(data.order, data.items);
         }
 
-        function holdOrder() {
-          const cart = getLocalCart();
-          if (!cart || cart.items.length === 0) { showToast('Cart kosong!', 'warning'); return; }
-          const heldOrders = JSON.parse(localStorage.getItem('pos-held-orders') || '[]');
-          heldOrders.push({ ...cart, heldAt: new Date().toISOString() });
-          localStorage.setItem('pos-held-orders', JSON.stringify(heldOrders));
-          clearCart();
-          updateHeldCount();
-          showToast('Pesanan disimpan (hold)');
+        function updateGuest(val) { guestCount = parseInt(val) || 1; }
+        function updateType(val) { orderType = val; }
+        function updateDiscount() { if (getCart()) renderCart(); }
+
+        function togglePayment() {
+          const section = document.getElementById('payment-section');
+          if (section.classList.contains('show')) {
+            section.classList.remove('show');
+          } else {
+            if (!getCart() && !isServerOrder) { toast('Cart kosong!', 'warning'); return; }
+            section.classList.add('show');
+            document.getElementById('paid-input').value = '';
+            document.getElementById('paid-amount').textContent = '0';
+            document.getElementById('paid-change').textContent = '0';
+            setTimeout(() => document.getElementById('paid-input').focus(), 100);
+          }
         }
 
-        function showHeldOrdersModal() {
-          const heldOrders = JSON.parse(localStorage.getItem('pos-held-orders') || '[]');
-          const list = document.getElementById('held-orders-list');
-          if (heldOrders.length === 0) {
-            list.innerHTML = '<p class="text-muted text-center" style="padding: 24px;">Tidak ada pesanan ditahan</p>';
-          } else {
-            list.innerHTML = heldOrders.map((o, i) => {
-              const time = new Date(o.heldAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' });
-              return '<div class="held-order-item" onclick="recallOrder(' + i + ')">' +
-                '<div class="held-order-info">' +
-                  '<div class="held-order-table">Meja ' + o.tableNumber + '</div>' +
-                  '<div class="held-order-items">' + o.items.map(it => it.name + ' x' + it.quantity).join(', ') + '</div>' +
-                '</div>' +
-                '<div class="held-order-time">' + time + '</div>' +
-              '</div>';
-            }).join('');
-          }
-          document.getElementById('held-orders-modal').classList.add('show');
+        function updatePaid(val) {
+          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g,'')) || 0;
+          const paid = parseInt(val) || 0;
+          document.getElementById('paid-amount').textContent = paid.toLocaleString('id-ID');
+          const change = paid - total;
+          document.getElementById('paid-change').textContent = change >= 0 ? change.toLocaleString('id-ID') : 'Kurang ' + Math.abs(change).toLocaleString('id-ID');
+          document.getElementById('paid-change').style.color = change >= 0 ? 'var(--color-success)' : 'var(--color-error)';
         }
-        function closeHeldOrdersModal() { document.getElementById('held-orders-modal').classList.remove('show'); }
+
+        function setPaid(amount) {
+          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g,'')) || 0;
+          const paid = amount === 'exact' ? total : amount;
+          document.getElementById('paid-input').value = paid;
+          updatePaid(paid);
+        }
+
+        async function processPayment() {
+          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g,'')) || 0;
+          const paid = parseInt(document.getElementById('paid-input').value) || 0;
+          if (paid < total) { toast('Uang kurang!', 'error'); return; }
+          
+          if (!isServerOrder && !currentOrderId) {
+            const cart = getCart();
+            const res = await fetch('/api/orders/with-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableId: cart.tableId, userId: currentUserId, items: cart.items.map(i => ({ menuId: i.menuId, quantity: i.quantity })) }) });
+            const data = await res.json();
+            if (data.error) { toast(data.error, 'error'); return; }
+            currentOrderId = data.order.id;
+            isServerOrder = true;
+            clearCart();
+          }
+
+          const res = await fetch('/api/orders/' + currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
+          const data = await res.json();
+          if (data.error) { toast(data.error, 'error'); }
+          else { toast('Pembayaran berhasil!'); resetAfterPayment(); }
+        }
+
+        function resetAfterPayment() {
+          currentOrderId = null;
+          isServerOrder = false;
+          selectedTableId = null;
+          currentTableNumber = null;
+          document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+          document.getElementById('cart-title').textContent = 'Pilih Meja';
+          document.getElementById('btn-transfer').style.display = 'none';
+          document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
+          document.getElementById('cart-footer').style.display = 'none';
+          document.getElementById('cart-meta').style.display = 'none';
+          document.getElementById('payment-section').classList.remove('show');
+        }
+
+        function holdOrder() {
+          const cart = getCart();
+          if (!cart || cart.items.length === 0) { toast('Cart kosong!', 'warning'); return; }
+          const held = JSON.parse(localStorage.getItem('pos-held') || '[]');
+          held.push({ ...cart, heldAt: new Date().toISOString() });
+          localStorage.setItem('pos-held', JSON.stringify(held));
+          clearCart();
+          renderCart();
+          updateHeldCount();
+          toast('Pesanan dihold');
+        }
+
+        function showHeldOrders() {
+          const held = JSON.parse(localStorage.getItem('pos-held') || '[]');
+          const list = document.getElementById('held-list');
+          if (held.length === 0) { list.innerHTML = '<div style="text-align:center;padding:20px;color:var(--color-text-secondary)">Tidak ada pesanan hold</div>'; }
+          else { list.innerHTML = held.map((h, i) => '<div class="pos-held-item" onclick="recallOrder(' + i + ')"><div><strong>Meja ' + h.tableNumber + '</strong><div style="font-size:11px;color:var(--color-text-secondary)">' + h.items.map(i => i.name + ' x' + i.quantity).join(', ') + '</div></div><div style="font-size:11px">' + new Date(h.heldAt).toLocaleTimeString('id-ID',{hour:'2-digit',minute:'2-digit'}) + '</div></div>').join(''); }
+          document.getElementById('held-modal').classList.add('show');
+        }
+
+        function closeHeld() { document.getElementById('held-modal').classList.remove('show'); }
 
         function recallOrder(index) {
-          const heldOrders = JSON.parse(localStorage.getItem('pos-held-orders') || '[]');
-          const order = heldOrders.splice(index, 1)[0];
-          localStorage.setItem('pos-held-orders', JSON.stringify(heldOrders));
+          const held = JSON.parse(localStorage.getItem('pos-held') || '[]');
+          const order = held.splice(index, 1)[0];
+          localStorage.setItem('pos-held', JSON.stringify(held));
           selectedTableId = order.tableId;
           currentTableNumber = order.tableNumber;
           orderType = order.orderType || 'dine-in';
           guestCount = order.guestCount || 1;
           saveCart(order);
-          document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
-          const btn = document.querySelector('[data-table-id="' + order.tableId + '"]');
+          document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+          const btn = document.querySelector('[data-id="' + order.tableId + '"]');
           if (btn) btn.classList.add('selected');
-          document.getElementById('cart-table-info').textContent = 'Meja ' + order.tableNumber;
-          document.getElementById('cart-order-type').style.display = 'inline';
-          renderCartFromLocal();
+          document.getElementById('cart-title').textContent = 'Meja ' + order.tableNumber;
+          renderCart();
           updateHeldCount();
-          closeHeldOrdersModal();
-          showToast('Pesanan dipanggil kembali');
+          closeHeld();
+          toast('Pesanan dipanggil');
         }
 
         function updateHeldCount() {
-          const heldOrders = JSON.parse(localStorage.getItem('pos-held-orders') || '[]');
-          const badge = document.getElementById('held-count');
-          if (heldOrders.length > 0) { badge.style.display = 'inline'; badge.textContent = heldOrders.length; }
-          else { badge.style.display = 'none'; }
+          const held = JSON.parse(localStorage.getItem('pos-held') || '[]');
+          document.getElementById('held-count').textContent = held.length;
         }
 
-        function showPayment() {
-          const cart = getLocalCart();
-          if ((!cart || cart.items.length === 0) && !isServerOrder) { showToast('Cart kosong!', 'warning'); return; }
-          const section = document.getElementById('payment-section');
-          section.style.display = 'block';
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-          document.getElementById('amount-paid-input').value = '';
-          document.getElementById('summary-paid').textContent = '0';
-          document.getElementById('summary-change').textContent = '0';
-          setTimeout(() => document.getElementById('amount-paid-input').focus(), 100);
-        }
-
-        async function processPaymentManual() {
-          const amount = parseInt(document.getElementById('amount-paid-input').value) || 0;
-          if (!amount || amount <= 0) { showToast('Masukkan jumlah uang!', 'warning'); return; }
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-          if (amount < total) { showToast('Uang kurang!', 'error'); return; }
-          if (!isServerOrder && currentOrderId === null) {
-            const result = await submitOrder();
-            if (!result) return;
-          }
-          const response = await fetch('/api/orders/' + currentOrderId + '/pay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amountPaid: amount })
-          });
-          const data = await response.json();
-          if (data.error) { showToast(data.error, 'error'); }
-          else {
-            showReceipt(data.order, data.items, amount);
-            showToast('Pembayaran berhasil!');
-          }
-        }
-
-        function setQuickPayment(amount) {
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-          let paidAmount = amount === 'exact' ? total : amount;
-          document.getElementById('amount-paid-input').value = paidAmount;
-          updatePaidAmount(paidAmount);
-          processPaymentWithAmount(paidAmount);
-        }
-
-        function updatePaidAmount(value) {
-          const totalEl = document.getElementById('summary-total');
-          const paidEl = document.getElementById('summary-paid');
-          const changeEl = document.getElementById('summary-change');
-          if (!totalEl || !paidEl || !changeEl) return;
-
-          const totalText = totalEl.textContent.replace(/[^0-9]/g, '') || '0';
-          const total = parseInt(totalText) || 0;
-          const paid = parseInt(value) || 0;
-          paidEl.textContent = paid.toLocaleString('id-ID');
-          const change = paid - total;
-          changeEl.textContent = change >= 0 ? change.toLocaleString('id-ID') : 'Kurang ' + Math.abs(change).toLocaleString('id-ID');
-          changeEl.style.color = change >= 0 ? 'var(--color-success)' : 'var(--color-error)';
-        }
-
-        async function processPaymentWithAmount(amountPaid) {
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-          if (amountPaid < total) { showToast('Uang kurang!', 'error'); return; }
-          if (!isServerOrder && currentOrderId === null) {
-            await submitOrder();
-          }
-          const response = await fetch('/api/orders/' + currentOrderId + '/pay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amountPaid })
-          });
-          const data = await response.json();
-          if (data.error) { showToast(data.error, 'error'); }
-          else {
-            showReceipt(data.order, data.items, amountPaid, amountPaid - total);
-            showToast('Pembayaran berhasil!');
-          }
-        }
-
-        async function submitOrder() {
-          const cart = getLocalCart();
-          if (!cart || cart.items.length === 0) { showToast('Cart kosong!', 'warning'); return; }
-          const response = await fetch('/api/orders/with-items', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              tableId: cart.tableId,
-              userId: currentUserId,
-              items: cart.items.map(item => ({ menuId: item.menuId, quantity: item.quantity, notes: item.notes || '' }))
-            })
-          });
-          const data = await response.json();
-          if (data.error) { showToast(data.error, 'error'); return; }
-          currentOrderId = data.order.id;
-          isServerOrder = true;
-          clearCart();
-          const tableBtn = document.querySelector('[data-table-id="' + cart.tableId + '"]');
-          if (tableBtn) tableBtn.dataset.status = 'occupied';
-          document.getElementById('btn-transfer').style.display = 'inline';
-          return data;
-        }
-
-        async function processPayment() {
-          const amountInput = document.getElementById('amount-paid');
-          const amount = amountInput ? parseInt(amountInput.value) : 0;
-          if (!amount || amount <= 0) { showToast('Masukkan jumlah uang!', 'warning'); return; }
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
-          if (amount < total) { showToast('Uang kurang!', 'error'); return; }
-          if (!isServerOrder && currentOrderId === null) { await submitOrder(); }
-          const response = await fetch('/api/orders/' + currentOrderId + '/pay', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ amountPaid: amount })
-          });
-          const data = await response.json();
-          if (data.error) { showToast(data.error, 'error'); }
-          else {
-            showReceipt(data.order, data.items, amount, amount - total);
-            showToast('Pembayaran berhasil!');
-          }
-        }
-
-        function showReceipt(order, items, paid) {
-          const itemsTotal = items.reduce((sum, item) => sum + ((item.priceAtOrder || 0) * (item.quantity || 1)), 0);
-          const tax = Math.round(itemsTotal * 0.1);
-          const orderTotal = itemsTotal + tax;
-          const actualChange = paid - orderTotal;
-          lastReceipt = { order, items, paid, change: actualChange, tableNumber: currentTableNumber, cashier: '${user.name}', date: new Date() };
-          let html = '<div class="receipt-center"><strong>POS APP</strong></div>';
-          html += '<div class="receipt-center" style="font-size: 11px;">Jl. Contoh No. 123</div>';
-          html += '<div class="receipt-line"></div>';
-          html += '<div class="receipt-row"><span>Meja: ' + currentTableNumber + '</span><span>Kasir: ${user.name}</span></div>';
-          html += '<div class="receipt-row"><span>Tgl: ' + new Date().toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-line"></div>';
-          items.forEach(item => {
-            html += '<div class="receipt-row"><span>' + (item.menuName || 'Item') + ' x' + item.quantity + '</span><span>' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</span></div>';
-          });
-          html += '<div class="receipt-line"></div>';
-          html += '<div class="receipt-row"><span>Subtotal</span><span>' + (order.subtotal || 0).toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-row"><span>Pajak</span><span>' + (order.tax || 0).toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-row" style="font-weight: bold;"><span>TOTAL</span><span>' + orderTotal.toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-row"><span>Bayar</span><span>' + paid.toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-row"><span>Kembali</span><span>' + actualChange.toLocaleString('id-ID') + '</span></div>';
-          html += '<div class="receipt-line"></div>';
-          html += '<div class="receipt-center"><strong>TERIMA KASIH!</strong></div>';
-          document.getElementById('receipt-content').innerHTML = html;
-          document.getElementById('receipt-modal').classList.add('show');
-        }
-        function closeReceiptModal() { document.getElementById('receipt-modal').classList.remove('show'); }
-        function printReceipt() {
-          const content = document.getElementById('receipt-content').innerText;
-          const win = window.open('', '_blank');
-          win.document.write('<pre style="font-family: monospace; font-size: 13px;">' + content + '</pre>');
-          win.document.close();
-          win.print();
-        }
-
-        async function cancelOrder() {
-          if (!currentOrderId && !getLocalCart()) { showToast('Tidak ada pesanan', 'warning'); return; }
-          if (isServerOrder && currentOrderId) {
-            if (!confirm('Batalkan pesanan?')) return;
-            await fetch('/api/orders/' + currentOrderId + '/cancel', { method: 'POST' });
-            showToast('Pesanan dibatalkan');
-          } else {
-            clearCart();
-            showToast('Cart dikosongkan');
-          }
-          currentOrderId = null;
-          isServerOrder = false;
-          selectedTableId = null;
-          currentTableNumber = null;
-          document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
-          document.getElementById('cart-table-info').textContent = 'Pilih Meja';
-          document.getElementById('cart-order-type').style.display = 'none';
-          document.getElementById('btn-transfer').style.display = 'none';
-          document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>';
-          document.getElementById('cart-footer').style.display = 'none';
-          document.getElementById('cart-meta').style.display = 'none';
-        }
-
-        function showTransferModal() {
+        function showTransfer() {
           if (!currentOrderId) return;
           document.getElementById('transfer-from').textContent = currentTableNumber;
-          const tablesDiv = document.getElementById('transfer-tables');
-          tablesDiv.innerHTML = '';
-          document.querySelectorAll('.table-btn.available').forEach(btn => {
-            const id = btn.dataset.tableId;
-            const num = btn.textContent;
+          const targets = document.getElementById('transfer-targets');
+          targets.innerHTML = '';
+          document.querySelectorAll('.pos-table.available').forEach(btn => {
+            const id = parseInt(btn.dataset.id);
+            const num = parseInt(btn.textContent);
             const el = document.createElement('button');
-            el.className = 'table-btn available';
-            el.style.cssText = 'aspect-ratio:1;border-radius:8px;border:2px solid transparent;cursor:pointer;font-weight:700;font-size:14px;background:var(--color-success);color:white;';
+            el.className = 'pos-table available';
+            el.style.cssText = 'aspect-ratio:1;cursor:pointer;';
             el.textContent = num;
-            el.onclick = () => transferTable(parseInt(id), parseInt(num));
-            tablesDiv.appendChild(el);
+            el.onclick = () => transferTable(id, num);
+            targets.appendChild(el);
           });
           document.getElementById('transfer-modal').classList.add('show');
         }
-        function closeTransferModal() { document.getElementById('transfer-modal').classList.remove('show'); }
 
-        async function transferTable(newTableId, newTableNumber) {
-          const res = await fetch('/api/orders/' + currentOrderId + '/transfer', {
-            method: 'PUT',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ newTableId })
-          });
+        function closeTransfer() { document.getElementById('transfer-modal').classList.remove('show'); }
+
+        async function transferTable(newId, newNum) {
+          const res = await fetch('/api/orders/' + currentOrderId + '/transfer', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ newTableId: newId }) });
           const data = await res.json();
-          if (data.error) { showToast(data.error, 'error'); return; }
-          showToast('Pesanan dipindah ke Meja ' + newTableNumber);
-          currentTableNumber = newTableNumber;
-          selectedTableId = newTableId;
-          document.getElementById('cart-table-info').textContent = 'Meja ' + newTableNumber;
-          document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
-          document.querySelector('[data-table-id="' + newTableId + '"]')?.classList.add('selected');
-          closeTransferModal();
+          if (data.error) { toast(data.error, 'error'); return; }
+          toast('Dipindah ke Meja ' + newNum);
+          currentTableNumber = newNum;
+          selectedTableId = newId;
+          document.getElementById('cart-title').textContent = 'Meja ' + newNum;
+          document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+          document.querySelector('[data-id="' + newId + '"]')?.classList.add('selected');
+          closeTransfer();
+        }
+
+        function cancelOrder() {
+          if (!currentOrderId && !getCart()) { toast('Tidak ada pesanan', 'warning'); return; }
+          if (isServerOrder && currentOrderId) {
+            if (!confirm('Batalkan pesanan?')) return;
+            fetch('/api/orders/' + currentOrderId + '/cancel', { method: 'POST' });
+            toast('Pesanan dibatalkan');
+          } else {
+            clearCart();
+            toast('Cart dikosongkan');
+          }
+          resetAfterPayment();
         }
 
         async function addTable() {
-          const num = parseInt(prompt('Nomor Meja:'));
+          const num = prompt('Nomor Meja:');
           if (!num) return;
-          await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber: num }) });
+          await fetch('/api/tables', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableNumber: parseInt(num) }) });
           location.reload();
         }
 
-        document.addEventListener('keydown', function(e) {
-          if (e.ctrlKey && e.key === 'f') { e.preventDefault(); document.getElementById('menu-search')?.focus(); }
+        document.addEventListener('keydown', e => {
+          if (e.ctrlKey && e.key === 'f') { e.preventDefault(); document.querySelector('.pos-search').focus(); }
           if (e.ctrlKey && e.key === 'h') { e.preventDefault(); holdOrder(); }
           if (e.key === 'Escape') {
             selectedTableId = null; currentTableNumber = null; currentOrderId = null; isServerOrder = false;
-            document.querySelectorAll('.table-btn').forEach(btn => btn.classList.remove('selected'));
-            document.getElementById('cart-table-info').textContent = 'Pilih Meja';
-            document.getElementById('cart-order-type').style.display = 'none';
+            document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+            document.getElementById('cart-title').textContent = 'Pilih Meja';
             document.getElementById('btn-transfer').style.display = 'none';
-            document.getElementById('cart-zone').innerHTML = '<div class="cart-empty"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;"><circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path></svg><p>Pilih meja terlebih dahulu</p></div>';
+            document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
             document.getElementById('cart-footer').style.display = 'none';
             document.getElementById('cart-meta').style.display = 'none';
-            document.querySelectorAll('.modal.show').forEach(m => m.classList.remove('show'));
+            document.querySelectorAll('.pos-modal.show').forEach(m => m.classList.remove('show'));
           }
         });
 
-        document.addEventListener('DOMContentLoaded', function() {
+        document.addEventListener('DOMContentLoaded', () => {
           updateHeldCount();
-          const savedCart = loadCart();
-          if (savedCart && savedCart.tableId) {
-            const tableBtn = document.querySelector('[data-table-id="' + savedCart.tableId + '"]');
-            if (tableBtn) {
-              selectedTableId = savedCart.tableId;
-              currentTableNumber = savedCart.tableNumber;
-              tableBtn.classList.add('selected');
-              document.getElementById('cart-table-info').textContent = 'Meja ' + savedCart.tableNumber;
-              document.getElementById('cart-order-type').style.display = 'inline';
-              renderCartFromLocal();
+          const saved = loadCart();
+          if (saved && saved.tableId) {
+            const btn = document.querySelector('[data-id="' + saved.tableId + '"]');
+            if (btn) {
+              selectedTableId = saved.tableId;
+              currentTableNumber = saved.tableNumber;
+              btn.classList.add('selected');
+              document.getElementById('cart-title').textContent = 'Meja ' + saved.tableNumber;
+              document.getElementById('cart-meta').style.display = 'flex';
+              renderCart();
             }
           }
         });
