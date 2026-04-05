@@ -314,8 +314,7 @@ export const posPage = new Elysia()
             margin-bottom: 6px;
           }
           .pos-cart-item-info { flex: 1; min-width: 0; }
-          .pos-cart-item-name { font-size: 12px; font-weight: 600; cursor: pointer; }
-          .pos-cart-item-name:hover { color: var(--color-primary); }
+          .pos-cart-item-name { font-size: 12px; font-weight: 600; }
           .pos-cart-item-notes { font-size: 10px; color: var(--color-warning); font-style: italic; margin-top: 2px; }
           .pos-cart-item-qty { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
           .pos-cart-item-qty button {
@@ -330,6 +329,8 @@ export const posPage = new Elysia()
           }
           .pos-cart-item-qty span { font-size: 11px; font-weight: 600; min-width: 20px; text-align: center; }
           .pos-cart-item-price { font-size: 12px; font-weight: 700; }
+          .pos-cart-item-notes-btn { background: none; border: none; font-size: 14px; cursor: pointer; opacity: 0.5; transition: opacity 0.2s; padding: 0 4px; }
+          .pos-cart-item-notes-btn:hover { opacity: 1; }
           .pos-cart-item-remove { background: none; border: none; color: var(--color-error); font-size: 16px; cursor: pointer; }
           
           .pos-cart-footer {
@@ -633,10 +634,11 @@ export const posPage = new Elysia()
           c.items.forEach(item => {
             const notesHtml = item.notes ? '<div class="pos-cart-item-notes">' + item.notes + '</div>' : '';
             html += '<div class="pos-cart-item">' +
-              '<div class="pos-cart-item-info"><div class="pos-cart-item-name" onclick="editItemNotes(' + item.menuId + ')">' + item.name + '</div>' +
+              '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + item.name + '</div>' +
               notesHtml +
               '<div class="pos-cart-item-qty"><button onclick="qtyChange(' + item.menuId + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="qtyChange(' + item.menuId + ',1)">+</button></div></div>' +
               '<div class="pos-cart-item-price">' + (item.price * item.quantity).toLocaleString('id-ID') + '</div>' +
+              '<button class="pos-cart-item-notes-btn" onclick="editItemNotes(' + item.menuId + ')" title="Tambah catatan">📝</button>' +
               '<button class="pos-cart-item-remove" onclick="removeItem(' + item.menuId + ')">&times;</button></div>';
           });
           itemsEl.innerHTML = html;
