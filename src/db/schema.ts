@@ -320,6 +320,54 @@ export const supplierPrices = mysqlTable('supplier_prices', {
   supplierIngredientIdx: index('idx_sp_supplier_ingredient').on(table.supplierId, table.ingredientId),
 }));
 
+export const employeeProfiles = mysqlTable('employee_profiles', {
+  id: serial('id').primaryKey(),
+  userId: int('user_id').notNull().unique(),
+  position: varchar('position', { length: 100 }).notNull(),
+  phone: varchar('phone', { length: 20 }).default(''),
+  salary: int('salary').notNull().default(0),
+  hireDate: datetime('hire_date').notNull().default(new Date()),
+  emergencyContact: varchar('emergency_contact', { length: 255 }).default(''),
+  notes: varchar('notes', { length: 500 }).default(''),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+}, (table) => ({
+  userIdIdx: index('idx_emp_user_id').on(table.userId),
+  positionIdx: index('idx_emp_position').on(table.position),
+}));
+
+export const shifts = mysqlTable('shifts', {
+  id: serial('id').primaryKey(),
+  userId: int('user_id').notNull(),
+  openedAt: datetime('opened_at').notNull().default(new Date()),
+  closedAt: datetime('closed_at'),
+  startingCash: int('starting_cash').notNull().default(0),
+  expectedCash: int('expected_cash'),
+  actualCash: int('actual_cash'),
+  cashDifference: int('cash_difference'),
+  notes: varchar('notes', { length: 500 }).default(''),
+  status: mysqlEnum('status', ['open', 'closed']).notNull().default('open'),
+  closedBy: int('closed_by'),
+}, (table) => ({
+  userIdIdx: index('idx_shifts_user_id').on(table.userId),
+  statusIdx: index('idx_shifts_status').on(table.status),
+  openedAtIdx: index('idx_shifts_opened_at').on(table.openedAt),
+}));
+
+export const attendance = mysqlTable('attendance', {
+  id: serial('id').primaryKey(),
+  userId: int('user_id').notNull(),
+  clockIn: datetime('clock_in').notNull().default(new Date()),
+  clockOut: datetime('clock_out'),
+  totalHours: decimal('total_hours', { precision: 5, scale: 2 }),
+  notes: varchar('notes', { length: 255 }).default(''),
+  status: mysqlEnum('status', ['present', 'late', 'absent', 'leave', 'sick']).notNull().default('present'),
+}, (table) => ({
+  userIdIdx: index('idx_attendance_user_id').on(table.userId),
+  clockInIdx: index('idx_attendance_clock_in').on(table.clockIn),
+}));
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -361,3 +409,9 @@ export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
 export type NewPurchaseOrderItem = typeof purchaseOrderItems.$inferInsert;
 export type SupplierPrice = typeof supplierPrices.$inferSelect;
 export type NewSupplierPrice = typeof supplierPrices.$inferInsert;
+export type EmployeeProfile = typeof employeeProfiles.$inferSelect;
+export type NewEmployeeProfile = typeof employeeProfiles.$inferInsert;
+export type Shift = typeof shifts.$inferSelect;
+export type NewShift = typeof shifts.$inferInsert;
+export type Attendance = typeof attendance.$inferSelect;
+export type NewAttendance = typeof attendance.$inferInsert;

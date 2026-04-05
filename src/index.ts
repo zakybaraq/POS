@@ -19,6 +19,9 @@ import { reportsPage } from './pages/reports';
 import { settingsPage } from './pages/settings';
 import { suppliersPage } from './pages/suppliers';
 import { purchaseOrdersPage } from './pages/purchase-orders';
+import { employeesPage } from './pages/employees';
+import { shiftsPage } from './pages/shifts';
+import { attendancePage } from './pages/attendance';
 import { seedDefaultSettings } from './repositories/settings';
 
 seedDefaultSettings().catch(console.error);
@@ -49,6 +52,9 @@ const app = new Elysia()
   .use(settingsPage)
   .use(suppliersPage)
   .use(purchaseOrdersPage)
+  .use(employeesPage)
+  .use(shiftsPage)
+  .use(attendancePage)
   .listen(process.env.PORT || 3000);
 
 console.log(`Server running at http://localhost:${process.env.PORT || 3000}`);
