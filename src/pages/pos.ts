@@ -438,7 +438,7 @@ export const posPage = new Elysia()
                     </tr>
                   </thead>
                   <tbody id="menu-table-body" style="background: #fafafa;">
-                    ${menus.map((m,i) => `<tr data-category="${m.category}" data-name="${m.name.toLowerCase()}" onclick="addToCart(${m.id},'${m.name.replace(/'/g,"\\'")}',${m.price})">
+                    ${menus.map((m,i) => `<tr data-category="${m.category}" data-name="${m.name.toLowerCase()}" onclick="addToCart(${m.id},'${m.name.replace(/'/g,"\\'")}',${m.price}, event)">
                       <td class="col-emoji">${getMenuEmoji(m.category,i)}</td>
                       <td class="col-name">${m.name}</td>
                       <td class="col-price">Rp ${m.price.toLocaleString('id-ID')}</td>
@@ -528,6 +528,7 @@ export const posPage = new Elysia()
         let isServerOrder = false;
         let orderType = 'dine-in';
         let guestCount = 1;
+        let currentTotal = 0;
 
         function toast(msg, type = 'success') {
           const t = document.getElementById('toast');
@@ -567,7 +568,7 @@ export const posPage = new Elysia()
           return c && c.tableId === selectedTableId ? c : null;
         }
 
-        function addToCartLocal(id, name, price) {
+        function addToCartLocal(id, name, price, event) {
           let c = getCart();
           if (!c) c = { tableId: selectedTableId, tableNumber: currentTableNumber, items: [], orderType, guestCount };
           const exist = c.items.find(i => i.menuId === id);
@@ -655,6 +656,7 @@ export const posPage = new Elysia()
           document.getElementById('summary-subtotal').textContent = subtotal.toLocaleString('id-ID');
           document.getElementById('summary-tax').textContent = tax.toLocaleString('id-ID');
           document.getElementById('summary-total').textContent = total.toLocaleString('id-ID');
+          currentTotal = total;
           document.getElementById('payment-section').classList.remove('show');
         }
 
@@ -790,10 +792,16 @@ export const posPage = new Elysia()
         }
 
         function setPaid(amount) {
-          const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g,'')) || 0;
-          const paid = amount === 'exact' ? total : amount;
-          document.getElementById('paid-input').value = paid;
-          document.getElementById('paid-input').dispatchEvent(new Event('input'));
+          try {
+            const paid = amount === 'exact' ? currentTotal : amount;
+            console.log('setPaid:', amount, '->', paid, 'currentTotal:', currentTotal);
+            const inputEl = document.getElementById('paid-input');
+            inputEl.value = paid;
+            console.log('paid-input value after set:', inputEl.value);
+            setTimeout(() => updatePaid(paid), 10);
+          } catch(e) {
+            console.error('setPaid error:', e);
+          }
         }
 
         async function processPayment() {
@@ -816,7 +824,9 @@ export const posPage = new Elysia()
           if (data.error) { toast(data.error, 'error'); }
           else { 
             const cart = getCart();
-            localStorage.setItem('last-receipt', JSON.stringify(cart));
+            if (cart && cart.items.length > 0) {
+              localStorage.setItem('last-receipt', JSON.stringify(cart));
+            }
             toast('Pembayaran berhasil!'); 
             printReceipt(); 
             resetAfterPayment(); 
@@ -830,7 +840,6 @@ export const posPage = new Elysia()
           currentTableNumber = null;
           document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
           document.getElementById('cart-title').textContent = 'Pilih Meja';
-          document.getElementById('btn-transfer').style.display = 'none';
           document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
           document.getElementById('cart-footer').style.display = 'none';
           document.getElementById('cart-meta').style.display = 'none';
