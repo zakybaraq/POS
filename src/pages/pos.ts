@@ -466,7 +466,8 @@ export const posPage = new Elysia()
             </div>
             <div class="pos-cart-footer" id="cart-footer" style="display:none;">
               <div class="pos-cart-discount">
-                <input type="number" id="discount-input" value="0" onchange="updateDiscount()" placeholder="Diskon">
+                <label style="font-size:10px;font-weight:600;display:block;margin-bottom:4px;">Diskon</label>
+                <input type="number" id="discount-input" value="0" onchange="updateDiscount()" placeholder="0">
                 <select id="discount-type" onchange="updateDiscount()">
                   <option value="fixed">Rp</option>
                   <option value="percentage">%</option>
@@ -493,7 +494,6 @@ export const posPage = new Elysia()
                 <button class="pos-btn" onclick="holdOrder()">Hold</button>
                 <button class="pos-btn pos-btn-primary" onclick="togglePayment()">Bayar</button>
                 <button class="pos-btn pos-btn-danger" onclick="cancelOrder()">Batal</button>
-                <button class="pos-btn" style="background:var(--color-text);color:#fff" onclick="printReceipt()">Cetak</button>
               </div>
             </div>
           </div>
@@ -696,6 +696,7 @@ export const posPage = new Elysia()
           const local = loadCart();
           if (local && local.tableId === id) {
             document.getElementById('cart-title').textContent = 'Meja ' + num;
+            if (local.items.length > 0) document.getElementById('btn-transfer').style.display = 'inline';
             renderCart();
             return;
           }
@@ -792,7 +793,7 @@ export const posPage = new Elysia()
           const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g,'')) || 0;
           const paid = amount === 'exact' ? total : amount;
           document.getElementById('paid-input').value = paid;
-          updatePaid(paid);
+          document.getElementById('paid-input').dispatchEvent(new Event('input'));
         }
 
         async function processPayment() {
@@ -813,7 +814,13 @@ export const posPage = new Elysia()
           const res = await fetch('/api/orders/' + currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
           const data = await res.json();
           if (data.error) { toast(data.error, 'error'); }
-          else { toast('Pembayaran berhasil!'); printReceipt(); resetAfterPayment(); }
+          else { 
+            const cart = getCart();
+            localStorage.setItem('last-receipt', JSON.stringify(cart));
+            toast('Pembayaran berhasil!'); 
+            printReceipt(); 
+            resetAfterPayment(); 
+          }
         }
 
         function resetAfterPayment() {
@@ -831,13 +838,19 @@ export const posPage = new Elysia()
         }
 
         function printReceipt() {
-          const cart = getCart();
-          if (!cart || cart.items.length === 0) { toast('Tidak ada item di cart!', 'warning'); return; }
+          let cart = getCart();
+          if ((!cart || cart.items.length === 0)) {
+            const stored = localStorage.getItem('last-receipt');
+            if (stored) cart = JSON.parse(stored);
+          }
+          if (!cart || cart.items.length === 0) { toast('Tidak ada data receipt!', 'warning'); return; }
+          
           const subtotal = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
           const tax = Math.round(subtotal * 0.1);
           const disc = parseInt(document.getElementById('discount-input').value) || 0;
           const discType = document.getElementById('discount-type').value;
-          const discAmt = discType === 'percentage' ? Math.round(subtotal * disc / 100) : disc;
+          let discAmt = discType === 'percentage' ? Math.round(subtotal * disc / 100) : disc;
+          if (discAmt > subtotal) discAmt = subtotal;
           const total = subtotal + tax - discAmt;
           
           const receiptHtml = '<div style="font-family:monospace;font-size:12px;padding:10px;max-width:300px;">' +
