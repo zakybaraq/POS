@@ -3,7 +3,7 @@ import * as kitchen from '../repositories/kitchen';
 
 export const kitchenRoutes = new Elysia({ prefix: '/api/kitchen' })
   .get('/orders', async () => kitchen.getActiveKitchenOrders())
-  .get('/orders/:category', async ({ params }) => {
+  .get('/orders-by-category/:category', async ({ params }) => {
     const cat = params.category as 'makanan' | 'minuman';
     if (cat !== 'makanan' && cat !== 'minuman') return { error: 'Invalid category' };
     return kitchen.getKitchenOrdersByCategory(cat);
