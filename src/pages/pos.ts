@@ -98,10 +98,11 @@ export const posPage = new Elysia()
 
           .pos-main {
             display: grid;
-            grid-template-columns: 1fr 400px;
+            grid-template-columns: 1fr 380px;
             gap: 12px;
             flex: 1;
             overflow: hidden;
+            min-height: 0;
           }
           
           .pos-left {
@@ -109,6 +110,7 @@ export const posPage = new Elysia()
             flex-direction: column;
             gap: 12px;
             overflow: hidden;
+            min-height: 0;
           }
           
           .pos-panels {
@@ -117,6 +119,7 @@ export const posPage = new Elysia()
             gap: 12px;
             flex: 1;
             overflow: hidden;
+            min-height: 0;
           }
 
           .pos-tables-panel {
@@ -124,31 +127,33 @@ export const posPage = new Elysia()
             border: 1px solid var(--color-border);
             border-radius: var(--radius-lg);
             padding: 12px;
+            flex-shrink: 0;
           }
 
           .panel-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
           }
           .panel-header h3 { font-size: 14px; font-weight: 600; }
           
           .tables-grid {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 12px;
+            gap: 6px;
+            margin-bottom: 8px;
           }
           
           .table-btn {
-            width: 60px;
-            height: 60px;
+            min-width: 50px;
+            height: 50px;
+            padding: 4px 8px;
             border-radius: var(--radius-md);
             border: 2px solid var(--color-border);
             background: var(--color-bg-secondary);
             color: var(--color-text);
-            font-size: 16px;
+            font-size: 14px;
             font-weight: 700;
             cursor: pointer;
             transition: all 0.2s;
@@ -169,12 +174,12 @@ export const posPage = new Elysia()
 
           .table-legend {
             display: flex;
-            gap: 16px;
-            font-size: 12px;
+            gap: 12px;
+            font-size: 11px;
             color: var(--color-text-secondary);
           }
-          .legend-item { display: flex; align-items: center; gap: 6px; }
-          .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+          .legend-item { display: flex; align-items: center; gap: 4px; }
+          .legend-dot { width: 8px; height: 8px; border-radius: 50%; }
           .legend-dot.available { background: var(--color-success); }
           .legend-dot.occupied { background: var(--color-error); }
           .legend-dot.selected { background: var(--color-primary); }
@@ -188,29 +193,33 @@ export const posPage = new Elysia()
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            min-height: 0;
           }
 
           .pos-menu-header {
             display: flex;
             gap: 12px;
-            margin-bottom: 12px;
+            margin-bottom: 8px;
+            flex-shrink: 0;
+            flex-wrap: wrap;
           }
 
           .category-tabs {
             display: flex;
-            gap: 8px;
+            gap: 6px;
           }
           
           .category-tab {
-            padding: 8px 16px;
+            padding: 6px 12px;
             border: 2px solid var(--color-border);
             background: var(--color-bg);
             color: var(--color-text);
             border-radius: var(--radius-md);
             cursor: pointer;
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             transition: all 0.2s;
+            white-space: nowrap;
           }
           .category-tab:hover { border-color: var(--color-primary); }
           .category-tab.active { 
@@ -223,12 +232,12 @@ export const posPage = new Elysia()
             display: flex;
             align-items: center;
             gap: 8px;
-            padding: 8px 12px;
+            padding: 6px 10px;
             background: var(--color-bg);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
             flex: 1;
-            max-width: 300px;
+            min-width: 150px;
           }
           .pos-search input {
             border: none;
@@ -236,20 +245,20 @@ export const posPage = new Elysia()
             outline: none;
             flex: 1;
             color: var(--color-text);
-            font-size: 14px;
+            font-size: 13px;
           }
-          .pos-search svg { color: var(--color-text-secondary); }
+          .pos-search svg { color: var(--color-text-secondary); width: 14px; height: 14px; }
 
           .menu-grid {
             display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
             gap: 8px;
             overflow-y: auto;
             padding-right: 4px;
           }
           
           .menu-card {
-            padding: 12px;
+            padding: 10px 8px;
             background: var(--color-bg);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
@@ -260,13 +269,14 @@ export const posPage = new Elysia()
           .menu-card:hover { border-color: var(--color-primary); transform: translateY(-2px); }
           .menu-card.added { background: var(--color-success); color: white; }
           
-          .menu-card-emoji { font-size: 28px; margin-bottom: 4px; }
-          .menu-card-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
-          .menu-card-price { font-size: 12px; color: var(--color-text-secondary); }
+          .menu-card-emoji { font-size: 24px; margin-bottom: 4px; }
+          .menu-card-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+          .menu-card-price { font-size: 11px; color: var(--color-text-secondary); }
 
           .pos-right {
             display: flex;
             flex-direction: column;
+            min-height: 0;
           }
 
           .cart-panel {
@@ -322,106 +332,108 @@ export const posPage = new Elysia()
           .cart-item {
             display: flex;
             align-items: center;
-            gap: 12px;
-            padding: 10px;
+            gap: 10px;
+            padding: 8px;
             background: var(--color-bg);
             border-radius: var(--radius-md);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
           }
-          .cart-item-info { flex: 1; }
-          .cart-item-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+          .cart-item-info { flex: 1; min-width: 0; }
+          .cart-item-name { font-size: 12px; font-weight: 600; margin-bottom: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
           .cart-item-notes input {
             width: 100%;
-            padding: 4px 8px;
+            padding: 3px 6px;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-sm);
             background: var(--color-bg-secondary);
             color: var(--color-text);
-            font-size: 11px;
-            margin-bottom: 4px;
+            font-size: 10px;
+            margin-bottom: 2px;
           }
-          .cart-item-qty { display: flex; align-items: center; gap: 8px; }
+          .cart-item-qty { display: flex; align-items: center; gap: 6px; }
           .cart-item-qty button {
-            width: 24px;
-            height: 24px;
+            width: 22px;
+            height: 22px;
             border: 1px solid var(--color-border);
             background: var(--color-bg-secondary);
             border-radius: var(--radius-sm);
             cursor: pointer;
             font-weight: 700;
+            font-size: 12px;
           }
-          .cart-item-qty span { font-size: 13px; font-weight: 600; min-width: 30px; text-align: center; }
-          .cart-item-price { font-size: 13px; font-weight: 700; }
+          .cart-item-qty span { font-size: 12px; font-weight: 600; min-width: 25px; text-align: center; }
+          .cart-item-price { font-size: 12px; font-weight: 700; }
           .cart-item-actions button {
             background: none;
             border: none;
             color: var(--color-error);
-            font-size: 18px;
+            font-size: 16px;
             cursor: pointer;
           }
 
           .cart-footer {
             border-top: 1px solid var(--color-border);
-            padding: 16px;
+            padding: 12px;
+            flex-shrink: 0;
           }
 
-          .cart-summary { margin-bottom: 12px; }
+          .cart-summary { margin-bottom: 8px; }
           .cart-row {
             display: flex;
             justify-content: space-between;
-            font-size: 13px;
-            padding: 4px 0;
+            font-size: 12px;
+            padding: 3px 0;
           }
           .cart-row.total { 
-            font-size: 16px; 
+            font-size: 14px; 
             font-weight: 700; 
             border-top: 2px solid var(--color-border);
-            padding-top: 8px;
-            margin-top: 8px;
+            padding-top: 6px;
+            margin-top: 6px;
           }
 
           .cart-discount-row {
             display: flex;
-            gap: 8px;
-            margin: 8px 0;
+            gap: 6px;
+            margin: 6px 0;
           }
           .discount-input {
             flex: 1;
-            padding: 6px 10px;
+            padding: 4px 8px;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
             background: var(--color-bg);
             color: var(--color-text);
-            font-size: 13px;
+            font-size: 12px;
           }
           .discount-select {
-            padding: 6px 10px;
+            padding: 4px 8px;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
             background: var(--color-bg);
             color: var(--color-text);
-            font-size: 13px;
+            font-size: 12px;
           }
 
           .payment-section {
-            margin-bottom: 12px;
-            padding: 12px;
+            margin-bottom: 8px;
+            padding: 10px;
             background: var(--color-bg-secondary);
             border-radius: var(--radius-md);
           }
           .quick-pay-buttons {
             display: flex;
-            gap: 8px;
-            margin: 8px 0;
+            gap: 6px;
+            margin: 6px 0;
           }
           .quick-pay-btn {
             flex: 1;
-            padding: 8px;
+            padding: 6px;
             background: var(--color-bg);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
             color: var(--color-text);
-            font-size: 12px;
+            font-size: 11px;
             font-weight: 600;
             cursor: pointer;
           }
@@ -429,14 +441,14 @@ export const posPage = new Elysia()
 
           .cart-buttons {
             display: flex;
-            gap: 8px;
+            gap: 6px;
           }
           .cart-buttons button {
             flex: 1;
-            padding: 12px;
+            padding: 10px 8px;
             border: none;
             border-radius: var(--radius-md);
-            font-size: 13px;
+            font-size: 12px;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
@@ -452,10 +464,10 @@ export const posPage = new Elysia()
             z-index: 9999;
           }
           .toast {
-            padding: 12px 16px;
+            padding: 10px 14px;
             border-radius: var(--radius-md);
             color: white;
-            font-size: 13px;
+            font-size: 12px;
             margin-bottom: 8px;
             animation: slideIn 0.3s ease;
           }
@@ -502,22 +514,22 @@ export const posPage = new Elysia()
             cursor: pointer;
             color: var(--color-text-secondary);
           }
-          .modal-body { padding: 16px; max-height: 400px; overflow-y: auto; }
+          .modal-body { padding: 12px; max-height: 300px; overflow-y: auto; }
           .modal-footer {
             display: flex;
             justify-content: flex-end;
             gap: 8px;
-            padding: 16px;
+            padding: 12px;
             border-top: 1px solid var(--color-border);
           }
 
           .held-order-item {
             display: flex;
             justify-content: space-between;
-            padding: 12px;
+            padding: 10px;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
-            margin-bottom: 8px;
+            margin-bottom: 6px;
             cursor: pointer;
             transition: all 0.2s;
           }
@@ -526,9 +538,9 @@ export const posPage = new Elysia()
           .text-muted { color: var(--color-text-secondary); }
           .text-center { text-align: center; }
 
-          ::-webkit-scrollbar { width: 6px; }
-          ::-webkit-scrollbar-track { background: var(--color-bg-secondary); border-radius: 3px; }
-          ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+          ::-webkit-scrollbar { width: 4px; }
+          ::-webkit-scrollbar-track { background: var(--color-bg-secondary); border-radius: 2px; }
+          ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 2px; }
         </style>
       </head>
       <body>
