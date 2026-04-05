@@ -1,10 +1,10 @@
 export function getSidebarHtml(activePage: string, user: { role: string; name: string }) {
   const roleMenuMap: Record<string, string[]> = {
-    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance'],
-    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance'],
+    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance', 'kitchen'],
+    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance', 'kitchen'],
     kasir: ['pos', 'customers', 'shifts', 'attendance'],
     waitress: ['orders', 'tables', 'shifts', 'attendance'],
-    chef: ['orders', 'attendance']
+    chef: ['orders', 'attendance', 'kitchen']
   };
 
   const allowedMenus = roleMenuMap[user.role] || [];
@@ -145,6 +145,14 @@ export function getSidebarHtml(activePage: string, user: { role: string; name: s
         <a href="/attendance" class="sidebar-menu-link ${activePage === 'attendance' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path><polyline points="22 4 12 14.01 9 11.01"></polyline></svg>
           <span class="sidebar-menu-label">Kehadiran</span>
+        </a>
+      </li>` : ''}
+
+      ${isMenuAllowed('kitchen') ? `
+      <li class="sidebar-menu-item">
+        <a href="/kitchen" class="sidebar-menu-link ${activePage === 'kitchen' ? 'active' : ''}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2z"></path><path d="M8 14s1.5 2 4 2 4-2 4-2"></path><line x1="9" y1="9" x2="9.01" y2="9"></line><line x1="15" y1="9" x2="15.01" y2="9"></line></svg>
+          <span class="sidebar-menu-label">Dapur (KDS)</span>
         </a>
       </li>` : ''}
     </ul>

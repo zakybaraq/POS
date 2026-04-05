@@ -50,6 +50,9 @@ export const orders = mysqlTable('orders', {
   userId: int('user_id').notNull(),
   servedBy: varchar('served_by', { length: 100 }).notNull().default(''),
   status: orderStatusEnum.notNull().default('draft'),
+  kitchenStatus: mysqlEnum('kitchen_status', ['pending', 'cooking', 'ready', 'served']).notNull().default('pending'),
+  cookingStartedAt: datetime('cooking_started_at'),
+  readyAt: datetime('ready_at'),
   subtotal: int('subtotal').notNull().default(0),
   tax: int('tax').notNull().default(0),
   discount: int('discount').default(0),
@@ -64,6 +67,7 @@ export const orders = mysqlTable('orders', {
   tableIdIdx: index('idx_orders_table_id').on(table.tableId),
   userIdIdx: index('idx_orders_user_id').on(table.userId),
   statusIdx: index('idx_orders_status').on(table.status),
+  kitchenStatusIdx: index('idx_orders_kitchen_status').on(table.kitchenStatus),
   createdAtIdx: index('idx_orders_created_at').on(table.createdAt),
 }));
 
