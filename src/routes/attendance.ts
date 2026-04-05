@@ -16,7 +16,7 @@ export const attendanceRoutes = new Elysia({ prefix: '/api/attendance' })
     const q = query as any;
     if (!q.userId) return { error: 'userId required' };
     const att = await emp.getTodayAttendance(Number(q.userId));
-    return att || null;
+    return att || {};
   })
   .get('/', async ({ query }) => {
     const q = query as any;

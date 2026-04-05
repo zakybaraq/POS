@@ -6,7 +6,7 @@ export const shiftRoutes = new Elysia({ prefix: '/api/shifts' })
     const q = query as any;
     if (!q.userId) return { error: 'userId required' };
     const shift = await emp.getOpenShift(Number(q.userId));
-    return shift || null;
+    return shift || {};
   })
   .get('/all-open', async () => { const r = await emp.getAllOpenShifts(); return r || []; })
   .post('/open', async ({ body }) => {
