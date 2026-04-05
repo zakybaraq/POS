@@ -48,7 +48,7 @@ export const posPage = new Elysia()
           * { margin: 0; padding: 0; box-sizing: border-box; }
           html, body { height: 100%; overflow: hidden; }
           body { 
-            background: var(--color-bg); 
+            background: #f8f9fa; 
             color: var(--color-text); 
             font-family: system-ui, -apple-system, sans-serif;
           }
@@ -60,6 +60,7 @@ export const posPage = new Elysia()
             height: 100vh;
             gap: 12px;
             padding: 12px;
+            overflow: hidden;
           }
           
           .pos-header { 
@@ -68,9 +69,10 @@ export const posPage = new Elysia()
             justify-content: space-between; 
             align-items: center; 
             padding: 12px 20px; 
-            background: var(--color-card); 
+            background: #ffffff; 
             border-radius: var(--radius-lg); 
             border: 1px solid var(--color-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
           .pos-header-left { display: flex; align-items: center; gap: 12px; }
           .pos-header h1 { font-size: 18px; font-weight: 700; }
@@ -78,19 +80,22 @@ export const posPage = new Elysia()
           
           .pos-btn { 
             padding: 8px 16px; 
-            background: var(--color-bg-secondary); 
-            border: 1px solid var(--color-border); 
+            background: var(--color-primary); 
+            border: 1px solid var(--color-primary); 
             border-radius: var(--radius-md); 
-            color: var(--color-text); 
+            color: white; 
             font-size: 12px; 
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
+            text-decoration: none;
+            display: inline-block;
           }
-          .pos-btn:hover { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+          .pos-btn:hover { opacity: 0.9; transform: translateY(-1px); color: white; }
           .pos-btn-primary { background: var(--color-primary); color: white; border-color: var(--color-primary); }
           .pos-btn-success { background: var(--color-success); color: white; border-color: var(--color-success); }
           .pos-btn-danger { background: var(--color-error); color: white; border-color: var(--color-error); }
+          .pos-btn-warning { background: var(--color-warning); color: white; border-color: var(--color-warning); }
           
           .pos-left {
             display: flex;
@@ -99,11 +104,41 @@ export const posPage = new Elysia()
             overflow: hidden;
           }
           
-          .pos-tables {
-            background: var(--color-card);
+.pos-tables {
+            background: #ffffff;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-lg);
             padding: 12px;
+            flex-shrink: 0;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
+          }
+          .pos-table {
+            min-width: 45px;
+            height: 45px;
+            border-radius: var(--radius-md);
+            border: 2px solid var(--color-border);
+            background: var(--color-bg-secondary);
+            color: var(--color-text);
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .pos-table.available { background: var(--color-success); color: white; border-color: var(--color-success); }
+          .pos-table.occupied { background: var(--color-error); color: white; border-color: var(--color-error); }
+          .pos-table.selected { box-shadow: 0 0 0 3px var(--color-primary); }
+          .pos-tables-legend { display: flex; gap: 12px; margin-top: 8px; font-size: 11px; color: var(--color-text-secondary); }
+          .pos-legend-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 4px; }
+          
+          .pos-menu {
+            background: #ffffff;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            flex: 1;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
           .pos-tables-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
           .pos-tables-header h2 { font-size: 14px; font-weight: 600; }
@@ -134,26 +169,37 @@ export const posPage = new Elysia()
             background: var(--color-card);
             border: 1px solid var(--color-border);
             border-radius: var(--radius-lg);
-            padding: 12px;
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            flex: 1;
           }
-          .pos-menu-header { display: flex; gap: 8px; margin-bottom: 10px; }
+          .pos-menu-header { 
+            display: flex; 
+            gap: 8px; 
+            padding: 12px 16px; 
+            border-bottom: 1px solid var(--color-border);
+            flex-wrap: wrap; 
+            align-items: center; 
+            flex-shrink: 0;
+            background: #f8f9fa;
+            border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+          }
           .pos-category {
             padding: 6px 12px;
             border: 2px solid var(--color-border);
-            background: var(--color-bg);
+            background: #ffffff;
             color: var(--color-text);
             border-radius: var(--radius-md);
             cursor: pointer;
             font-size: 12px;
             font-weight: 600;
           }
-          .pos-category:hover { border-color: var(--color-primary); }
+          .pos-category:hover { border-color: var(--color-primary); background: var(--color-primary); color: white; }
           .pos-category.active { background: var(--color-primary); border-color: var(--color-primary); color: white; }
           .pos-search {
             flex: 1;
+            min-width: 120px;
             padding: 6px 10px;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
@@ -163,34 +209,67 @@ export const posPage = new Elysia()
           }
           .pos-search:focus { outline: none; border-color: var(--color-primary); }
           
-          .pos-menu-grid {
-            display: grid;
-            grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
-            gap: 6px;
+          .pos-menu-table-wrap {
             overflow-y: auto;
-            padding-right: 4px;
+            flex: 1;
+            min-height: 0;
           }
-          .pos-menu-item {
-            padding: 10px 6px;
-            background: var(--color-bg);
-            border: 1px solid var(--color-border);
-            border-radius: var(--radius-md);
+          .pos-menu-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 12px;
+          }
+          .pos-menu-table th {
+            position: sticky;
+            top: 0;
+            background: #f1f3f5;
+            padding: 10px 12px;
+            text-align: left;
+            font-weight: 600;
+            border-bottom: 2px solid var(--color-border);
+            z-index: 10;
+            color: var(--color-text);
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+          }
+          .pos-menu-table td {
+            padding: 10px 12px;
+            border-bottom: 1px solid var(--color-border);
+            vertical-align: middle;
+            background: #ffffff;
+          }
+          .pos-menu-table tbody tr {
             cursor: pointer;
-            text-align: center;
+            transition: background 0.15s;
           }
-          .pos-menu-item:hover { border-color: var(--color-primary); transform: translateY(-2px); }
-          .pos-menu-item.added { background: var(--color-success); color: white; }
-          .pos-menu-emoji { font-size: 22px; margin-bottom: 2px; }
-          .pos-menu-name { font-size: 11px; font-weight: 600; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-          .pos-menu-price { font-size: 10px; color: var(--color-text-secondary); }
+          .pos-menu-table tbody tr:hover { background: var(--color-bg-hover); }
+          .pos-menu-table tbody tr.added { background: var(--color-success); color: white; }
+          .pos-menu-table tbody tr.added .col-price { color: white; }
+          .pos-menu-table tbody tr.added .badge { background: rgba(255,255,255,0.3); color: white; }
+          .pos-menu-table .col-emoji { width: 40px; text-align: center; font-size: 20px; }
+          .pos-menu-table .col-name { font-weight: 600; }
+          .pos-menu-table .col-price { text-align: right; font-weight: 600; color: var(--color-primary); }
+          .pos-menu-table .col-category { 
+            width: 80px; 
+          }
+          .pos-menu-table .badge {
+            padding: 2px 8px;
+            border-radius: var(--radius-sm);
+            font-size: 10px;
+            font-weight: 600;
+          }
+          .pos-menu-table .badge-makanan { background: #fff3cd; color: #856404; }
+          .pos-menu-table .badge-minuman { background: #cce5ff; color: #004085; }
           
           .pos-cart {
-            background: var(--color-card);
+            background: #ffffff;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-lg);
             display: flex;
             flex-direction: column;
             overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
           .pos-cart-header {
             padding: 12px 16px;
@@ -293,15 +372,16 @@ export const posPage = new Elysia()
           .pos-modal { display: none; }
           .pos-modal.show { display: block; }
           .pos-modal-backdrop { position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 100; }
-          .pos-modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: var(--color-card); border-radius: var(--radius-lg); width: 90%; max-width: 400px; z-index: 101; }
-          .pos-modal-header { display: flex; justify-content: space-between; padding: 12px; border-bottom: 1px solid var(--color-border); }
-          .pos-modal-header h3 { font-size: 14px; font-weight: 700; }
-          .pos-modal-close { background: none; border: none; font-size: 20px; cursor: pointer; }
-          .pos-modal-body { padding: 12px; max-height: 250px; overflow-y: auto; }
-          .pos-modal-footer { display: flex; gap: 8px; padding: 12px; border-top: 1px solid var(--color-border); justify-content: flex-end; }
-          
-          .pos-held-item { display: flex; justify-content: space-between; padding: 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 6px; cursor: pointer; }
-          .pos-held-item:hover { border-color: var(--color-primary); }
+          .pos-modal-content { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: #ffffff; border: 1px solid var(--color-border); border-radius: var(--radius-lg); width: 90%; max-width: 400px; z-index: 101; box-shadow: 0 4px 20px rgba(0,0,0,0.15); overflow: hidden; }
+          .pos-modal-header { display: flex; justify-content: space-between; align-items: center; padding: 16px; border-bottom: 1px solid var(--color-border); background: #f8f9fa; border-radius: var(--radius-lg) var(--radius-lg) 0 0; }
+          .pos-modal-header h3 { font-size: 16px; font-weight: 700; }
+          .pos-modal-close { background: none; border: none; font-size: 24px; cursor: pointer; color: var(--color-text-secondary); padding: 0; line-height: 1; }
+          .pos-modal-close:hover { color: var(--color-error); }
+          .pos-modal-body { padding: 16px; max-height: 300px; overflow-y: auto; background: #ffffff; }
+          .pos-modal-footer { display: flex; gap: 8px; padding: 16px; border-top: 1px solid var(--color-border); justify-content: flex-end; background: #f8f9fa; border-radius: 0 0 var(--radius-lg) var(--radius-lg); }
+
+          .pos-held-item { display: flex; justify-content: space-between; padding: 14px; background: #f8f9fa; border: 1px solid var(--color-border); border-radius: var(--radius-md); margin-bottom: 8px; cursor: pointer; transition: all 0.2s; }
+          .pos-held-item:hover { border-color: var(--color-primary); background: #ffffff; transform: translateY(-1px); }
           
           ::-webkit-scrollbar { width: 4px; }
           ::-webkit-scrollbar-track { background: var(--color-bg-secondary); }
@@ -344,12 +424,25 @@ export const posPage = new Elysia()
                 <button class="pos-category" onclick="filterCategory('minuman',this)">Minuman</button>
                 <input type="text" class="pos-search" placeholder="Cari menu..." oninput="searchMenu(this.value)">
               </div>
-              <div class="pos-menu-grid" id="menu-grid">
-                ${menus.map((m,i) => `<div class="pos-menu-item" data-category="${m.category}" data-name="${m.name.toLowerCase()}" onclick="addToCart(${m.id},'${m.name.replace(/'/g,"\\'")}',${m.price})">
-                  <div class="pos-menu-emoji">${getMenuEmoji(m.category,i)}</div>
-                  <div class="pos-menu-name">${m.name}</div>
-                  <div class="pos-menu-price">${m.price.toLocaleString('id-ID')}</div>
-                </div>`).join('')}
+              <div class="pos-menu-table-wrap">
+                <table class="pos-menu-table">
+                  <thead>
+                    <tr>
+                      <th class="col-emoji"></th>
+                      <th>Nama Menu</th>
+                      <th class="col-price">Harga</th>
+                      <th class="col-category">Kategori</th>
+                    </tr>
+                  </thead>
+                  <tbody id="menu-table-body" style="background: #fafafa;">
+                    ${menus.map((m,i) => `<tr data-category="${m.category}" data-name="${m.name.toLowerCase()}" onclick="addToCart(${m.id},'${m.name.replace(/'/g,"\\'")}',${m.price})">
+                      <td class="col-emoji">${getMenuEmoji(m.category,i)}</td>
+                      <td class="col-name">${m.name}</td>
+                      <td class="col-price">Rp ${m.price.toLocaleString('id-ID')}</td>
+                      <td class="col-category"><span class="badge badge-${m.category}">${m.category === 'makanan' ? 'Makanan' : 'Minuman'}</span></td>
+                    </tr>`).join('')}
+                  </tbody>
+                </table>
               </div>
             </div>
           </div>
@@ -444,20 +537,20 @@ export const posPage = new Elysia()
           document.querySelectorAll('.pos-category').forEach(b => b.classList.remove('active'));
           btn.classList.add('active');
           const search = document.querySelector('.pos-search').value.toLowerCase();
-          document.querySelectorAll('.pos-menu-item').forEach(item => {
-            const matchCat = cat === 'all' || item.dataset.category === cat;
-            const matchSearch = !search || item.dataset.name.includes(search);
-            item.style.display = (matchCat && matchSearch) ? '' : 'none';
+          document.querySelectorAll('#menu-table-body tr').forEach(row => {
+            const matchCat = cat === 'all' || row.dataset.category === cat;
+            const matchSearch = !search || row.dataset.name.includes(search);
+            row.style.display = (matchCat && matchSearch) ? '' : 'none';
           });
         }
 
         function searchMenu(query) {
           const active = document.querySelector('.pos-category.active');
           const cat = active?.textContent?.includes('Makanan') ? 'makanan' : active?.textContent?.includes('Minuman') ? 'minuman' : 'all';
-          document.querySelectorAll('.pos-menu-item').forEach(item => {
-            const matchCat = cat === 'all' || item.dataset.category === cat;
-            const matchSearch = !query || item.dataset.name.includes(query.toLowerCase());
-            item.style.display = (matchCat && matchSearch) ? '' : 'none';
+          document.querySelectorAll('#menu-table-body tr').forEach(row => {
+            const matchCat = cat === 'all' || row.dataset.category === cat;
+            const matchSearch = !query || row.dataset.name.includes(query.toLowerCase());
+            row.style.display = (matchCat && matchSearch) ? '' : 'none';
           });
         }
 
@@ -478,8 +571,8 @@ export const posPage = new Elysia()
           else c.items.push({ menuId: id, name, price, quantity: 1, notes: '' });
           saveCart(c);
           renderCart();
-          const el = event.target.closest('.pos-menu-item');
-          if (el) { el.classList.add('added'); setTimeout(() => el.classList.remove('added'), 200); }
+          const row = event.target.closest('tr');
+          if (row) { row.classList.add('added'); setTimeout(() => row.classList.remove('added'), 200); }
           toast(name + ' ditambahkan');
         }
 

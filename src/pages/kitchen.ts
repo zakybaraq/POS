@@ -31,7 +31,7 @@ export const kitchenPage = new Elysia()
           * { margin: 0; padding: 0; box-sizing: border-box; }
           html, body { height: 100%; overflow: hidden; }
           body { 
-            background: var(--color-bg); 
+            background: #f8f9fa; 
             color: var(--color-text); 
             font-family: system-ui, -apple-system, sans-serif;
           }
@@ -50,47 +50,47 @@ export const kitchenPage = new Elysia()
             justify-content: space-between; 
             align-items: center; 
             padding: 16px 24px; 
-            background: var(--color-card); 
+            background: #ffffff; 
             border-radius: var(--radius-lg); 
-            box-shadow: var(--shadow-sm);
             border: 1px solid var(--color-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
           .kds-header-left { display: flex; align-items: center; gap: 16px; }
           .kds-header h1 { 
-            font-size: 20px; 
+            font-size: 22px; 
             font-weight: 700;
             color: var(--color-text); 
           }
           
           /* Back Button */
           .kds-back-btn { 
-            padding: 8px 16px; 
-            background: var(--color-bg-secondary); 
-            border: 1px solid var(--color-border); 
+            padding: 10px 20px; 
+            background: var(--color-primary); 
+            border: none; 
             border-radius: var(--radius-md); 
-            color: var(--color-text); 
+            color: white; 
             text-decoration: none; 
             font-size: 13px; 
-            font-weight: 500;
+            font-weight: 600;
             transition: all 0.2s;
           }
-          .kds-back-btn:hover { 
-            background: var(--color-primary); 
-            color: white;
-            border-color: var(--color-primary);
-          }
+          .kds-back-btn:hover { opacity: 0.9; transform: translateY(-1px); color: white; }
           
           /* Stats */
           .kds-stats { display: flex; gap: 12px; }
           .kds-stat { 
             text-align: center; 
-            padding: 8px 20px; 
-            background: var(--color-bg-secondary); 
-            border-radius: var(--radius-md);
-            min-width: 100px;
+            padding: 12px 24px; 
+            background: #ffffff; 
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            min-width: 120px;
+            transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
-          .kds-stat-value { font-size: 24px; font-weight: 700; }
-          .kds-stat-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 500; }
+          .kds-stat:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+          .kds-stat-value { font-size: 28px; font-weight: 700; }
+          .kds-stat-label { font-size: 12px; color: var(--color-text-secondary); font-weight: 600; text-transform: uppercase; }
           
           /* Status colors */
           .kds-stat.pending .kds-stat-value { color: var(--color-warning); }
@@ -102,29 +102,27 @@ export const kitchenPage = new Elysia()
             display: flex; 
             gap: 8px; 
             padding: 12px 20px; 
-            background: var(--color-card); 
+            background: #ffffff; 
             border-radius: var(--radius-lg); 
             border: 1px solid var(--color-border);
-            box-shadow: var(--shadow-sm);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
           
           /* Filter Buttons */
           .kds-filter { 
             padding: 10px 20px; 
-            border: 2px solid var(--color-border); 
-            background: var(--color-bg); 
-            color: var(--color-text); 
+            background: var(--color-primary); 
+            color: white;
+            border: none; 
             border-radius: var(--radius-md); 
             cursor: pointer; 
             font-size: 14px; 
             font-weight: 600; 
             transition: all 0.2s;
           }
-          .kds-filter:hover { border-color: var(--color-primary); }
+          .kds-filter:hover { opacity: 0.9; transform: translateY(-1px); }
           .kds-filter.active { 
-            background: var(--color-primary); 
-            border-color: var(--color-primary); 
-            color: white; 
+            background: var(--color-text); 
           }
           
           /* Refresh Button */
@@ -158,11 +156,12 @@ export const kitchenPage = new Elysia()
             align-items: center;
             gap: 12px;
             padding: 14px 16px;
-            background: var(--color-card);
+            background: #ffffff;
             border: 1px solid var(--color-border);
             border-radius: var(--radius-md);
             border-left: 4px solid var(--color-border);
             transition: all 0.2s;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
 
           .kds-list-item.pending { border-left-color: var(--color-warning); }
@@ -211,9 +210,10 @@ export const kitchenPage = new Elysia()
             transition: all 0.2s;
             white-space: nowrap;
           }
-          .kds-btn-start { background: var(--color-error); color: white; }
+          .kds-btn-start { background: var(--color-warning); color: white; }
           .kds-btn-ready { background: var(--color-success); color: white; }
           .kds-btn-serve { background: var(--color-primary); color: white; }
+          .kds-btn:hover { opacity: 0.9; transform: translateY(-1px); }
 
           .kds-list-empty {
             text-align: center;
@@ -233,9 +233,10 @@ export const kitchenPage = new Elysia()
             align-items: center;
             gap: 8px;
             padding: 12px;
-            background: var(--color-card);
+            background: #ffffff;
             border-radius: var(--radius-md);
             border: 1px solid var(--color-border);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.08);
           }
           .kds-page-btn {
             padding: 8px 12px;
