@@ -353,8 +353,8 @@ export const posPage = new Elysia()
           .pos-quick-pay { display: flex; gap: 4px; margin-bottom: 6px; }
           .pos-quick-pay button { flex: 1; padding: 6px; background: var(--color-bg); border: 1px solid var(--color-border); border-radius: var(--radius-sm); font-size: 10px; cursor: pointer; }
           
-          .pos-cart-actions { display: flex; gap: 6px; }
-          .pos-cart-actions button { flex: 1; padding: 10px; border: none; border-radius: var(--radius-md); font-size: 11px; font-weight: 600; cursor: pointer; }
+          .pos-cart-actions { display: flex; gap: 6px; flex-wrap: wrap; }
+          .pos-cart-actions button { flex: 1 1 calc(25% - 4px); padding: 10px; border: none; border-radius: var(--radius-md); font-size: 11px; font-weight: 600; cursor: pointer; min-width: 60px; }
           
           .pos-toast {
             position: fixed;
@@ -493,6 +493,7 @@ export const posPage = new Elysia()
                 <button class="pos-btn" onclick="holdOrder()">Hold</button>
                 <button class="pos-btn pos-btn-primary" onclick="togglePayment()">Bayar</button>
                 <button class="pos-btn pos-btn-danger" onclick="cancelOrder()">Batal</button>
+                <button class="pos-btn" style="background:var(--color-text);color:#fff" onclick="printReceipt()">Cetak</button>
               </div>
             </div>
           </div>
@@ -647,7 +648,8 @@ export const posPage = new Elysia()
           const tax = Math.round(subtotal * 0.1);
           const disc = parseInt(document.getElementById('discount-input').value) || 0;
           const discType = document.getElementById('discount-type').value;
-          const discAmt = discType === 'percentage' ? Math.round(subtotal * disc / 100) : disc;
+          let discAmt = discType === 'percentage' ? Math.round(subtotal * disc / 100) : disc;
+          if (discAmt > subtotal) discAmt = subtotal; // Validasi: diskon tidak boleh lebih dari subtotal
           const total = subtotal + tax - discAmt;
 
           document.getElementById('summary-subtotal').textContent = subtotal.toLocaleString('id-ID');
@@ -800,7 +802,7 @@ export const posPage = new Elysia()
           
           if (!isServerOrder && !currentOrderId) {
             const cart = getCart();
-            const res = await fetch('/api/orders/with-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableId: cart.tableId, userId: currentUserId, items: cart.items.map(i => ({ menuId: i.menuId, quantity: i.quantity })) }) });
+            const res = await fetch('/api/orders/with-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ tableId: cart.tableId, userId: currentUserId, items: cart.items.map(i => ({ menuId: i.menuId, quantity: i.quantity, notes: i.notes || '' })) }) });
             const data = await res.json();
             if (data.error) { toast(data.error, 'error'); return; }
             currentOrderId = data.order.id;
@@ -811,7 +813,7 @@ export const posPage = new Elysia()
           const res = await fetch('/api/orders/' + currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
           const data = await res.json();
           if (data.error) { toast(data.error, 'error'); }
-          else { toast('Pembayaran berhasil!'); resetAfterPayment(); }
+          else { toast('Pembayaran berhasil!'); printReceipt(); resetAfterPayment(); }
         }
 
         function resetAfterPayment() {
@@ -826,6 +828,37 @@ export const posPage = new Elysia()
           document.getElementById('cart-footer').style.display = 'none';
           document.getElementById('cart-meta').style.display = 'none';
           document.getElementById('payment-section').classList.remove('show');
+        }
+
+        function printReceipt() {
+          const cart = getCart();
+          if (!cart || cart.items.length === 0) { toast('Tidak ada item di cart!', 'warning'); return; }
+          const subtotal = cart.items.reduce((s, i) => s + i.price * i.quantity, 0);
+          const tax = Math.round(subtotal * 0.1);
+          const disc = parseInt(document.getElementById('discount-input').value) || 0;
+          const discType = document.getElementById('discount-type').value;
+          const discAmt = discType === 'percentage' ? Math.round(subtotal * disc / 100) : disc;
+          const total = subtotal + tax - discAmt;
+          
+          const receiptHtml = '<div style="font-family:monospace;font-size:12px;padding:10px;max-width:300px;">' +
+            '<div style="text-align:center;border-bottom:1px dashed #000;padding-bottom:8px;margin-bottom:8px;">' +
+            '<strong>RESTORAN</strong><br>Jl. Contoh No.123<br>Telp: 012-3456789</div>' +
+            '<div style="margin-bottom:8px;">Meja: ' + (cart.tableNumber || '-') + ' | Tamu: ' + (cart.guestCount || 1) + '</div>' +
+            '<div style="margin-bottom:8px;">' + new Date().toLocaleString('id-ID') + '</div>' +
+            '<div style="border-bottom:1px dashed #000;padding-bottom:4px;margin-bottom:8px;">' +
+            cart.items.map(i => '<div style="display:flex;justify-content:space-between;"><span>' + i.quantity + 'x ' + i.name + '</span><span>' + (i.price * i.quantity).toLocaleString('id-ID') + '</span></div>' + (i.notes ? '<div style="font-size:10px;color:#666;margin-left:10px;">* ' + i.notes + '</div>' : '')).join('') +
+            '</div>' +
+            '<div style="display:flex;justify-content:space-between;"><span>Subtotal</span><span>' + subtotal.toLocaleString('id-ID') + '</span></div>' +
+            '<div style="display:flex;justify-content:space-between;"><span>Pajak (10%)</span><span>' + tax.toLocaleString('id-ID') + '</span></div>' +
+            (discAmt > 0 ? '<div style="display:flex;justify-content:space-between;"><span>Diskon</span><span>-' + discAmt.toLocaleString('id-ID') + '</span></div>' : '') +
+            '<div style="display:flex;justify-content:space-between;font-weight:bold;border-top:1px dashed #000;padding-top:4px;margin-top:4px;"><span>TOTAL</span><span>' + total.toLocaleString('id-ID') + '</span></div>' +
+            '<div style="text-align:center;margin-top:12px;font-size:10px;">Terima kasih atas kunjungan Anda!</div>' +
+            '</div>';
+          
+          const printWindow = window.open('', '', 'width=300,height=500');
+          printWindow.document.write('<html><head><title>Struk</title></head><body>' + receiptHtml + '</body></html>');
+          printWindow.document.close();
+          printWindow.print();
         }
 
         function holdOrder() {
