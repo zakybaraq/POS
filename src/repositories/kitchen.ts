@@ -74,26 +74,25 @@ export async function getKitchenOrderItems(orderId: number) {
 }
 
 export async function getKitchenStats() {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  const tomorrow = new Date(today);
-  tomorrow.setDate(tomorrow.getDate() + 1);
-
-  const [result] = await db.select({
-    totalOrders: count(orders.id).mapWith(Number),
-    completedOrders: sql<number>`SUM(CASE WHEN ${orders.kitchenStatus} = 'served' THEN 1 ELSE 0 END)`,
-    pendingOrders: sql<number>`SUM(CASE WHEN ${orders.kitchenStatus} = 'pending' THEN 1 ELSE 0 END)`,
-    cookingOrders: sql<number>`SUM(CASE WHEN ${orders.kitchenStatus} = 'cooking' THEN 1 ELSE 0 END)`,
-    readyOrders: sql<number>`SUM(CASE WHEN ${orders.kitchenStatus} = 'ready' THEN 1 ELSE 0 END)`,
+  const allOrders = await db.select({
+    kitchenStatus: orders.kitchenStatus,
+    createdAt: orders.createdAt,
   })
   .from(orders)
-  .where(and(gte(orders.createdAt, today), lte(orders.createdAt, tomorrow)));
-
-  return result || {
-    totalOrders: 0,
+  .where(and(
+    sql`${orders.kitchenStatus} != 'served'`,
+    sql`${orders.status} != 'cancelled'`
+  ));
+  
+  const pendingOrders = allOrders.filter(o => o.kitchenStatus === 'pending').length;
+  const cookingOrders = allOrders.filter(o => o.kitchenStatus === 'cooking').length;
+  const readyOrders = allOrders.filter(o => o.kitchenStatus === 'ready').length;
+  
+  return {
+    totalOrders: allOrders.length,
     completedOrders: 0,
-    pendingOrders: 0,
-    cookingOrders: 0,
-    readyOrders: 0,
+    pendingOrders,
+    cookingOrders,
+    readyOrders,
   };
 }
