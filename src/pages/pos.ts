@@ -314,7 +314,9 @@ export const posPage = new Elysia()
             margin-bottom: 6px;
           }
           .pos-cart-item-info { flex: 1; min-width: 0; }
-          .pos-cart-item-name { font-size: 12px; font-weight: 600; }
+          .pos-cart-item-name { font-size: 12px; font-weight: 600; cursor: pointer; }
+          .pos-cart-item-name:hover { color: var(--color-primary); }
+          .pos-cart-item-notes { font-size: 10px; color: var(--color-warning); font-style: italic; margin-top: 2px; }
           .pos-cart-item-qty { display: flex; align-items: center; gap: 4px; margin-top: 2px; }
           .pos-cart-item-qty button {
             width: 20px;
@@ -596,6 +598,19 @@ export const posPage = new Elysia()
           renderCart();
         }
 
+        function editItemNotes(id) {
+          let c = getCart();
+          if (!c) return;
+          const item = c.items.find(i => i.menuId === id);
+          if (!item) return;
+          const notes = prompt('Catatan untuk ' + item.name + ':', item.notes || '');
+          if (notes !== null) {
+            item.notes = notes;
+            saveCart(c);
+            renderCart();
+          }
+        }
+
         function renderCart() {
           const c = getCart();
           const itemsEl = document.getElementById('cart-items');
@@ -616,8 +631,10 @@ export const posPage = new Elysia()
 
           let html = '';
           c.items.forEach(item => {
+            const notesHtml = item.notes ? '<div class="pos-cart-item-notes">' + item.notes + '</div>' : '';
             html += '<div class="pos-cart-item">' +
-              '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + item.name + '</div>' +
+              '<div class="pos-cart-item-info"><div class="pos-cart-item-name" onclick="editItemNotes(' + item.menuId + ')">' + item.name + '</div>' +
+              notesHtml +
               '<div class="pos-cart-item-qty"><button onclick="qtyChange(' + item.menuId + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="qtyChange(' + item.menuId + ',1)">+</button></div></div>' +
               '<div class="pos-cart-item-price">' + (item.price * item.quantity).toLocaleString('id-ID') + '</div>' +
               '<button class="pos-cart-item-remove" onclick="removeItem(' + item.menuId + ')">&times;</button></div>';
