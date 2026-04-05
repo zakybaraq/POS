@@ -101,23 +101,27 @@ export const purchaseOrdersPage = new Elysia()
         let poItems = [];
 
         async function loadPOs() {
-          const [poRes, supRes, ingRes] = await Promise.all([
-            fetch('/api/purchase-orders'),
-            fetch('/api/suppliers/active'),
-            fetch('/api/inventory')
-          ]);
-          const pos = await poRes.json();
-          suppliers = await supRes.json();
-          ingredients = await ingRes.json();
+          try {
+            const [poRes, supRes, ingRes] = await Promise.all([
+              fetch('/api/purchase-orders'),
+              fetch('/api/suppliers/active'),
+              fetch('/api/inventory/ingredients')
+            ]);
+            const pos = await poRes.json();
+            suppliers = await supRes.json();
+            ingredients = await ingRes.json();
 
-          const supMap = {};
-          suppliers.forEach(s => supMap[s.id] = s.name);
-          const tbody = document.getElementById('po-tbody');
-          if (!pos.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
-          tbody.innerHTML = pos.map(po => '<tr><td><strong>' + po.poNumber + '</strong></td><td>' + (supMap[po.supplierId] || '-') + '</td><td>' + new Date(po.orderDate).toLocaleDateString('id-ID') + '</td><td>Rp ' + (po.subtotal || 0).toLocaleString('id-ID') + '</td><td><span class="badge ' + statusBadge(po.status) + '">' + statusLabel(po.status) + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="viewPO(' + po.id + ')">Detail</button></td></tr>').join('');
+            const supMap = {};
+            suppliers.forEach(s => supMap[s.id] = s.name);
+            const tbody = document.getElementById('po-tbody');
+            if (!pos.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
+            tbody.innerHTML = pos.map(po => '<tr><td><strong>' + po.poNumber + '</strong></td><td>' + (supMap[po.supplierId] || '-') + '</td><td>' + new Date(po.orderDate).toLocaleDateString('id-ID') + '</td><td>Rp ' + (po.subtotal || 0).toLocaleString('id-ID') + '</td><td><span class="badge ' + statusBadge(po.status) + '">' + statusLabel(po.status) + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="viewPO(' + po.id + ')">Detail</button></td></tr>').join('');
 
-          const sel = document.getElementById('po-supplier');
-          sel.innerHTML = '<option value="">-- Pilih Supplier --</option>' + suppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+            const sel = document.getElementById('po-supplier');
+            sel.innerHTML = '<option value="">-- Pilih Supplier --</option>' + suppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
+          } catch (e) {
+            document.getElementById('po-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Gagal memuat data: ' + e.message + '</td></tr>';
+          }
         }
 
         function statusBadge(s) { return {received:'badge-success',cancelled:'badge-error',ordered:'badge-warning',draft:'badge-info'}[s]||''; }

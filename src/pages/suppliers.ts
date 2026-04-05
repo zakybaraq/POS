@@ -70,11 +70,15 @@ export const suppliersPage = new Elysia()
       ${getCommonScripts()}
       <script>
         async function loadSuppliers() {
-          const res = await fetch('/api/suppliers');
-          const data = await res.json();
-          const tbody = document.getElementById('suppliers-tbody');
-          if (!data.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
-          tbody.innerHTML = data.map(s => '<tr><td><strong>' + s.name + '</strong></td><td>' + (s.contactPerson || '-') + '</td><td>' + (s.phone || '-') + '</td><td>' + (s.category || '-') + '</td><td><span class="badge ' + (s.isActive ? 'badge-success' : 'badge-error') + '">' + (s.isActive ? 'Aktif' : 'Nonaktif') + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="editSupplier(' + s.id + ')">Edit</button></td></tr>').join('');
+          try {
+            const res = await fetch('/api/suppliers');
+            const data = await res.json();
+            const tbody = document.getElementById('suppliers-tbody');
+            if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
+            tbody.innerHTML = data.map(s => '<tr><td><strong>' + s.name + '</strong></td><td>' + (s.contactPerson || '-') + '</td><td>' + (s.phone || '-') + '</td><td>' + (s.category || '-') + '</td><td><span class="badge ' + (s.isActive ? 'badge-success' : 'badge-error') + '">' + (s.isActive ? 'Aktif' : 'Nonaktif') + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="editSupplier(' + s.id + ')">Edit</button></td></tr>').join('');
+          } catch (e) {
+            document.getElementById('suppliers-tbody').innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Gagal memuat data: ' + e.message + '</td></tr>';
+          }
         }
         function openSupplierModal(id) {
           document.getElementById('supplier-modal').style.display = 'flex';
