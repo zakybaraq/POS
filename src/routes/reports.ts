@@ -1,0 +1,76 @@
+import { Elysia } from 'elysia';
+import * as reportRepo from '../repositories/report';
+
+export const reportRoutes = new Elysia({ prefix: '/api/reports' })
+  .get('/sales/daily', async ({ query }) => {
+    const date = (query as any)?.date;
+    return reportRepo.getDailySales(date);
+  })
+  .get('/sales/weekly', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    return reportRepo.getWeeklySales(startDate, endDate);
+  })
+  .get('/sales/monthly', async ({ query }) => {
+    const year = (query as any)?.year ? parseInt((query as any).year) : undefined;
+    const month = (query as any)?.month ? parseInt((query as any).month) : undefined;
+    return reportRepo.getMonthlySales(year, month);
+  })
+  .get('/sales/custom', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getSalesByDateRange(startDate, endDate);
+  })
+  .get('/menus/top-quantity', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    const limit = (query as any)?.limit ? parseInt((query as any).limit) : 10;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getTopMenusByQuantity(startDate, endDate, limit);
+  })
+  .get('/menus/top-revenue', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    const limit = (query as any)?.limit ? parseInt((query as any).limit) : 10;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getTopMenusByRevenue(startDate, endDate, limit);
+  })
+  .get('/menus/category', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getMenuCategoryBreakdown(startDate, endDate);
+  })
+  .get('/cashiers', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getCashierPerformance(startDate, endDate);
+  })
+  .get('/tables/occupancy', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getTableOccupancy(startDate, endDate);
+  })
+  .get('/summary', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return reportRepo.getSalesSummary(startDate, endDate);
+  });

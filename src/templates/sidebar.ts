@@ -1,7 +1,7 @@
 export function getSidebarHtml(activePage: string, user: { role: string; name: string }) {
   const roleMenuMap: Record<string, string[]> = {
-    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory', 'customers'],
-    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory', 'customers'],
+    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports'],
+    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports'],
     kasir: ['pos', 'customers'],
     waitress: ['orders', 'tables'],
     chef: ['orders']
@@ -89,6 +89,14 @@ export function getSidebarHtml(activePage: string, user: { role: string; name: s
         <a href="/customers" class="sidebar-menu-link ${activePage === 'customers' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
           <span class="sidebar-menu-label">Pelanggan</span>
+        </a>
+      </li>` : ''}
+
+      ${isMenuAllowed('reports') ? `
+      <li class="sidebar-menu-item">
+        <a href="/reports" class="sidebar-menu-link ${activePage === 'reports' ? 'active' : ''}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><line x1="18" y1="20" x2="18" y2="10"></line><line x1="12" y1="20" x2="12" y2="4"></line><line x1="6" y1="20" x2="6" y2="14"></line></svg>
+          <span class="sidebar-menu-label">Laporan</span>
         </a>
       </li>` : ''}
     </ul>

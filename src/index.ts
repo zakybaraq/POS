@@ -15,6 +15,7 @@ import { productsPage } from './pages/products';
 import { customersPage } from './pages/customers';
 
 import { inventoryPage } from './pages/inventory';
+import { reportsPage } from './pages/reports';
 
 const app = new Elysia()
   .use(routes)
@@ -38,6 +39,7 @@ const app = new Elysia()
   .use(productsPage)
   .use(inventoryPage)
   .use(customersPage)
+  .use(reportsPage)
   .listen(process.env.PORT || 3000);
 
 console.log(`Server running at http://localhost:${process.env.PORT || 3000}`);
