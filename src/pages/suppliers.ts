@@ -44,21 +44,25 @@ export const suppliersPage = new Elysia()
         </div>
       </div>
       <div class="modal-backdrop" id="supplier-modal" style="display:none;">
-        <div class="modal">
-          <div class="modal-header"><h3 id="supplier-modal-title">Tambah Supplier</h3><button onclick="closeSupplierModal()" class="btn btn-icon">&times;</button></div>
-          <form id="supplier-form" style="padding:24px;">
-            <input type="hidden" id="supplier-id">
-            <div class="form-grid">
-              <div class="form-group"><label class="form-label">Nama Supplier *</label><input type="text" id="s-name" class="input" required></div>
-              <div class="form-group"><label class="form-label">Contact Person</label><input type="text" id="s-contact" class="input"></div>
-              <div class="form-group"><label class="form-label">Telepon *</label><input type="text" id="s-phone" class="input" required></div>
-              <div class="form-group"><label class="form-label">Email</label><input type="email" id="s-email" class="input"></div>
-              <div class="form-group" style="grid-column:span 2;"><label class="form-label">Alamat</label><textarea id="s-address" class="input" rows="2"></textarea></div>
-              <div class="form-group"><label class="form-label">Kategori</label><input type="text" id="s-category" class="input" placeholder="Bahan Makanan, Minuman, dll"></div>
-              <div class="form-group"><label class="form-label">Catatan</label><input type="text" id="s-notes" class="input"></div>
-              <div class="form-group" style="grid-column:span 2;"><button type="submit" class="btn btn-primary">Simpan</button></div>
+        <div class="modal show">
+          <div class="modal-content" style="max-width:600px;">
+            <div class="modal-header"><h3 id="supplier-modal-title">Tambah Supplier</h3><button onclick="closeSupplierModal()" class="modal-close">&times;</button></div>
+            <div class="modal-body">
+              <form id="supplier-form">
+                <input type="hidden" id="supplier-id">
+                <div class="form-grid">
+                  <div class="form-group"><label class="form-label">Nama Supplier *</label><input type="text" id="s-name" class="input" required></div>
+                  <div class="form-group"><label class="form-label">Contact Person</label><input type="text" id="s-contact" class="input"></div>
+                  <div class="form-group"><label class="form-label">Telepon *</label><input type="text" id="s-phone" class="input" required></div>
+                  <div class="form-group"><label class="form-label">Email</label><input type="email" id="s-email" class="input"></div>
+                  <div class="form-group" style="grid-column:span 2;"><label class="form-label">Alamat</label><textarea id="s-address" class="input" rows="2"></textarea></div>
+                  <div class="form-group"><label class="form-label">Kategori</label><input type="text" id="s-category" class="input" placeholder="Bahan Makanan, Minuman, dll"></div>
+                  <div class="form-group"><label class="form-label">Catatan</label><input type="text" id="s-notes" class="input"></div>
+                </div>
+              </form>
             </div>
-          </form>
+            <div class="modal-footer"><button type="submit" form="supplier-form" class="btn btn-primary">Simpan</button></div>
+          </div>
         </div>
       </div>
       <style>

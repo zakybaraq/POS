@@ -55,36 +55,42 @@ export const purchaseOrdersPage = new Elysia()
       </div>
 
       <div class="modal-backdrop" id="po-modal" style="display:none;">
-        <div class="modal" style="max-width:800px;">
-          <div class="modal-header"><h3 id="po-modal-title">Buat PO Baru</h3><button onclick="closePOModal()" class="btn btn-icon">&times;</button></div>
-          <form id="po-form" style="padding:24px;">
-            <input type="hidden" id="po-id">
-            <div class="form-grid">
-              <div class="form-group"><label class="form-label">Supplier *</label><select id="po-supplier" class="input" required></select></div>
-              <div class="form-group"><label class="form-label">Estimasi Tiba</label><input type="date" id="po-delivery" class="input"></div>
-              <div class="form-group" style="grid-column:span 2;"><label class="form-label">Catatan</label><textarea id="po-notes" class="input" rows="2"></textarea></div>
+        <div class="modal show">
+          <div class="modal-content" style="max-width:800px;">
+            <div class="modal-header"><h3 id="po-modal-title">Buat PO Baru</h3><button onclick="closePOModal()" class="modal-close">&times;</button></div>
+            <div class="modal-body">
+              <form id="po-form">
+                <input type="hidden" id="po-id">
+                <div class="form-grid">
+                  <div class="form-group"><label class="form-label">Supplier *</label><select id="po-supplier" class="input" required></select></div>
+                  <div class="form-group"><label class="form-label">Estimasi Tiba</label><input type="date" id="po-delivery" class="input"></div>
+                  <div class="form-group" style="grid-column:span 2;"><label class="form-label">Catatan</label><textarea id="po-notes" class="input" rows="2"></textarea></div>
+                </div>
+                <h4 style="margin:16px 0 8px;">Item Pesanan</h4>
+                <div class="table-container">
+                  <table class="table">
+                    <thead><tr><th>Bahan Baku</th><th>Qty</th><th>Unit</th><th>Harga/Unit</th><th>Total</th><th></th></tr></thead>
+                    <tbody id="po-items-tbody"></tbody>
+                  </table>
+                </div>
+                <button type="button" class="btn btn-secondary" style="margin:12px 0;" onclick="addPOItem()">+ Tambah Item</button>
+                <div style="text-align:right;font-size:18px;font-weight:700;margin:12px 0;">Subtotal: <span id="po-subtotal">Rp 0</span></div>
+              </form>
             </div>
-            <h4 style="margin:16px 0 8px;">Item Pesanan</h4>
-            <div class="table-container">
-              <table class="table">
-                <thead><tr><th>Bahan Baku</th><th>Qty</th><th>Unit</th><th>Harga/Unit</th><th>Total</th><th></th></tr></thead>
-                <tbody id="po-items-tbody"></tbody>
-              </table>
-            </div>
-            <button type="button" class="btn btn-secondary" style="margin:12px 0;" onclick="addPOItem()">+ Tambah Item</button>
-            <div style="text-align:right;font-size:18px;font-weight:700;margin:12px 0;">Subtotal: <span id="po-subtotal">Rp 0</span></div>
-            <div style="display:flex;gap:8px;justify-content:flex-end;">
+            <div class="modal-footer">
               <button type="button" class="btn btn-secondary" onclick="closePOModal()">Batal</button>
-              <button type="submit" class="btn btn-primary">Simpan</button>
+              <button type="submit" form="po-form" class="btn btn-primary">Simpan</button>
             </div>
-          </form>
+          </div>
         </div>
       </div>
 
       <div class="modal-backdrop" id="po-detail-modal" style="display:none;">
-        <div class="modal" style="max-width:800px;">
-          <div class="modal-header"><h3 id="po-detail-title">Detail PO</h3><button onclick="closePODetail()" class="btn btn-icon">&times;</button></div>
-          <div id="po-detail-content" style="padding:24px;"></div>
+        <div class="modal show">
+          <div class="modal-content" style="max-width:800px;">
+            <div class="modal-header"><h3 id="po-detail-title">Detail PO</h3><button onclick="closePODetail()" class="modal-close">&times;</button></div>
+            <div class="modal-body" id="po-detail-content"></div>
+          </div>
         </div>
       </div>
 
