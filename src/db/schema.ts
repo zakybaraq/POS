@@ -258,6 +258,68 @@ export const operatingHours = mysqlTable('operating_hours', {
   isOpen: boolean('is_open').notNull().default(true),
 });
 
+export const suppliers = mysqlTable('suppliers', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 255 }).notNull(),
+  contactPerson: varchar('contact_person', { length: 100 }).default(''),
+  phone: varchar('phone', { length: 20 }).default(''),
+  email: varchar('email', { length: 255 }).default(''),
+  address: varchar('address', { length: 500 }).default(''),
+  category: varchar('category', { length: 100 }).default(''),
+  notes: varchar('notes', { length: 500 }).default(''),
+  isActive: boolean('is_active').notNull().default(true),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+}, (table) => ({
+  nameIdx: index('idx_suppliers_name').on(table.name),
+}));
+
+export const purchaseOrders = mysqlTable('purchase_orders', {
+  id: serial('id').primaryKey(),
+  poNumber: varchar('po_number', { length: 50 }).notNull().unique(),
+  supplierId: int('supplier_id').notNull(),
+  orderDate: datetime('order_date').notNull().default(new Date()),
+  expectedDeliveryDate: datetime('expected_delivery_date'),
+  status: mysqlEnum('status', ['draft', 'ordered', 'received', 'cancelled']).notNull().default('draft'),
+  subtotal: int('subtotal').notNull().default(0),
+  notes: varchar('notes', { length: 500 }).default(''),
+  receivedDate: datetime('received_date'),
+  receivedBy: int('received_by'),
+  createdBy: int('created_by').notNull(),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+}, (table) => ({
+  supplierIdIdx: index('idx_po_supplier_id').on(table.supplierId),
+  statusIdx: index('idx_po_status').on(table.status),
+  orderDateIdx: index('idx_po_order_date').on(table.orderDate),
+}));
+
+export const purchaseOrderItems = mysqlTable('purchase_order_items', {
+  id: serial('id').primaryKey(),
+  poId: int('po_id').notNull(),
+  ingredientId: int('ingredient_id').notNull(),
+  quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(),
+  unitPrice: int('unit_price').notNull(),
+  totalPrice: int('total_price').notNull(),
+  quantityReceived: decimal('quantity_received', { precision: 10, scale: 2 }).default('0'),
+  notes: varchar('notes', { length: 255 }).default(''),
+}, (table) => ({
+  poIdIdx: index('idx_poi_po_id').on(table.poId),
+  ingredientIdIdx: index('idx_poi_ingredient_id').on(table.ingredientId),
+}));
+
+export const supplierPrices = mysqlTable('supplier_prices', {
+  id: serial('id').primaryKey(),
+  supplierId: int('supplier_id').notNull(),
+  ingredientId: int('ingredient_id').notNull(),
+  price: int('price').notNull(),
+  unit: varchar('unit', { length: 20 }).notNull(),
+  lastOrderedAt: datetime('last_ordered_at').notNull().default(new Date()),
+}, (table) => ({
+  supplierIngredientIdx: index('idx_sp_supplier_ingredient').on(table.supplierId, table.ingredientId),
+}));
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -291,3 +353,11 @@ export type ReceiptSettings = typeof receiptSettings.$inferSelect;
 export type NewReceiptSettings = typeof receiptSettings.$inferInsert;
 export type OperatingHour = typeof operatingHours.$inferSelect;
 export type NewOperatingHour = typeof operatingHours.$inferInsert;
+export type Supplier = typeof suppliers.$inferSelect;
+export type NewSupplier = typeof suppliers.$inferInsert;
+export type PurchaseOrder = typeof purchaseOrders.$inferSelect;
+export type NewPurchaseOrder = typeof purchaseOrders.$inferInsert;
+export type PurchaseOrderItem = typeof purchaseOrderItems.$inferSelect;
+export type NewPurchaseOrderItem = typeof purchaseOrderItems.$inferInsert;
+export type SupplierPrice = typeof supplierPrices.$inferSelect;
+export type NewSupplierPrice = typeof supplierPrices.$inferInsert;

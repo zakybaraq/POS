@@ -12,6 +12,8 @@ import { inventoryRoutes } from './inventory';
 import { customerRoutes } from './customers';
 import { reportRoutes } from './reports';
 import { settingsRoutes } from './settings';
+import { supplierRoutes } from './suppliers';
+import { purchaseOrderRoutes } from './purchase-orders';
 
 export const routes = new Elysia()
   .use(cookie())
@@ -25,4 +27,6 @@ export const routes = new Elysia()
   .use(inventoryRoutes)
   .use(customerRoutes)
   .use(reportRoutes)
-  .use(settingsRoutes);
+  .use(settingsRoutes)
+  .use(supplierRoutes)
+  .use(purchaseOrderRoutes);
