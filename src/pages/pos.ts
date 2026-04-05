@@ -1,8 +1,5 @@
 import { Elysia } from 'elysia';
 import { htmlResponse } from '../templates/html';
-import { getSidebarHtml } from '../templates/sidebar';
-import { getNavbarHtml } from '../templates/navbar';
-import { getFooterHtml } from '../templates/footer';
 import { getCommonScripts } from '../templates/common-scripts';
 import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth';
 
@@ -40,17 +37,519 @@ export const posPage = new Elysia()
     const menus = await getAvailableMenus();
 
     return htmlResponse(`
-      <div class="app-layout">
-        ${getSidebarHtml('pos', user)}
-        <div class="app-content">
-          ${getNavbarHtml('Point of Sale', 'pos', user)}
-          <main class="app-main pos-main">
+      <!DOCTYPE html>
+      <html lang="id">
+      <head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Point of Sale</title>
+        <link rel="stylesheet" href="/styles/global.css">
+        <link rel="stylesheet" href="/styles/pos.css">
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          html, body { height: 100%; overflow: hidden; }
+          body { 
+            background: var(--color-bg); 
+            color: var(--color-text); 
+            font-family: system-ui, -apple-system, sans-serif;
+          }
+          
+          .pos-fullscreen {
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
+            padding: 16px;
+            gap: 12px;
+          }
+          
+          .pos-header { 
+            display: flex; 
+            justify-content: space-between; 
+            align-items: center; 
+            padding: 16px 24px; 
+            background: var(--color-card); 
+            border-radius: var(--radius-lg); 
+            box-shadow: var(--shadow-sm);
+            border: 1px solid var(--color-border);
+          }
+          .pos-header-left { display: flex; align-items: center; gap: 16px; }
+          .pos-header h1 { 
+            font-size: 20px; 
+            font-weight: 700;
+            color: var(--color-text); 
+          }
+          
+          .pos-back-btn { 
+            padding: 8px 16px; 
+            background: var(--color-bg-secondary); 
+            border: 1px solid var(--color-border); 
+            border-radius: var(--radius-md); 
+            color: var(--color-text); 
+            text-decoration: none; 
+            font-size: 13px; 
+            font-weight: 500;
+            transition: all 0.2s;
+          }
+          .pos-back-btn:hover { 
+            background: var(--color-primary); 
+            color: white;
+            border-color: var(--color-primary);
+          }
+
+          .pos-main {
+            display: grid;
+            grid-template-columns: 1fr 400px;
+            gap: 12px;
+            flex: 1;
+            overflow: hidden;
+          }
+          
+          .pos-left {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            overflow: hidden;
+          }
+          
+          .pos-panels {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            flex: 1;
+            overflow: hidden;
+          }
+
+          .pos-tables-panel {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 12px;
+          }
+
+          .panel-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+          }
+          .panel-header h3 { font-size: 14px; font-weight: 600; }
+          
+          .tables-grid {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 8px;
+            margin-bottom: 12px;
+          }
+          
+          .table-btn {
+            width: 60px;
+            height: 60px;
+            border-radius: var(--radius-md);
+            border: 2px solid var(--color-border);
+            background: var(--color-bg-secondary);
+            color: var(--color-text);
+            font-size: 16px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .table-btn.available {
+            background: var(--color-success);
+            color: white;
+            border-color: var(--color-success);
+          }
+          .table-btn.occupied {
+            background: var(--color-error);
+            color: white;
+            border-color: var(--color-error);
+          }
+          .table-btn.selected {
+            box-shadow: 0 0 0 3px var(--color-primary);
+          }
+
+          .table-legend {
+            display: flex;
+            gap: 16px;
+            font-size: 12px;
+            color: var(--color-text-secondary);
+          }
+          .legend-item { display: flex; align-items: center; gap: 6px; }
+          .legend-dot { width: 10px; height: 10px; border-radius: 50%; }
+          .legend-dot.available { background: var(--color-success); }
+          .legend-dot.occupied { background: var(--color-error); }
+          .legend-dot.selected { background: var(--color-primary); }
+
+          .pos-menu-panel {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            padding: 12px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+          }
+
+          .pos-menu-header {
+            display: flex;
+            gap: 12px;
+            margin-bottom: 12px;
+          }
+
+          .category-tabs {
+            display: flex;
+            gap: 8px;
+          }
+          
+          .category-tab {
+            padding: 8px 16px;
+            border: 2px solid var(--color-border);
+            background: var(--color-bg);
+            color: var(--color-text);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+          }
+          .category-tab:hover { border-color: var(--color-primary); }
+          .category-tab.active { 
+            background: var(--color-primary); 
+            border-color: var(--color-primary); 
+            color: white; 
+          }
+
+          .pos-search {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 8px 12px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            flex: 1;
+            max-width: 300px;
+          }
+          .pos-search input {
+            border: none;
+            background: none;
+            outline: none;
+            flex: 1;
+            color: var(--color-text);
+            font-size: 14px;
+          }
+          .pos-search svg { color: var(--color-text-secondary); }
+
+          .menu-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 8px;
+            overflow-y: auto;
+            padding-right: 4px;
+          }
+          
+          .menu-card {
+            padding: 12px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            cursor: pointer;
+            transition: all 0.2s;
+            text-align: center;
+          }
+          .menu-card:hover { border-color: var(--color-primary); transform: translateY(-2px); }
+          .menu-card.added { background: var(--color-success); color: white; }
+          
+          .menu-card-emoji { font-size: 28px; margin-bottom: 4px; }
+          .menu-card-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+          .menu-card-price { font-size: 12px; color: var(--color-text-secondary); }
+
+          .pos-right {
+            display: flex;
+            flex-direction: column;
+          }
+
+          .cart-panel {
+            background: var(--color-card);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-lg);
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+            overflow: hidden;
+          }
+
+          .cart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--color-border);
+          }
+          .cart-title { font-size: 16px; font-weight: 700; }
+          .cart-actions-header { display: flex; gap: 8px; }
+          
+          .cart-meta {
+            display: flex;
+            gap: 12px;
+            padding: 12px 16px;
+            border-bottom: 1px solid var(--color-border);
+          }
+          .meta-row { display: flex; flex: 1; gap: 8px; align-items: center; }
+          .meta-row label { font-size: 12px; color: var(--color-text-secondary); }
+          .meta-input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: 13px;
+          }
+
+          .cart-zone {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+          }
+
+          .cart-empty {
+            text-align: center;
+            padding: 40px 20px;
+            color: var(--color-text-secondary);
+          }
+
+          .cart-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 10px;
+            background: var(--color-bg);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+          }
+          .cart-item-info { flex: 1; }
+          .cart-item-name { font-size: 13px; font-weight: 600; margin-bottom: 4px; }
+          .cart-item-notes input {
+            width: 100%;
+            padding: 4px 8px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-sm);
+            background: var(--color-bg-secondary);
+            color: var(--color-text);
+            font-size: 11px;
+            margin-bottom: 4px;
+          }
+          .cart-item-qty { display: flex; align-items: center; gap: 8px; }
+          .cart-item-qty button {
+            width: 24px;
+            height: 24px;
+            border: 1px solid var(--color-border);
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-sm);
+            cursor: pointer;
+            font-weight: 700;
+          }
+          .cart-item-qty span { font-size: 13px; font-weight: 600; min-width: 30px; text-align: center; }
+          .cart-item-price { font-size: 13px; font-weight: 700; }
+          .cart-item-actions button {
+            background: none;
+            border: none;
+            color: var(--color-error);
+            font-size: 18px;
+            cursor: pointer;
+          }
+
+          .cart-footer {
+            border-top: 1px solid var(--color-border);
+            padding: 16px;
+          }
+
+          .cart-summary { margin-bottom: 12px; }
+          .cart-row {
+            display: flex;
+            justify-content: space-between;
+            font-size: 13px;
+            padding: 4px 0;
+          }
+          .cart-row.total { 
+            font-size: 16px; 
+            font-weight: 700; 
+            border-top: 2px solid var(--color-border);
+            padding-top: 8px;
+            margin-top: 8px;
+          }
+
+          .cart-discount-row {
+            display: flex;
+            gap: 8px;
+            margin: 8px 0;
+          }
+          .discount-input {
+            flex: 1;
+            padding: 6px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: 13px;
+          }
+          .discount-select {
+            padding: 6px 10px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            background: var(--color-bg);
+            color: var(--color-text);
+            font-size: 13px;
+          }
+
+          .payment-section {
+            margin-bottom: 12px;
+            padding: 12px;
+            background: var(--color-bg-secondary);
+            border-radius: var(--radius-md);
+          }
+          .quick-pay-buttons {
+            display: flex;
+            gap: 8px;
+            margin: 8px 0;
+          }
+          .quick-pay-btn {
+            flex: 1;
+            padding: 8px;
+            background: var(--color-bg);
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            color: var(--color-text);
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+          }
+          .quick-pay-btn:hover { border-color: var(--color-primary); }
+
+          .cart-buttons {
+            display: flex;
+            gap: 8px;
+          }
+          .cart-buttons button {
+            flex: 1;
+            padding: 12px;
+            border: none;
+            border-radius: var(--radius-md);
+            font-size: 13px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .btn-hold { background: var(--color-warning); color: white; }
+          .btn-pay { background: var(--color-success); color: white; }
+          .btn-cancel { background: var(--color-error); color: white; }
+
+          .toast-container {
+            position: fixed;
+            top: 20px;
+            right: 20px;
+            z-index: 9999;
+          }
+          .toast {
+            padding: 12px 16px;
+            border-radius: var(--radius-md);
+            color: white;
+            font-size: 13px;
+            margin-bottom: 8px;
+            animation: slideIn 0.3s ease;
+          }
+          .toast-success { background: var(--color-success); }
+          .toast-warning { background: var(--color-warning); }
+          .toast-error { background: var(--color-error); }
+
+          @keyframes slideIn {
+            from { transform: translateX(100%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+
+          .modal { display: none; }
+          .modal.show { display: block; }
+          .modal-backdrop {
+            position: fixed;
+            inset: 0;
+            background: rgba(0,0,0,0.5);
+            z-index: 100;
+          }
+          .modal-content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--color-card);
+            border-radius: var(--radius-lg);
+            width: 90%;
+            max-width: 500px;
+            z-index: 101;
+          }
+          .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 16px;
+            border-bottom: 1px solid var(--color-border);
+          }
+          .modal-header h3 { font-size: 16px; font-weight: 700; }
+          .modal-close {
+            background: none;
+            border: none;
+            font-size: 24px;
+            cursor: pointer;
+            color: var(--color-text-secondary);
+          }
+          .modal-body { padding: 16px; max-height: 400px; overflow-y: auto; }
+          .modal-footer {
+            display: flex;
+            justify-content: flex-end;
+            gap: 8px;
+            padding: 16px;
+            border-top: 1px solid var(--color-border);
+          }
+
+          .held-order-item {
+            display: flex;
+            justify-content: space-between;
+            padding: 12px;
+            border: 1px solid var(--color-border);
+            border-radius: var(--radius-md);
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.2s;
+          }
+          .held-order-item:hover { border-color: var(--color-primary); }
+
+          .text-muted { color: var(--color-text-secondary); }
+          .text-center { text-align: center; }
+
+          ::-webkit-scrollbar { width: 6px; }
+          ::-webkit-scrollbar-track { background: var(--color-bg-secondary); border-radius: 3px; }
+          ::-webkit-scrollbar-thumb { background: var(--color-border); border-radius: 3px; }
+        </style>
+      </head>
+      <body>
+        <div class="pos-fullscreen">
+          <div class="pos-header">
+            <div class="pos-header-left">
+              <a href="/" class="pos-back-btn">Dashboard</a>
+              <h1>Point of Sale</h1>
+            </div>
+            <div>
+              <button class="pos-back-btn" onclick="showHeldOrdersModal()">Hold (<span id="held-count">0</span>)</button>
+            </div>
+          </div>
+          
+          <div class="pos-main">
             <div class="pos-left">
               <div class="pos-panels">
                 <div class="pos-tables-panel">
                   <div class="panel-header">
                     <h3>Meja</h3>
-                    ${['super_admin', 'admin_restoran'].includes(user.role) ? `<button class="btn-icon" onclick="addTable()" title="Tambah Meja">+</button>` : ''}
+                    ${['super_admin', 'admin_restoran'].includes(user.role) ? `<button class="pos-back-btn" onclick="addTable()" style="padding: 4px 12px; font-size: 12px;">+ Tambah</button>` : ''}
                   </div>
                   <div class="tables-grid">
                     ${tables.map(t => `<button class="table-btn ${t.status === 'available' ? 'available' : 'occupied'}" data-table-id="${t.id}" data-status="${t.status}" onclick="selectTable(${t.id}, ${t.tableNumber}, '${t.status}')">${t.tableNumber}</button>`).join('')}
@@ -66,13 +565,13 @@ export const posPage = new Elysia()
                 <div class="pos-menu-panel">
                   <div class="pos-menu-header">
                     <div class="category-tabs">
-                      <button class="category-tab active" onclick="filterMenu('all', this)">🍽️ Semua</button>
-                      <button class="category-tab" onclick="filterMenu('makanan', this)">🍛 Makanan</button>
-                      <button class="category-tab" onclick="filterMenu('minuman', this)">🥤 Minuman</button>
+                      <button class="category-tab active" onclick="filterMenu('all', this)">Semua</button>
+                      <button class="category-tab" onclick="filterMenu('makanan', this)">Makanan</button>
+                      <button class="category-tab" onclick="filterMenu('minuman', this)">Minuman</button>
                     </div>
                     <div class="pos-search">
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="8"></circle><path d="M21 21l-4.35-4.35"></path></svg>
-                      <input type="text" id="menu-search" placeholder="Cari menu... (Ctrl+F)" oninput="searchMenu(this.value)">
+                      <input type="text" id="menu-search" placeholder="Cari menu..." oninput="searchMenu(this.value)">
                     </div>
                   </div>
                   <div class="menu-grid" id="menu-grid">
@@ -94,11 +593,9 @@ export const posPage = new Elysia()
                 <div class="cart-header">
                   <div class="cart-title">
                     <span id="cart-table-info">Pilih Meja</span>
-                    <span id="cart-order-type" class="badge badge-primary" style="display: none;">Dine-in</span>
                   </div>
                   <div class="cart-actions-header">
-                    <button class="btn-icon" onclick="showHeldOrdersModal()" title="Recall">📋 <span id="held-count" style="display: none;">0</span></button>
-                    <button class="btn-icon" onclick="showTransferModal()" title="Transfer Meja" id="btn-transfer" style="display: none;">↔️</button>
+                    <button class="pos-back-btn" onclick="showTransferModal()" id="btn-transfer" style="display: none;">Transfer</button>
                   </div>
                 </div>
 
@@ -118,9 +615,6 @@ export const posPage = new Elysia()
 
                 <div class="cart-zone" id="cart-zone">
                   <div class="cart-empty">
-                    <svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" style="color: var(--color-text-secondary); margin-bottom: 12px;">
-                      <circle cx="9" cy="21" r="1"></circle><circle cx="20" cy="21" r="1"></circle><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"></path>
-                    </svg>
                     <p>Pilih meja terlebih dahulu</p>
                   </div>
                 </div>
@@ -140,9 +634,7 @@ export const posPage = new Elysia()
                   </div>
 
                   <div class="payment-section" id="payment-section" style="display: none;">
-                    <div style="margin-bottom: 6px;">
-                      <input type="number" id="amount-paid-input" class="discount-input" placeholder="Masukkan nominal..." oninput="updatePaidAmount(this.value)" onkeyup="updatePaidAmount(this.value)" style="width: 100%; padding: 8px 12px; font-size: 14px; font-weight: 600;">
-                    </div>
+                    <input type="number" id="amount-paid-input" class="discount-input" placeholder="Masukkan nominal..." oninput="updatePaidAmount(this.value)" style="width: 100%; margin-bottom: 8px;">
                     <div class="cart-row"><span>Bayar</span><span id="summary-paid">0</span></div>
                     <div class="cart-row"><span>Kembali</span><span id="summary-change" style="color: var(--color-success);">0</span></div>
                     <div class="quick-pay-buttons">
@@ -151,67 +643,64 @@ export const posPage = new Elysia()
                       <button class="quick-pay-btn" onclick="setQuickPayment(100000)">100K</button>
                       <button class="quick-pay-btn" onclick="setQuickPayment(200000)">200K</button>
                     </div>
-                    <button class="btn btn-primary" style="width: 100%; margin-top: 8px;" onclick="processPaymentManual()">💳 Bayar Sekarang</button>
+                    <button class="cart-buttons" style="width: 100%; padding: 12px; background: var(--color-success); color: white; border: none; border-radius: var(--radius-md); font-weight: 600; cursor: pointer;" onclick="processPaymentManual()">Bayar Sekarang</button>
                   </div>
 
                   <div class="cart-buttons">
-                    <button class="btn btn-secondary btn-hold" onclick="holdOrder()">📋 Hold</button>
-                    <button class="btn btn-primary btn-pay" onclick="showPayment()">💳 Bayar</button>
-                    <button class="btn btn-danger btn-cancel" onclick="cancelOrder()">↩️ Batal</button>
+                    <button class="btn-hold" onclick="holdOrder()">Hold</button>
+                    <button class="btn-pay" onclick="showPayment()">Bayar</button>
+                    <button class="btn-cancel" onclick="cancelOrder()">Batal</button>
                   </div>
                 </div>
               </div>
             </div>
-          </main>
-          ${getFooterHtml()}
-        </div>
-      </div>
-
-      <div id="toast-container" class="toast-container"></div>
-
-      <div class="modal" id="held-orders-modal">
-        <div class="modal-backdrop" onclick="closeHeldOrdersModal()"></div>
-        <div class="modal-content" style="max-width: 500px;">
-          <div class="modal-header">
-            <h3>Pesanan Ditahan (Hold)</h3>
-            <button class="modal-close" onclick="closeHeldOrdersModal()">&times;</button>
-          </div>
-          <div class="modal-body" id="held-orders-list"></div>
-        </div>
-      </div>
-
-      <div class="modal" id="transfer-modal">
-        <div class="modal-backdrop" onclick="closeTransferModal()"></div>
-        <div class="modal-content" style="max-width: 400px;">
-          <div class="modal-header">
-            <h3>Transfer Meja</h3>
-            <button class="modal-close" onclick="closeTransferModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <p style="margin-bottom: 16px; color: var(--color-text-secondary);">Pindah pesanan dari Meja <strong id="transfer-from"></strong> ke:</p>
-            <div id="transfer-tables" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;"></div>
           </div>
         </div>
-      </div>
 
-      <div class="modal" id="receipt-modal">
-        <div class="modal-backdrop" onclick="closeReceiptModal()"></div>
-        <div class="modal-content" style="max-width: 380px;">
-          <div class="modal-header">
-            <h3>Struk Pembayaran</h3>
-            <button class="modal-close" onclick="closeReceiptModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div id="receipt-content" style="font-family: monospace; font-size: 13px; background: var(--color-bg-alt); padding: 20px; border-radius: var(--radius-md);"></div>
-          </div>
-          <div class="modal-footer">
-            <button onclick="printReceipt()" class="btn btn-secondary">🖨️ Print</button>
-            <button onclick="closeReceiptModal()" class="btn btn-primary">Tutup</button>
+        <div id="toast-container" class="toast-container"></div>
+
+        <div class="modal" id="held-orders-modal">
+          <div class="modal-backdrop" onclick="closeHeldOrdersModal()"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Pesanan Ditahan (Hold)</h3>
+              <button class="modal-close" onclick="closeHeldOrdersModal()">&times;</button>
+            </div>
+            <div class="modal-body" id="held-orders-list"></div>
           </div>
         </div>
-      </div>
 
-      <link rel="stylesheet" href="/styles/pos.css">
+        <div class="modal" id="transfer-modal">
+          <div class="modal-backdrop" onclick="closeTransferModal()"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Transfer Meja</h3>
+              <button class="modal-close" onclick="closeTransferModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+              <p style="margin-bottom: 16px; color: var(--color-text-secondary);">Pindah pesanan dari Meja <strong id="transfer-from"></strong> ke:</p>
+              <div id="transfer-tables" style="display: grid; grid-template-columns: repeat(4, 1fr); gap: 8px;"></div>
+            </div>
+          </div>
+        </div>
+
+        <div class="modal" id="receipt-modal">
+          <div class="modal-backdrop" onclick="closeReceiptModal()"></div>
+          <div class="modal-content">
+            <div class="modal-header">
+              <h3>Struk Pembayaran</h3>
+              <button class="modal-close" onclick="closeReceiptModal()">&times;</button>
+            </div>
+            <div class="modal-body">
+              <div id="receipt-content" style="font-family: monospace; font-size: 13px; background: var(--color-bg-alt); padding: 20px; border-radius: var(--radius-md);"></div>
+            </div>
+            <div class="modal-footer">
+              <button onclick="printReceipt()" class="pos-back-btn">Print</button>
+              <button onclick="closeReceiptModal()" class="pos-back-btn" style="background: var(--color-primary); color: white;">Tutup</button>
+            </div>
+          </div>
+        </div>
+
       <script>
         let currentOrderId = null;
         let currentUserId = ${user.userId};
@@ -799,7 +1288,7 @@ export const posPage = new Elysia()
               currentTableNumber = savedCart.tableNumber;
               tableBtn.classList.add('selected');
               document.getElementById('cart-table-info').textContent = 'Meja ' + savedCart.tableNumber;
-              document.getElementById('cart-order-type').style.display = 'inline';
+              document.getElementById('cart-meta').style.display = 'flex';
               renderCartFromLocal();
             }
           }
