@@ -5,9 +5,10 @@ export const shiftRoutes = new Elysia({ prefix: '/api/shifts' })
   .get('/open', async ({ query }) => {
     const q = query as any;
     if (!q.userId) return { error: 'userId required' };
-    return emp.getOpenShift(Number(q.userId));
+    const shift = await emp.getOpenShift(Number(q.userId));
+    return shift || null;
   })
-  .get('/all-open', async () => emp.getAllOpenShifts())
+  .get('/all-open', async () => { const r = await emp.getAllOpenShifts(); return r || []; })
   .post('/open', async ({ body }) => {
     const b = body as any;
     if (!b.userId || b.startingCash === undefined) return { error: 'userId and startingCash required' };
