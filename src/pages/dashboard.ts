@@ -86,22 +86,22 @@ export const dashboardPage = new Elysia()
               <div class="stats-card">
                 <div class="stats-label">Total Penjualan</div>
                 <div class="stats-value">Rp ${todaySales.toLocaleString('id-ID')}</div>
-                <div class="stats-change">Hari ini</div>
+                <a href="/reports" class="stats-link">Lihat Laporan →</a>
               </div>
               <div class="stats-card">
                 <div class="stats-label">Total Pesanan</div>
                 <div class="stats-value">${todayOrders}</div>
-                <div class="stats-change">Hari ini</div>
+                <a href="/reports" class="stats-link">Lihat Laporan →</a>
               </div>
               <div class="stats-card">
                 <div class="stats-label">Meja Terpakai</div>
                 <div class="stats-value">${tableStats.occupied}</div>
-                <div class="stats-change">Dari ${tableStats.total} total</div>
+                <a href="/reports" class="stats-link">Lihat Laporan →</a>
               </div>
               <div class="stats-card">
                 <div class="stats-label">Menu Tersedia</div>
                 <div class="stats-value">${menuStats.available}</div>
-                <div class="stats-change">Dari ${menuStats.total} total</div>
+                <a href="/reports" class="stats-link">Lihat Laporan →</a>
               </div>
             </div>
 

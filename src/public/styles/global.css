@@ -526,6 +526,43 @@ button.badge {
   color: var(--color-error);
 }
 
+.stats-link {
+  display: inline-block;
+  margin-top: 8px;
+  font-size: 13px;
+  color: var(--color-primary);
+  text-decoration: none;
+  font-weight: 500;
+  transition: var(--transition);
+}
+
+.stats-link:hover {
+  color: var(--color-primary-dark);
+  text-decoration: underline;
+}
+
+/* ========== REPORTS PAGE ========== */
+
+.reports-container { max-width: 1400px; }
+.tab-nav { display: flex; gap: 4px; margin-bottom: 24px; background: var(--color-bg); border-radius: var(--radius-md); padding: 4px; border: 1px solid var(--color-border); }
+.tab-btn { flex: 1; padding: 12px 24px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; color: var(--color-text-secondary); transition: var(--transition); }
+.tab-btn:hover { background: var(--color-bg-alt); color: var(--color-text); }
+.tab-btn.active { background: var(--color-primary); color: white; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+.report-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 24px; flex-wrap: wrap; gap: 16px; }
+.report-controls { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.bar-chart-container { padding: 24px; min-height: 200px; }
+.bar-chart { display: flex; align-items: flex-end; gap: 8px; height: 200px; padding: 0 8px; }
+.bar-chart .bar-wrapper { flex: 1; display: flex; flex-direction: column; align-items: center; height: 100%; }
+.bar-chart .bar { width: 100%; max-width: 60px; background: linear-gradient(180deg, var(--color-primary) 0%, var(--color-primary-dark) 100%); border-radius: 4px 4px 0 0; min-height: 4px; transition: height 0.3s ease; position: relative; margin-top: auto; }
+.bar-chart .bar:hover { opacity: 0.8; }
+.bar-chart .bar-tooltip { position: absolute; top: -28px; left: 50%; transform: translateX(-50%); background: var(--color-text); color: white; padding: 2px 8px; border-radius: 4px; font-size: 11px; white-space: nowrap; opacity: 0; transition: opacity 0.2s; }
+.bar-chart .bar:hover .bar-tooltip { opacity: 1; }
+.bar-chart .bar-label { margin-top: 8px; font-size: 11px; color: var(--color-text-secondary); text-align: center; }
+.bar-chart-axis { display: flex; justify-content: space-between; margin-top: 8px; padding: 0 8px; font-size: 11px; color: var(--color-text-secondary); }
+.no-data { text-align: center; padding: 40px; color: var(--color-text-secondary); }
+
 /* ========== SIDEBAR IMPROVEMENTS ========== */
 
 /* Sidebar user info */
