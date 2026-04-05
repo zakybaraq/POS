@@ -197,6 +197,67 @@ export const loyaltyTransactions = mysqlTable('loyalty_transactions', {
   createdAtIdx: index('idx_loyalty_created_at').on(table.createdAt),
 }));
 
+export const businessSettings = mysqlTable('business_settings', {
+  id: serial('id').primaryKey(),
+  businessName: varchar('business_name', { length: 255 }).notNull().default('My Restaurant'),
+  businessTagline: varchar('business_tagline', { length: 255 }).default(''),
+  address: varchar('address', { length: 500 }).default(''),
+  phone: varchar('phone', { length: 20 }).default(''),
+  email: varchar('email', { length: 255 }).default(''),
+  logo: varchar('logo', { length: 500 }).default(''),
+  currency: varchar('currency', { length: 10 }).notNull().default('IDR'),
+  timezone: varchar('timezone', { length: 50 }).notNull().default('Asia/Jakarta'),
+  language: varchar('language', { length: 10 }).notNull().default('id'),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+  updatedAt: datetime('updated_at'),
+});
+
+export const taxSettings = mysqlTable('tax_settings', {
+  id: serial('id').primaryKey(),
+  taxName: varchar('tax_name', { length: 50 }).notNull().default('Pajak'),
+  taxPercentage: decimal('tax_percentage', { precision: 5, scale: 2 }).notNull().default('10.00'),
+  taxType: mysqlEnum('tax_type', ['exclusive', 'inclusive']).notNull().default('exclusive'),
+  isTaxEnabled: boolean('is_tax_enabled').notNull().default(true),
+  updatedAt: datetime('updated_at'),
+});
+
+export const paymentMethods = mysqlTable('payment_methods', {
+  id: serial('id').primaryKey(),
+  code: varchar('code', { length: 50 }).notNull().unique(),
+  name: varchar('name', { length: 100 }).notNull(),
+  icon: varchar('icon', { length: 100 }).default(''),
+  isActive: boolean('is_active').notNull().default(true),
+  sortOrder: int('sort_order').notNull().default(0),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+});
+
+export const receiptSettings = mysqlTable('receipt_settings', {
+  id: serial('id').primaryKey(),
+  paperSize: mysqlEnum('paper_size', ['58mm', '80mm']).notNull().default('80mm'),
+  headerText: varchar('header_text', { length: 500 }).default(''),
+  footerText: varchar('footer_text', { length: 500 }).default('Terima kasih atas kunjungan Anda!'),
+  showBusinessName: boolean('show_business_name').notNull().default(true),
+  showAddress: boolean('show_address').notNull().default(true),
+  showPhone: boolean('show_phone').notNull().default(true),
+  showCashierName: boolean('show_cashier_name').notNull().default(true),
+  showTableNumber: boolean('show_table_number').notNull().default(true),
+  showOrderTime: boolean('show_order_time').notNull().default(true),
+  showTaxBreakdown: boolean('show_tax_breakdown').notNull().default(true),
+  showThankYouMessage: boolean('show_thank_you').notNull().default(true),
+  receiptPrefix: varchar('receipt_prefix', { length: 20 }).default('INV'),
+  receiptSuffix: varchar('receipt_suffix', { length: 20 }).default(''),
+  nextReceiptNumber: int('next_receipt_number').notNull().default(1),
+  updatedAt: datetime('updated_at'),
+});
+
+export const operatingHours = mysqlTable('operating_hours', {
+  id: serial('id').primaryKey(),
+  dayOfWeek: int('day_of_week').notNull(),
+  openTime: varchar('open_time', { length: 5 }).notNull().default('09:00'),
+  closeTime: varchar('close_time', { length: 5 }).notNull().default('22:00'),
+  isOpen: boolean('is_open').notNull().default(true),
+});
+
 // TYPE EXPORTS
 export type Menu = typeof menus.$inferSelect;
 export type NewMenu = typeof menus.$inferInsert;
@@ -220,3 +281,13 @@ export type Customer = typeof customers.$inferSelect;
 export type NewCustomer = typeof customers.$inferInsert;
 export type LoyaltyTransaction = typeof loyaltyTransactions.$inferSelect;
 export type NewLoyaltyTransaction = typeof loyaltyTransactions.$inferInsert;
+export type BusinessSettings = typeof businessSettings.$inferSelect;
+export type NewBusinessSettings = typeof businessSettings.$inferInsert;
+export type TaxSettings = typeof taxSettings.$inferSelect;
+export type NewTaxSettings = typeof taxSettings.$inferInsert;
+export type PaymentMethod = typeof paymentMethods.$inferSelect;
+export type NewPaymentMethod = typeof paymentMethods.$inferInsert;
+export type ReceiptSettings = typeof receiptSettings.$inferSelect;
+export type NewReceiptSettings = typeof receiptSettings.$inferInsert;
+export type OperatingHour = typeof operatingHours.$inferSelect;
+export type NewOperatingHour = typeof operatingHours.$inferInsert;
