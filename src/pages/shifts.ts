@@ -93,6 +93,7 @@ export const shiftsPage = new Elysia()
       </style>
       ${getCommonScripts()}
       <script>
+        var CURRENT_USER_ID = ${user.userId};
         let currentShiftId = null;
 
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -107,7 +108,7 @@ export const shiftsPage = new Elysia()
         async function loadMyShift() {
           const card = document.getElementById('my-shift-card');
           try {
-            const res = await fetch('/api/shifts/open?userId=${user.userId}');
+            const res = await fetch('/api/shifts/open?userId=' + CURRENT_USER_ID);
             const shift = await res.json();
             if (shift && shift.id) {
               currentShiftId = shift.id;
@@ -119,17 +120,18 @@ export const shiftsPage = new Elysia()
                 '</div>' +
                 '<button class="btn btn-error" onclick="openCloseShift(' + shift.id + ', ' + shift.startingCash + ')">Tutup Shift</button>';
             } else {
-              card.innerHTML = '<div style="text-align:center;padding:40px;"><h3 style="margin:0 0 16px;">Belum Ada Shift Terbuka</h3><p style="color:var(--color-text-secondary);margin:0 0 24px;">Buka shift baru untuk mulai bekerja</p><button class="btn btn-primary" onclick="document.getElementById(\'open-shift-modal\').style.display=\'flex\'">Buka Shift</button></div>';
+              card.innerHTML = '<div style="text-align:center;padding:40px;"><h3 style="margin:0 0 16px;">Belum Ada Shift Terbuka</h3><p style="color:var(--color-text-secondary);margin:0 0 24px;">Buka shift baru untuk mulai bekerja</p><button class="btn btn-primary" onclick="showOpenShiftModal()">Buka Shift</button></div>';
             }
           } catch (e) { card.innerHTML = '<p class="text-center text-secondary">Error: ' + e.message + '</p>'; }
         }
 
         function closeOpenShift() { document.getElementById('open-shift-modal').style.display = 'none'; }
         function closeCloseShift() { document.getElementById('close-shift-modal').style.display = 'none'; }
+        function showOpenShiftModal() { document.getElementById('open-shift-modal').style.display = 'flex'; }
 
         document.getElementById('open-shift-form').addEventListener('submit', async (e) => {
           e.preventDefault();
-          const data = { userId: ${user.userId}, startingCash: parseInt(document.getElementById('os-cash').value), notes: document.getElementById('os-notes').value };
+          const data = { userId: CURRENT_USER_ID, startingCash: parseInt(document.getElementById('os-cash').value), notes: document.getElementById('os-notes').value };
           await fetch('/api/shifts/open', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) });
           closeOpenShift(); loadMyShift();
         });
@@ -157,7 +159,7 @@ export const shiftsPage = new Elysia()
         async function confirmCloseShift() {
           const actual = parseInt(document.getElementById('cs-actual').value) || 0;
           const notes = document.getElementById('cs-notes').value;
-          await fetch('/api/shifts/' + currentShiftId + '/close', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actualCash: actual, closedBy: ${user.userId}, notes }) });
+          await fetch('/api/shifts/' + currentShiftId + '/close', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ actualCash: actual, closedBy: CURRENT_USER_ID, notes }) });
           closeCloseShift(); loadMyShift();
         }
 

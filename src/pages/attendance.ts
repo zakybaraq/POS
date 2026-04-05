@@ -51,6 +51,7 @@ export const attendancePage = new Elysia()
       </style>
       ${getCommonScripts()}
       <script>
+        var CURRENT_USER_ID = ${user.userId};
         document.querySelectorAll('.tab-btn').forEach(btn => {
           btn.addEventListener('click', () => {
             document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -63,7 +64,7 @@ export const attendancePage = new Elysia()
         async function loadMyAttendance() {
           const card = document.getElementById('my-attendance-card');
           try {
-            const res = await fetch('/api/attendance/today?userId=${user.userId}');
+            const res = await fetch('/api/attendance/today?userId=' + CURRENT_USER_ID);
             const att = await res.json();
             if (att && att.id) {
               const clockIn = new Date(att.clockIn).toLocaleTimeString('id-ID');
@@ -93,12 +94,12 @@ export const attendancePage = new Elysia()
         }
 
         async function clockIn() {
-          await fetch('/api/attendance/clock-in', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: ${user.userId} }) });
+          await fetch('/api/attendance/clock-in', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: CURRENT_USER_ID }) });
           loadMyAttendance();
         }
 
         async function clockOut() {
-          await fetch('/api/attendance/clock-out', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: ${user.userId} }) });
+          await fetch('/api/attendance/clock-out', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ userId: CURRENT_USER_ID }) });
           loadMyAttendance();
         }
 
