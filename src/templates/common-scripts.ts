@@ -3,6 +3,7 @@ export function getCommonScripts() {
 <script>
 function toggleSidebar() {
   const sidebar = document.getElementById('app-sidebar');
+  if (!sidebar) return;
   const content = document.querySelector('.app-content');
   sidebar.classList.toggle('collapsed');
   void sidebar.offsetWidth;
@@ -14,49 +15,60 @@ function toggleSidebar() {
 
 function toggleMobileSidebar() {
   const sidebar = document.getElementById('app-sidebar');
+  if (!sidebar) return;
   sidebar.classList.toggle('show');
 }
 
 function toggleNotifications() {
   const dropdown = document.getElementById('notif-dropdown');
+  if (!dropdown) return;
   dropdown.classList.toggle('show');
-  document.getElementById('user-dropdown').classList.remove('show');
+  const userDropdown = document.getElementById('user-dropdown');
+  if (userDropdown) userDropdown.classList.remove('show');
 }
 
 function toggleUserMenu() {
   const dropdown = document.getElementById('user-dropdown');
+  if (!dropdown) return;
   dropdown.classList.toggle('show');
-  document.getElementById('notif-dropdown').classList.remove('show');
+  const notifDropdown = document.getElementById('notif-dropdown');
+  if (notifDropdown) notifDropdown.classList.remove('show');
 }
 
 document.addEventListener('click', function(e) {
-  if (!e.target.closest('.navbar-notification')) {
-    document.getElementById('notif-dropdown').classList.remove('show');
+  const notifDropdown = document.getElementById('notif-dropdown');
+  if (notifDropdown && !e.target.closest('.navbar-notification')) {
+    notifDropdown.classList.remove('show');
   }
-  if (!e.target.closest('.user-dropdown')) {
-    document.getElementById('user-dropdown').classList.remove('show');
+  const userDropdown = document.getElementById('user-dropdown');
+  if (userDropdown && !e.target.closest('.user-dropdown')) {
+    userDropdown.classList.remove('show');
   }
   if (window.innerWidth <= 1024) {
     const sidebar = document.getElementById('app-sidebar');
-    if (!e.target.closest('.sidebar') && !e.target.closest('.menu-toggle')) {
+    if (sidebar && !e.target.closest('.sidebar') && !e.target.closest('.menu-toggle')) {
       sidebar.classList.remove('show');
     }
   }
 });
 
-document.getElementById('global-search').addEventListener('keypress', function(e) {
-  if (e.key === 'Enter') {
-    const query = this.value.trim();
-    if (query) {
-      window.location.href = '/orders?search=' + encodeURIComponent(query);
+const globalSearch = document.getElementById('global-search');
+if (globalSearch) {
+  globalSearch.addEventListener('keypress', function(e) {
+    if (e.key === 'Enter') {
+      const query = this.value.trim();
+      if (query) {
+        window.location.href = '/orders?search=' + encodeURIComponent(query);
+      }
     }
-  }
-});
+  });
+}
 
 document.addEventListener('DOMContentLoaded', function() {
   const isCollapsed = localStorage.getItem('sidebar-collapsed') === 'true';
   if (isCollapsed) {
-    document.getElementById('app-sidebar').classList.add('collapsed');
+    const sidebar = document.getElementById('app-sidebar');
+    if (sidebar) sidebar.classList.add('collapsed');
   }
 });
 
@@ -65,12 +77,30 @@ function logout() {
     .then(() => window.location.href = '/login');
 }
 
-function showHelpModal() { document.getElementById('help-modal').classList.add('show'); }
-function closeHelpModal() { document.getElementById('help-modal').classList.remove('show'); }
-function showTermsModal() { document.getElementById('terms-modal').classList.add('show'); }
-function closeTermsModal() { document.getElementById('terms-modal').classList.remove('show'); }
-function showPrivacyModal() { document.getElementById('privacy-modal').classList.add('show'); }
-function closePrivacyModal() { document.getElementById('privacy-modal').classList.remove('show'); }
+function showHelpModal() { 
+  const modal = document.getElementById('help-modal');
+  if (modal) modal.classList.add('show'); 
+}
+function closeHelpModal() { 
+  const modal = document.getElementById('help-modal');
+  if (modal) modal.classList.remove('show'); 
+}
+function showTermsModal() { 
+  const modal = document.getElementById('terms-modal');
+  if (modal) modal.classList.add('show'); 
+}
+function closeTermsModal() { 
+  const modal = document.getElementById('terms-modal');
+  if (modal) modal.classList.remove('show'); 
+}
+function showPrivacyModal() { 
+  const modal = document.getElementById('privacy-modal');
+  if (modal) modal.classList.add('show'); 
+}
+function closePrivacyModal() { 
+  const modal = document.getElementById('privacy-modal');
+  if (modal) modal.classList.remove('show'); 
+}
 </script>
 
 <div class="modal" id="help-modal">
