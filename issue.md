@@ -1,315 +1,350 @@
-# Issue: Perbaikan Flow Meja dan Take Away di Modul POS
+# Issue: Perbaikan Meja Occupied dan Flow Pelanggan Sudah Bayar
 
-## Latar Belakang
+## Ringkasan Masalah
 
-Saat ini flow meja dan take away di halaman POS (`http://localhost:3000/pos`) tidak sesuai dengan kejadian nyata di dunia bisnis kuliner:
+Ketika meja berstatus `occupied` (ada pelanggan sedang makan), terdapat beberapa masalah dalam flow POS:
 
-### Masalah 1: Meja tetap Terisi setelah payment
+1. **Tidak ada histori pesanan** - Ketika klik meja occupied, cart tidak menampilkan histori pesanan customer
+2. **Alert salah** - Ketika klik "Kosongkan Meja", alert mengatakan "Semua pesanan akan dibatalkan" padahal seharusnya pesanan selesai (completed), tidak dibatalkan
+3. **Penambahan pesanan setelah bayar** - Bagaimana flow jika customer ingin menambah pesanan setelah pembayaran pertama?
 
-**Kondisi saat ini**: Setelah customer membayar, meja langsung menjadi "Terisi" dan harus dikosongkan manual.
+---
 
-**Kondisi nyata di restoran**:
-- **Dine-in**: Customer membayar → masih duduk makan → meja tetap "Terisi" → setelah customer PULANG → baru dikosongkan
-- **Takeaway**: Customer membayar → langsung diambil → meja tidak dipilih sama sekali
+## Masalah 1: Tidak Ada Histori Pesanan
 
-### Masalah 2: Takeaway harus pilih meja terlebih dahulu
+### Kondisi Saat Ini
+Ketika klik meja yang occupied:
+- Jika meja punya pesanan aktif → cart menampilkan pesanan (sudah bisa edit)
+- Jika meja punya pesanan selesai/tidak aktif → cart kosong, tidak显示 histori
 
-**Kondisi saat ini**: Di modul POS, user harus memilih meja dulu baru bisa menambah menu. Ini tidak masuk akal untuk order takeaway.
+### Kondisi yang Diinginkan
+Ketika klik meja yang occupied:
+- Tampilkan histori semua pesanan yang pernah dibuat di meja tersebut (meski sudah selesai)
+- Pesanan yang sudah selesai harusnya **read-only** (tidak bisa edit)
+- Jika ada pesanan aktif → bisa tambahkan item ke pesanan tersebut
 
-**Kondisi nyata di restoran**:
-- Customer datang → pilih mau dine-in atau takeaway
-- Kalau takeaway: langsung buat pesanan tanpa perlu pilih meja
-- Kalau dine-in: pilih meja → buat pesanan
+### File yang Perlu Diubah
+- `src/routes/orders.ts` - Endpoint untuk get semua pesanan berdasarkan tableId (bukan hanya yang active)
+- `src/pages/pos-client.ts` - Fungsi `selectTable()` perlu fetch semua pesanan
 
-### Masalah 3: Tidak ada pilihan dine-in vs takeaway saat buat pesanan
+### Langkah Implementasi
 
-**Kondisi saat ini**: Saat pilih meja, sudah ada pilihan "Dine-in" dan "Takeaway", tapi logic-nya masih salah karena:
-- User POS harus pilih meja dulu untuk order apapun
-- Tidak ada cara untuk buat takeaway tanpa pilih meja
-
-## Tujuan
-
-1. **Takeaway tanpa pilih meja**: User POS bisa buat pesanan takeaway TANPA pilih meja
-2. **Order type ditentukan di awal**: Ketika user mulai buat pesanan, pilih dulu: Dine-in atau Takeaway
-3. **Meja hanya untuk Dine-in**: Meja hanya digunakan untuk pesanan dine-in, bukan takeaway
-4. **Logic sesuai kejadian nyata**:
-   - Dine-in: Pilih meja → Pesan → Bayar → (Customer masih di resto) → Meja Terisi → Setelah customer PULANG → Klik Kosongkan
-   - Takeaway: Pilih "Takeaway" → Pesan → Bayar → Selesai (meja tidak dipilih sama sekali)
-
-## Perubahan yang Diperlukan
-
-### 1. Tambah Opsi "Takeaway" di Layar POS (Tanpa Pilih Meja)
-
-**File**: `src/pages/pos.ts` - bagian awal sebelum pilih meja
-
-Tambahkan tombol/opsi untuk memulai pesanan Takeaway:
-
-```html
-<div class="pos-order-type-selection">
-  <button class="pos-btn pos-btn-order-type" onclick="startDineIn()">
-    🍽️ Dine-in
-    <span class="pos-order-type-desc">Makan di tempat</span>
-  </button>
-  <button class="pos-btn pos-btn-order-type" onclick="startTakeaway()">
-    🥡 Takeaway
-    <span class="pos-order-type-desc">Bawa pulang</span>
-  </button>
-</div>
-```
-
-CSS untuk ini:
-```css
-.pos-order-type-selection {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 15px;
-}
-.pos-btn-order-type {
-  flex: 1;
-  padding: 20px;
-  font-size: 16px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-}
-.pos-order-type-desc {
-  font-size: 11px;
-  opacity: 0.8;
-  margin-top: 4px;
-}
-```
-
-### 2. Update State untuk Track Order Type
-
-**File**: `src/pages/pos-client.ts` - state object
-
-```javascript
-const state = {
-  // ... existing fields
-  orderType: null, // 'dine-in' atau 'takeaway' atau null (belum pilih)
-  selectedTableId: null,
-  // ...
-};
-
-function startDineIn() {
-  state.orderType = 'dine-in';
-  document.getElementById('order-type-selection').style.display = 'none';
-  document.getElementById('tables-section').style.display = 'block';
-}
-
-function startTakeaway() {
-  state.orderType = 'takeaway';
-  document.getElementById('order-type-selection').style.display = 'none';
-  document.getElementById('menu-section').style.display = 'block';
-  document.getElementById('cart-title').textContent = 'Takeaway';
-  document.getElementById('cart-meta').style.display = 'flex';
-  document.getElementById('guest-count').value = 1;
-  document.getElementById('order-type').value = 'takeaway';
-}
-```
-
-### 3. Update addToCart untuk Handle Takeaway
-
-**File**: `src/pages/pos-client.ts` - function `addToCart()`
-
-```javascript
-function addToCart(id, name, price, event) {
-  // Untuk takeaway, tidak perlu pilih meja
-  if (state.orderType === null) {
-    toast('Pilih dulu: Dine-in atau Takeaway', 'warning');
-    return;
-  }
-  
-  // Untuk dine-in, harus pilih meja dulu
-  if (state.orderType === 'dine-in' && !state.selectedTableId) {
-    toast('Pilih meja terlebih dahulu!', 'warning');
-    return;
-  }
-  
-  // ... resto logic sama
-}
-```
-
-### 4. Update selectTable - Hanya untuk Dine-in
-
-**File**: `src/pages/pos-client.ts` - function `selectTable()`
-
-Tombol meja hanya muncul/tidak bisa diklik untuk takeaway:
-
-```javascript
-async function selectTable(id, num, status) {
-  // Jangan proses jika ini order takeaway
-  if (state.orderType === 'takeaway') return;
-  
-  // ... resto logic sama
-}
-```
-
-### 5. Update create order API payload
-
-**File**: `src/pages/pos-client.ts` - function `processPayment()`
-
-```javascript
-// Di payload saat create order
-const orderPayload = {
-  tableId: state.orderType === 'takeaway' ? null : cart.tableId,
-  userId: state.currentUserId,
-  orderType: state.orderType, // 'dine-in' atau 'takeaway'
-  items: cart.items.map(i => ({ ... }))
-};
-```
-
-### 6. Update Backend - Accept null tableId untuk Takeaway
-
-**File**: `src/routes/orders.ts` - endpoint `/with-items`
+#### Langkah 1: Tambah Endpoint API
+Buat endpoint baru di `src/routes/orders.ts`:
 
 ```typescript
-.post('/with-items', async ({ cookie, headers, body }) => {
-  const { tableId, userId, items, orderType } = body as any;
-  
-  // Jika takeaway, tableId boleh null
-  if (orderType === 'takeaway' && !tableId) {
-    // Create takeaway order tanpa meja
+// GET /api/orders/table/:tableId/all - Ambil semua pesanan di meja tertentu
+.get('/table/:tableId/all', async ({ params: { tableId } }) => {
+  const table = await tableRepo.getTableById(Number(tableId));
+  if (!table) {
+    return { error: 'Table not found' };
   }
-  
-  // Untuk dine-in, tetap wajib ada tableId
-  if (orderType === 'dine-in' && !tableId) {
-    return { error: 'Meja wajib untuk order dine-in' };
-  }
-  // ...
+  // Ambil semua pesanan (aktif + selesai) untuk meja ini
+  const orders = await orderRepo.getOrdersByTableId(Number(tableId));
+  return { table, orders };
 })
 ```
 
-### 7. Meja Status untuk Dine-in Saja
+#### Langkah 2: Tambah Repository Function
+Di `src/repositories/order.ts`:
 
-**File**: `src/services/payment.ts` - function `processPayment()`
-
-```javascript
-export async function processPayment(orderId: number, amountPaid: number) {
-  // ... existing code
-  
-  const order = await orderRepo.getOrderById(orderId);
-  
-  // JIKA DINE-IN: meja tetap Terisi (tidak otomatis tersedia)
-  // JIKA TAKEAWAY: tidak perlu update status meja (meja tidak dipilih)
-  
-  // Hanya update meja status untuk dine-in
-  if (order.orderType === 'dine-in') {
-    // Meja tetap occupied - nanti dikosongkan manual
-  }
-  // Untuk takeaway: tidak ada perubahan meja
-  
-  return completedOrder;
+```typescript
+export async function getOrdersByTableId(tableId: number) {
+  return db.select().from(orders)
+    .where(eq(orders.tableId, tableId))
+    .orderBy(desc(orders.createdAt));
 }
 ```
 
-### 8. Tambah Fungsi Batalkan (Cancel) untuk Takeaway
+#### Langkah 3: Update Client-Side
+Di `src/pages/pos-client.ts`, fungsi `selectTable()`:
 
-**File**: `src/pages/pos-client.ts` - function `cancelOrder()`
+```typescript
+if (status === 'occupied') {
+  // Fetch semua pesanan (bukan hanya yang aktif)
+  const res = await fetch('/api/orders/table/' + id + '/all');
+  const data = await res.json();
+  
+  if (data.orders && data.orders.length > 0) {
+    // Tampilkan semua pesanan (read-only)
+    renderMultipleOrdersCart(data.orders);
+    // Tampilkan tombol "Tambah Pesanan" jika ada pesanan aktif
+  }
+}
+```
 
-```javascript
-function cancelOrder() {
-  // Jika takeaway dan belum ada di server (local cart saja)
-  if (state.orderType === 'takeaway' && !state.currentOrderId) {
-    clearCart();
-    state.orderType = null;
-    document.getElementById('order-type-selection').style.display = 'flex';
-    document.getElementById('menu-section').style.display = 'none';
-    toast('Order takeaway dibatalkan');
+---
+
+## Masalah 2: Alert Salah Ketika Kosongkan Meja
+
+### Kondisi Saat Ini
+Ketika klik "Kosongkan Meja":
+- Muncul alert: "Kosongkan meja ini? (Semua pesanan akan dibatalkan)"
+- Jika user klik OK → pesanan di-cancel via API
+
+### Kondisi yang Diinginkan
+Ketika klik "Kosongkan Meja":
+- Alert harusnya: "Kosongkan meja ini? Pelanggan akan pulang."
+- Jika meja punya pesanan aktif → pesanan harus di-**finish/complete**, bukan di-cancel
+- Jika meja punya pesanan selesai → langsung kosongkan meja
+
+### File yang Perlu Diubah
+- `src/pages/pos.ts` - Tambah modal HTML untuk konfirmasi kosongkan meja
+- `src/pages/pos-client.ts` - Fungsi `kosongkanMeja()` dan fungsi modal
+- `src/routes/orders.ts` - Endpoint untuk finish order
+- `src/styles/pos.css` - Styling modal (bisa reuse dari payment modal)
+
+### Langkah Implementasi
+
+#### Langkah 1: Tambah Modal HTML di pos.ts
+Di `src/pages/pos.ts`, setelah payment-confirm-modal (sekitar line 229):
+
+```html
+<div class="pos-modal" id="kosongkan-meja-modal">
+  <div class="pos-modal-backdrop" onclick="closeKosongkanModal()"></div>
+  <div class="pos-modal-content" style="max-width:360px;">
+    <div class="pos-modal-header"><h3>Kosongkan Meja</h3><button class="pos-modal-close" onclick="closeKosongkanModal()">&times;</button></div>
+    <div class="pos-modal-body">
+      <div style="background:var(--color-bg-secondary);padding:16px;border-radius:8px;margin-bottom:16px;">
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:var(--color-text-secondary);font-size:12px;">Meja</span>
+          <span style="font-weight:600;" id="kosongkan-table-num">-</span>
+        </div>
+        <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+          <span style="color:var(--color-text-secondary);font-size:12px;">Status Pesanan</span>
+          <span style="font-weight:600;" id="kosongkan-order-status">-</span>
+        </div>
+      </div>
+      <p style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:16px;">
+        ⚠️ Meja akan dikosongkan dan pesanan akan diselesaikan.
+      </p>
+      <div style="display:flex;gap:8px;">
+        <button class="pos-btn" style="flex:1;" onclick="closeKosongkanModal()">Batal</button>
+        <button class="pos-btn pos-btn-success" style="flex:1;" onclick="confirmKosongkanMeja()">Konfirmasi</button>
+      </div>
+    </div>
+  </div>
+</div>
+```
+
+#### Langkah 2: Tambah Endpoint API untuk Finish Order
+Di `src/routes/orders.ts`:
+
+```typescript
+// POST /api/orders/:id/finish - Selesai makan, meja dikosongkan
+.post('/:id/finish', async ({ cookie, headers, params: { id }, body }) => {
+  const user = getUserFromRequest(cookie, headers);
+  if (!user) return { error: 'Unauthorized' };
+  
+  const order = await orderRepo.getOrderById(Number(id));
+  if (!order) {
+    return { error: 'Order not found' };
+  }
+  
+  // Update status pesanan menjadi 'completed'
+  await orderRepo.updateOrderStatus(Number(id), 'completed');
+  
+  // Kosongkan meja
+  if (order.tableId) {
+    await tableRepo.updateTableStatus(order.tableId, 'available');
+  }
+  
+  return { success: true };
+})
+```
+
+#### Langkah 3: Update Client-Side Functions
+Di `src/pages/pos-client.ts`:
+
+```typescript
+// Tampilkan modal konfirmasi kosongkan meja
+function showKosongkanMejaModal() {
+  if (!state.selectedTableId) {
+    toast('Pilih meja dulu', 'warning');
     return;
   }
   
-  // ... resto logic sama
+  const tableNum = state.currentTableNumber || state.selectedTableId;
+  document.getElementById('kosongkan-table-num').textContent = 'Meja ' + tableNum;
+  
+  // Tampilkan status pesanan
+  if (state.currentOrderId) {
+    document.getElementById('kosongkan-order-status').textContent = 'Ada pesanan aktif';
+  } else {
+    document.getElementById('kosongkan-order-status').textContent = 'Tidak ada pesanan';
+  }
+  
+  document.getElementById('kosongkan-meja-modal').style.display = 'flex';
+}
+
+// Tutup modal
+function closeKosongkanModal() {
+  document.getElementById('kosongkan-meja-modal').style.display = 'none';
+}
+
+// Konfirmasi kosongkan meja
+async function confirmKosongkanMeja() {
+  closeKosongkanModal();
+  
+  // Jika ada pesanan aktif, finish pesanan dulu (bukan cancel)
+  if (state.currentOrderId) {
+    const res = await fetch('/api/orders/' + state.currentOrderId + '/finish', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.error) {
+      toast(data.error, 'error');
+      return;
+    }
+    toast('Pesanan diselesaikan');
+  }
+  
+  // Jika meja occupied tapi tidak ada pesanan aktif, langsung kosongkan
+  await fetch('/api/tables/' + state.selectedTableId, { 
+    method: 'PUT', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify({ status: 'available' }) 
+  });
+  
+  toast('Meja dikosongkan');
+  location.reload();
+}
+
+// Update fungsi kosongkanMeja untuk gunakan modal
+async function kosongkanMeja() {
+  showKosongkanMejaModal();
 }
 ```
 
-## Tahapan Implementasi
+#### Langkah 4: Styling (Opsional)
+Jika modal perlu penyesuaian, bisa tambah di `src/styles/pos.css`. Tapi karena pakai class yang sama dengan payment modal, harusnya sudah ada stylenya.
 
-### Tahap 1: Persiapan (10 menit)
-1. Clone repository
-2. Buka file-file yang akan dimodifikasi:
-   - `src/pages/pos.ts` (HTML)
-   - `src/pages/pos-client.ts` (JavaScript functions)
-   - `src/routes/orders.ts` (Backend API)
-   - `src/services/payment.ts` (Payment logic)
+**Penting:** Pastikan button "Kosongkan" di cart memanggil `showKosongkanMejaModal()` bukan `kosongkanMeja()` langsung.update bagian client-side untuk menggunakan modal baru:
 
-### Tahap 2: Update UI - Tambah Opsi Order Type (20 menit)
-1. Di `src/pages/pos.ts`, cari bagian awal (sebelum meja)
-2. Tambah div untuk "Pilih Jenis Pesanan":
-   - Tombol "Dine-in" (bisa klik meja)
-   - Tombol "Takeaway" (langsung ke menu)
-3. Hide meja section defaultnya, show setelah pilih Dine-in
-4. Tambahkan CSS untuk styling yang baik
+---
 
-### Tahap 3: Update State Management (15 menit)
-1. Di `src/pages/pos-client.ts`:
-   - Tambah field `orderType` di state object
-   - Tambah function `startDineIn()`
-   - Tambah function `startTakeaway()`
-   - Update function `renderCart()` untuk handle null tableId
+## Masalah 3: Penambahan Pesanan Setelah Bayar
 
-### Tahap 4: Update Add to Cart Logic (10 menit)
-1. Di `src/pages/pos-client.ts` - function `addToCart()`:
-   - Cek apakah orderType sudah dipilih
-   - Jika takeaway: tidak perlu tableId
-   - Jika dine-in: wajib tableId
+### Skenario
+1. Customer makan di meja, memesan makanan
+2. Kasir memproses pembayaran
+3. Customer ingin menambah pesanan (makanan/minuman tambahan)
+4. Bagaimana flow-nya?
 
-### Tahap 5: Update Select Table (5 menit)
-1. Di function `selectTable()`:
-   - Return early jika orderType adalah 'takeaway'
+### Kondisi yang Diinginkan
+Ada beberapa opsi:
 
-### Tahap 6: Update Backend (15 menit)
-1. Di `src/routes/orders.ts` - endpoint `/with-items`:
-   - Accept `orderType` di body
-   - Allow null `tableId` untuk takeaway
-   - Validation: dine-in wajib tableId
+**Opsi A: Buat pesanan baru**
+- Setelah pembayaran, customer bisa mulai pesanan baru di meja yang sama
+- Meja tetap "occupied" sampai customer benar-benar pulang
 
-### Tahap 7: Update Payment Logic (10 menit)
-1. Di `src/services/payment.ts` - function `processPayment()`:
-   - Cek orderType
-   - Hanya update meja status untuk dine-in
-   - Untuk takeaway: tidak ada perubahan status meja
+**Opsi B: Tambah ke pesanan yang sudah ada (untuk makanan saja)**
+- Jika customer ingin menambah makanan setelah bayar, perlu opsi "Tambah Pesanan"
+- Ini memerlukan perubahan flow pembayaran
 
-### Tahap 8: Testing (30 menit)
-1. Jalankan server: `bun run src/index.ts`
-2. Login ke aplikasi
-3. **Test Takeaway Flow**:
-   - Klik "Takeaway"
-   - Langsung tambahkan menu ke cart (tanpa pilih meja)
-   - Bayar
-   - Selesai - tidak ada perubahan status meja
-4. **Test Dine-in Flow**:
-   - Klik "Dine-in"
-   - Pilih meja
-   - Tambahkan menu
-   - Bayar
-   - Meja tetap "Terisi"
-   - Klik "Kosongkan" setelah customer pulang
-   - Meja jadi "Tersedia"
+### Rekomendasi: Opsi A (Pesanan Baru Sederhana)
 
-### Tahap 9: Fix Bug Jika Ada (10 menit)
-- Cek console browser untuk error
-- Cek API responses
-- Pastikan cart berfungsi untuk kedua mode
+Karena复杂性 dan keamanan,，建议使用 Opsi A:
+- Meja tetap occupied setelah pembayaran (sudah ada)
+- Jika customer ingin menambah pesanan, bisa klik "Tambah Pesanan" di cart
+- Ini akan membuat pesanan baru atau tambahkan ke pesanan aktif
 
-## Catatan Penting
+### Langkah Implementasi
 
-- Takeaway tidak menggunakan meja sama sekali
-- Meja hanya untuk pesanan dine-in
-- Setelah payment, meja dine-in tetap "Terisi" sampai ada interaksi "Kosongkan"
-- Untuk takeaway: payment langsung selesai, tidak perlu kosongkan meja
+#### Langkah 1: Tambah Tombol "Tambah Pesanan" di Cart
+Di `src/pages/pos.ts` atau `src/pages/pos-client.ts`:
 
-## File yang Dimodifikasi
+```typescript
+// Di dalam cart, tambahkan tombol untuk menambah pesanan
+function renderServerCart(order, items, readOnly = false) {
+  let html = '';
+  // ... existing code untuk render items ...
+  
+  // Jika pesanan sudah dibayar tapi customer masih di meja,
+  // tampilkan tombol untuk menambah pesanan
+  if (order.status === 'completed' && state.selectedTableId) {
+    html += '<button class="pos-btn pos-btn-add" onclick="addMoreOrder()">+ Tambah Pesanan</button>';
+  }
+  
+  document.getElementById('cart-items').innerHTML = html;
+}
+```
 
-1. `src/pages/pos.ts` - Tambah UI untuk pilih order type
-2. `src/pages/pos-client.ts` - Logic untuk dine-in dan takeaway
-3. `src/routes/orders.ts` - Accept orderType di API
-4. `src/services/payment.ts` - Handle berdasarkan orderType
+#### Langkah 2: Fungsi addMoreOrder()
+Di `src/pages/pos-client.ts`:
 
-## Ekspektasi Hasil
+```typescript
+async function addMoreOrder() {
+  // Cek apakah ada pesanan aktif di meja ini
+  if (state.currentOrderId) {
+    // Gunakan pesanan yang ada
+    toast('Menambah ke pesanan yang ada...');
+  } else {
+    // Buat pesanan baru
+    const res = await fetch('/api/orders', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        tableId: state.selectedTableId,
+        userId: state.currentUserId
+      })
+    });
+    const data = await res.json();
+    if (data.order) {
+      state.currentOrderId = data.order.id;
+      state.isServerOrder = true;
+      toast('Pesanan baru dibuat');
+    }
+  }
+  
+  // Tampilkan cart dalam mode edit
+  renderServerCartEditable();
+}
+```
 
-1. Ketika buka POS, user diminta memilih: "Dine-in" atau "Takeaway"
-2. Pilih "Takeaway" → langsung bisa pesan tanpa pilih meja
-3. Pilih "Dine-in" → harus pilih meja dulu baru bisa pesan
-4. Payment untuk Takeaway: selesai, tidak mengubah status meja
-5. Payment untuk Dine-in: meja tetap "Terisi", harus dikosongkan manual
+#### Langkah 3: Buat Mode Edit untuk Cart
+Di `src/pages/pos-client.ts`:
+
+```typescript
+function renderServerCartEditable() {
+  // Sama seperti renderServerCart tapi dengan tombol edit (+, -, hapus)
+  // Ini untuk saat menambah pesanan setelah pembayaran
+}
+```
+
+---
+
+## Ringkasan File yang Diubah
+
+| File | Perubahan |
+|------|-----------|
+| `src/routes/orders.ts` | Tambah endpoint `/table/:tableId/all` dan `/:id/finish` |
+| `src/repositories/order.ts` | Tambah function `getOrdersByTableId()` |
+| `src/pages/pos-client.ts` | Update `selectTable()`, `kosongkanMeja()`, tambah `addMoreOrder()` |
+| `src/styles/pos.css` | Tambah styling jika diperlukan |
+
+---
+
+## Urutan Implementasi (Disarankan)
+
+1. **Mulai dari Masalah 2** (Alert salah) - Paling sederhana, hanya ubah text dan API
+2. **Lanjut ke Masalah 1** (Histori pesanan) - Butuh API baru dan render ulang cart
+3. **Akhir Masalah 3** (Tambah pesanan setelah bayar) - Paling kompleks, opsional
+
+---
+
+## Catatan untuk Junior Programmer
+
+1. **Selalu testing** setiap perubahan dengan Playwright atau manual
+2. **Jangan lupa restart server** setelah mengubah file .ts
+3. **Perhatikan authorization** - Pastikan role yang tepat bisa akses endpoint baru
+4. **Gunakan console.log** untuk debugging jika perlu
+5. **Ikuti pola kode yang sudah ada** - Lihat bagaimana fungsi serupa dibuat
+
+---
+
+## Referensi
+
+- File similar: `src/routes/orders.ts` - Cara membuat endpoint baru
+- File similar: `src/pages/pos-client.ts` - Cara membuat fungsi cart
+- Testing: `http://localhost:3000/pos` - Untuk test manual
