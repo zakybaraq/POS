@@ -40,6 +40,7 @@ function startDineIn() {
   document.getElementById('pos-tables').style.display = 'block';
   document.getElementById('cart-title').textContent = 'Pilih Meja';
   document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
+  showResetOrderTypeButton();
 }
 
 function startTakeaway() {
@@ -52,6 +53,40 @@ function startTakeaway() {
   document.getElementById('order-type').value = 'takeaway';
   document.getElementById('cart-footer').style.display = 'block';
   document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Tambahkan menu</div>';
+  showResetOrderTypeButton();
+}
+
+function showResetOrderTypeButton() {
+  let btn = document.getElementById('reset-order-type-btn');
+  if (!btn) {
+    btn = document.createElement('button');
+    btn.id = 'reset-order-type-btn';
+    btn.className = 'pos-btn';
+    btn.style.marginLeft = '8px';
+    btn.style.fontSize = '11px';
+    btn.style.padding = '4px 8px';
+    btn.textContent = '↻ Ubah Tipe';
+    btn.onclick = resetOrderType;
+    const headerRight = document.querySelector('.pos-header-right');
+    if (headerRight) headerRight.appendChild(btn);
+  }
+  btn.style.display = 'inline-block';
+}
+
+function resetOrderType() {
+  state.orderType = null;
+  state.selectedTableId = null;
+  state.currentTableNumber = null;
+  document.getElementById('order-type-selection').style.display = 'flex';
+  document.getElementById('pos-tables').style.display = 'none';
+  document.getElementById('cart-title').textContent = 'Pilih Jenis Pesanan';
+  document.getElementById('cart-meta').style.display = 'none';
+  document.getElementById('cart-footer').style.display = 'none';
+  document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih Dine-in atau Takeaway</div>';
+  document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
+  const resetBtn = document.getElementById('reset-order-type-btn');
+  if (resetBtn) resetBtn.style.display = 'none';
+  clearCart();
 }
 
 function saveCart(cart) { localStorage.setItem('pos-cart', JSON.stringify(cart)); }
