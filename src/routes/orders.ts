@@ -77,6 +77,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       userId: t.Number(),
     }),
   })
+  .post('/table/:tableId/new', async ({ cookie, headers, params: { tableId }, body }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    const { userId } = body as any;
+    if (!userId) {
+      return { error: 'userId is required' };
+    }
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    const order = await orderRepo.createOrder(Number(tableId), userId);
+    return order;
+  })
   .post('/with-items', async ({ cookie, headers, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };

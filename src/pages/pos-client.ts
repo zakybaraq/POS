@@ -245,16 +245,18 @@ async function selectTable(id, num, status) {
   if (status === 'occupied') {
     const res = await fetch('/api/orders/table/' + id + '/all');
     const data = await res.json();
-    state.currentOrderId = data.order ? data.order.id : null;
-    state.isServerOrder = !!data.order;
+    
+    const activeOrder = data.orders ? data.orders.find(o => o.status === 'active') : null;
+    state.currentOrderId = activeOrder ? activeOrder.id : null;
+    state.isServerOrder = !!activeOrder;
     document.getElementById('cart-title').textContent = 'Meja ' + num;
     
     document.getElementById('btn-kosongkan').style.display = 'inline';
+    document.getElementById('btn-transfer').style.display = 'none';
     
     if (data.orders && data.orders.length > 0) {
       renderMultipleOrdersCart(data.orders);
     } else {
-      document.getElementById('btn-transfer').style.display = 'none';
       document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
       document.getElementById('cart-meta').style.display = 'none';
       document.getElementById('cart-footer').style.display = 'block';
@@ -407,26 +409,24 @@ function renderMultipleOrdersCart(orders) {
 
   if (!hasActiveOrder) {
     html += '<button class="pos-btn pos-btn-add" style="width:100%;margin-top:8px;" onclick="addMoreOrder()">+ Tambah Pesanan Baru</button>';
-    document.getElementById('cart-footer').style.display = 'none';
   }
 
   document.getElementById('cart-items').innerHTML = html;
 }
 
 async function addMoreOrder() {
-  const res = await fetch('/api/orders', {
+  const res = await fetch('/api/orders/table/' + state.selectedTableId + '/new', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      tableId: state.selectedTableId,
-      userId: state.currentUserId
-    })
+    body: JSON.stringify({ userId: state.currentUserId })
   });
   const data = await res.json();
+  if (data.error) { toast(data.error, 'error'); return; }
   if (data.order) {
     state.currentOrderId = data.order.id;
     state.isServerOrder = true;
     toast('Pesanan baru dibuat');
+    document.getElementById('btn-transfer').style.display = 'none';
     renderServerCart(data.order, []);
   }
 }
