@@ -66,13 +66,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
   .post('/with-items', async ({ cookie, headers, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { tableId, userId, items } = body as any;
-    if (!tableId || !userId || !items || items.length === 0) {
-      return { error: 'tableId, userId, and items are required' };
+    const { tableId, userId, items, orderType } = body as any;
+    
+    // Validation based on order type
+    if (orderType === 'dine-in') {
+      if (!tableId) return { error: 'Meja wajib untuk order dine-in' };
+      const table = await tableRepo.getTableById(tableId);
+      if (!table) return { error: 'Table not found' };
     }
-    const table = await tableRepo.getTableById(tableId);
-    if (!table) return { error: 'Table not found' };
+    
+    if (!userId || !items || items.length === 0) {
+      return { error: 'userId, and items are required' };
+    }
 
+    // Create order - for takeaway, tableId is null
     const order = await orderRepo.createOrder(tableId, userId);
     if (!order) return { error: 'Failed to create order' };
 
@@ -88,7 +95,12 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
 
     await orderRepo.calculateTotals(Number(order.id));
-    await tableRepo.updateTableStatus(tableId, 'occupied');
+    
+    // Only update table status for dine-in
+    if (orderType === 'dine-in' && tableId) {
+      await tableRepo.updateTableStatus(tableId, 'occupied');
+    }
+    
     await orderRepo.updateOrderStatus(Number(order.id), 'active');
 
     const { decrementStockForOrder } = await import('../repositories/inventory');
@@ -99,8 +111,9 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     return { order: finalOrder, items: orderItems };
   }, {
     body: t.Object({
-      tableId: t.Number(),
+      tableId: t.Optional(t.Number()),
       userId: t.Number(),
+      orderType: t.Optional(t.Union([t.Literal('dine-in'), t.Literal('takeaway')])),
       items: t.Array(t.Object({
         menuId: t.Number(),
         quantity: t.Number(),
@@ -204,7 +217,10 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     await orderItemRepo.deleteItemsByOrderId(Number(id));
     await orderRepo.updateOrderStatus(Number(id), 'cancelled');
-    await tableRepo.updateTableStatus(order.tableId, 'available');
+    // Only free table for dine-in orders (takeaway has null tableId)
+    if (order.tableId) {
+      await tableRepo.updateTableStatus(order.tableId, 'available');
+    }
     return { success: true };
   })
   .put('/:id/transfer', async ({ cookie, headers, params: { id }, body }) => {
@@ -215,6 +231,7 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const order = await orderRepo.getOrderById(Number(id));
     if (!order) return { error: 'Order not found' };
     if (order.status !== 'active') return { error: 'Only active orders can be transferred' };
+    if (!order.tableId) return { error: 'Transfer is only available for dine-in orders' };
     const newTable = await tableRepo.getTableById(newTableId);
     if (!newTable) return { error: 'Target table not found' };
     if (newTable.status === 'occupied') return { error: 'Target table is occupied' };

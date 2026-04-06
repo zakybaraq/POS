@@ -59,7 +59,19 @@ export const posPage = new Elysia()
           </div>
           
           <div class="pos-left">
-            <div class="pos-tables">
+            <div class="pos-order-type-selection" id="order-type-selection">
+              <button class="pos-btn pos-btn-order-type" onclick="startDineIn()">
+                <span style="font-size: 24px;">🍽️</span>
+                <span style="font-weight: 600;">Dine-in</span>
+                <span style="font-size: 11px; opacity: 0.8;">Makan di tempat</span>
+              </button>
+              <button class="pos-btn pos-btn-order-type" onclick="startTakeaway()">
+                <span style="font-size: 24px;">🥡</span>
+                <span style="font-weight: 600;">Takeaway</span>
+                <span style="font-size: 11px; opacity: 0.8;">Bawa pulang</span>
+              </button>
+            </div>
+            <div class="pos-tables" id="pos-tables" style="display: none;">
               <div class="pos-tables-header">
                 <h2>Meja</h2>
                 ${['super_admin', 'admin_restoran'].includes(user.role) ? `<button class="pos-btn" onclick="addTable()">+ Tambah</button>` : ''}
@@ -106,7 +118,7 @@ export const posPage = new Elysia()
           
           <div class="pos-cart">
             <div class="pos-cart-header">
-              <span class="pos-cart-title" id="cart-title">Pilih Meja</span>
+              <span class="pos-cart-title" id="cart-title">Pilih Jenis Pesanan</span>
             </div>
             <div class="pos-cart-meta" id="cart-meta" style="display:none;">
               <input type="number" id="guest-count" value="1" min="1" max="20" onchange="state.guestCount = parseInt(this.value) || 1" placeholder="Tamu">

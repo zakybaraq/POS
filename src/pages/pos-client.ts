@@ -25,13 +25,33 @@ const state = {
   selectedTableId: null,
   currentTableNumber: null,
   isServerOrder: false,
-  orderType: 'dine-in',
+  orderType: null,
   guestCount: 1,
   currentTotal: 0,
 };
 
 function setCurrentUserId(userId) {
   state.currentUserId = userId;
+}
+
+function startDineIn() {
+  state.orderType = 'dine-in';
+  document.getElementById('order-type-selection').style.display = 'none';
+  document.getElementById('pos-tables').style.display = 'block';
+  document.getElementById('cart-title').textContent = 'Pilih Meja';
+  document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih meja terlebih dahulu</div>';
+}
+
+function startTakeaway() {
+  state.orderType = 'takeaway';
+  document.getElementById('order-type-selection').style.display = 'none';
+  document.getElementById('pos-tables').style.display = 'none';
+  document.getElementById('cart-title').textContent = 'Takeaway';
+  document.getElementById('cart-meta').style.display = 'flex';
+  document.getElementById('guest-count').value = '1';
+  document.getElementById('order-type').value = 'takeaway';
+  document.getElementById('cart-footer').style.display = 'block';
+  document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Tambahkan menu</div>';
 }
 
 function saveCart(cart) { localStorage.setItem('pos-cart', JSON.stringify(cart)); }
@@ -44,7 +64,7 @@ function getCart() {
 
 function addToCartLocal(id, name, price, event) {
   let c = getCart();
-  if (!c) c = { tableId: state.selectedTableId, tableNumber: state.currentTableNumber, items: [], orderType: state.orderType, guestCount: state.guestCount };
+  if (!c) c = { tableId: state.orderType === 'takeaway' ? null : state.selectedTableId, tableNumber: state.orderType === 'takeaway' ? null : state.currentTableNumber, items: [], orderType: state.orderType, guestCount: state.guestCount };
   const exist = c.items.find(i => i.menuId === id);
   if (exist) exist.quantity += 1;
   else c.items.push({ menuId: id, name, price, quantity: 1, notes: '' });
@@ -155,7 +175,8 @@ function searchMenu(query) {
 }
 
 function addToCart(id, name, price, event) {
-  if (!state.selectedTableId) { toast('Pilih meja terlebih dahulu!', 'warning'); return; }
+  if (!state.orderType) { toast('Pilih dulu: Dine-in atau Takeaway', 'warning'); return; }
+  if (state.orderType === 'dine-in' && !state.selectedTableId) { toast('Pilih meja terlebih dahulu!', 'warning'); return; }
   if (state.isServerOrder && state.currentOrderId) { addToCartServer(id); }
   else { addToCartLocal(id, name, price, event); }
 }
@@ -170,6 +191,7 @@ async function addToCartServer(menuId) {
 }
 
 async function selectTable(id, num, status) {
+  if (state.orderType === 'takeaway') return;
   if (state.selectedTableId === id) return;
 
   document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
