@@ -1,327 +1,157 @@
-# Rencana Transformasi: POS System → Production-Ready Business POS
+# Issue: Perbaikan Flow Pembayaran di Halaman POS
 
 ## Latar Belakang
 
-Sistem POS saat ini hanya memiliki modul dasar:
-- ✅ Dashboard (basic stats)
-- ✅ POS (order & payment)
-- ✅ Menu Management
-- ✅ Table Management
-- ✅ Orders (today's orders)
-- ✅ Admin (user management)
+Saat ini flow pembayaran di halaman POS (`http://localhost:3000/pos`) memiliki masalah:
 
-**Ini tidak cukup untuk menangani bisnis restoran nyata.** Sistem POS kompetitor seperti Moka POS, Majoo, Qasir, dan Pawoon memiliki puluhan modul yang saling terintegrasi.
+1. **Tombol Bayar dobel**: Ketika user klik tombol "Bayar" (antara Hold dan Cancel), Muncul section pembayaran dengan tombol "Bayar" lagi. Ini membingungkan user karena ada 2 tombol Bayar.
 
----
+2. **Tidak efisien**: User harus klik tombol Bayar dulu untuk lihat detail harga (subtotal, pajak, total).
 
-## Analisis: Modul yang HARUS Ada untuk Bisnis Nyata
+3. **Payment tidak berfungsi**: Ketika user klik tombol Bayar di section pembayaran, tidak terjadi apapun.
 
-### 🔴 KRITIS — Tanpa ini, sistem tidak layak produksi
+## Tujuan
 
-| # | Modul | Kenapa Penting | Estimasi |
-|---|-------|---------------|----------|
-| 1 | **Inventory/Stock Management** | Restoran harus tahu stok bahan baku, auto-decrement saat pesanan, alert stok habis | 8-12 jam |
-| 2 | **Customer Management** | Database pelanggan, riwayat belanja, membership, loyalty points | 6-8 jam |
-| 3 | **Reporting & Analytics** | Laporan penjualan harian/mingguan/bulanan, profit/loss, best seller | 8-10 jam |
-| 4 | **Settings/Business Config** | Info restoran, pajak, metode pembayaran, template struk, jam operasional | 4-6 jam |
-| 5 | **Supplier & Purchase Order** | Manajemen supplier, PO, penerimaan barang, harga beli | 6-8 jam |
-| 6 | **Employee/Shift Management** | Shift kasir, attendance, performa karyawan, komisi | 6-8 jam |
+1. Hilangkan tombol Bayar (antara Hold dan Cancel)
+2. Tampilkan detail harga (subtotal, pajak, total) terlihat dari awal TANPA user klik apapun
+3. Perbaiki flow pembayaran agar berfungsi
 
-### 🟡 PENTING — Meningkatkan efisiensi operasional
+## Perubahan yang Diperlukan
 
-| # | Modul | Kenapa Penting | Estimasi |
-|---|-------|---------------|----------|
-| 7 | **Kitchen Display System (KDS)** | Layar dapur untuk lihat pesanan masuk, update status masak | 6-8 jam |
-| 8 | **Promotions & Discounts** | Voucher, promo code, happy hour, diskon member, buy 1 get 1 | 6-8 jam |
-| 9 | **Reservation/Booking** | Reservasi meja, booking online, waitlist | 4-6 jam |
-| 10 | **Split Bill** | Bagi tagihan per orang atau per item | 4-6 jam |
-| 11 | **Delivery/Takeaway** | Order delivery, status pengiriman, ongkir | 6-8 jam |
-| 12 | **Multi-Payment Methods** | Cash, kartu, QRIS, e-wallet (GoPay, OVO, Dana), split payment | 6-8 jam |
+### 1. Hapus Tombol Bayar di Cart Actions
 
-### 🟢 NILAI TAMBAH — Membedakan dari kompetitor
+**File**: `src/pages/pos.ts` ( sekitar baris 147-150)
 
-| # | Modul | Kenapa Penting | Estimasi |
-|---|-------|---------------|----------|
-| 13 | **Loyalty Program** | Poin reward, tier member, redeem poin | 4-6 jam |
-| 14 | **Email/SMS Receipt** | Kirim struk via email atau SMS | 2-4 jam |
-| 15 | **Expense Management** | Catat pengeluaran operasional (listrik, gaji, bahan) | 4-6 jam |
-| 16 | **Multi-branch Support** | Kelola banyak cabang dari satu dashboard | 12-16 jam |
-| 17 | **API Integration** | Integrasi dengan GoFood, GrabFood, ShopeeFood | 8-12 jam |
-| 18 | **Barcode/QR Scanner** | Scan barcode untuk inventory, QR untuk menu digital | 4-6 jam |
-
----
-
-## Rencana Implementasi Bertahap
-
-### Fase 1: Foundation (Week 1-2) — Modul KRITIS
-
-#### 1.1 Inventory/Stock Management
-**File baru**: `src/pages/inventory.ts`, `src/routes/inventory.ts`, `src/repositories/inventory.ts`
-
-**Fitur**:
-- Database bahan baku (nama, satuan, stok, minimum stok, harga beli)
-- Auto-decrement stok saat pesanan dibuat (recipe mapping)
-- Alert stok hampir habis / habis
-- Stock in/out manual (penyesuaian stok)
-- Riwayat pergerakan stok
-
-**Schema baru**:
-```typescript
-// ingredients — bahan baku
-// recipes — mapping menu ke bahan baku
-// stock_movements — riwayat stok masuk/keluar
+**Sebelum**:
+```html
+<div class="pos-cart-actions">
+  <button class="pos-btn" onclick="holdOrder()">Hold</button>
+  <button class="pos-btn pos-btn-primary" onclick="togglePayment()">Bayar</button>
+  <button class="pos-btn pos-btn-danger" onclick="cancelOrder()">Batal</button>
+</div>
 ```
 
-#### 1.2 Customer Management
-**File baru**: `src/pages/customers.ts`, `src/routes/customers.ts`
-
-**Fitur**:
-- CRUD pelanggan (nama, telepon, email, alamat)
-- Riwayat belanja per pelanggan
-- Membership tier (Regular, Silver, Gold)
-- Loyalty points (1 poin per Rp 10.000 belanja)
-
-**Schema baru**:
-```typescript
-// customers
-// customer_memberships
-// loyalty_transactions
+**Sesudah**:
+```html
+<div class="pos-cart-actions">
+  <button class="pos-btn" onclick="holdOrder()">Hold</button>
+  <button class="pos-btn pos-btn-danger" onclick="cancelOrder()">Batal</button>
+</div>
 ```
 
-#### 1.3 Reporting & Analytics
-**File baru**: `src/pages/reports.ts`
+### 2. Tampilkan Payment Section dari Awal
 
-**Fitur**:
-- Laporan penjualan (harian, mingguan, bulanan, custom range)
-- Laporan menu terlaris
-- Laporan kasir (performa per kasir)
-- Laporan okupansi meja
-- Grafik penjualan (chart.js atau vanilla JS bar chart)
-- Export laporan ke PDF/Excel
+**File**: `src/pages/pos.ts` ( sekitar baris 135)
 
-#### 1.4 Settings/Business Config
-**File baru**: `src/pages/settings.ts`
-
-**Fitur**:
-- Info bisnis (nama, alamat, telepon, logo)
-- Pengaturan pajak (persentase, inclusive/exclusive)
-- Metode pembayaran aktif (cash, card, QRIS, e-wallet)
-- Template struk (header, footer, ukuran kertas)
-- Jam operasional
-- Backup & restore database
-
-#### 1.5 Supplier & Purchase Order
-**File baru**: `src/pages/suppliers.ts`, `src/pages/purchase-orders.ts`
-
-**Fitur**:
-- CRUD supplier
-- Buat purchase order
-- Terima barang (update stok otomatis)
-- Riwayat PO
-
-**Schema baru**:
-```typescript
-// suppliers
-// purchase_orders
-// purchase_order_items
+**Sebelum**:
+```html
+<div class="pos-payment" id="payment-section">
 ```
 
-#### 1.6 Employee/Shift Management
-**File baru**: `src/pages/employees.ts`, `src/pages/shifts.ts`
-
-**Fitur**:
-- Data karyawan (sudah ada di users, tambah field: jabatan, gaji, telepon)
-- Shift management (buka/tutup shift, cash count)
-- Attendance (clock in/clock out)
-- Performa kasir (total transaksi, rata-rata per transaksi)
-
----
-
-### Fase 2: Operational Excellence (Week 3-4) — Modul PENTING
-
-#### 2.1 Kitchen Display System (KDS)
-**File baru**: `src/pages/kitchen.ts`
-
-**Fitur**:
-- Real-time display pesanan masuk (WebSocket atau polling)
-- Update status: Pending → Cooking → Ready → Served
-- Timer per pesanan (warning jika terlalu lama)
-- Filter by station (makanan/minuman)
-
-#### 2.2 Promotions & Discounts
-**Schema baru**:
-```typescript
-// promotions (kode, tipe, nilai, periode, minimum belanja)
-// promotion_usage
+**Sesudah**:
+```html
+<div class="pos-payment show" id="payment-section">
 ```
 
-**Fitur**:
-- Voucher diskon (fixed/percentage)
-- Happy hour (diskon otomatis di jam tertentu)
-- Buy X Get Y
-- Diskon per kategori/menu
-- Promo code di POS
+### 3. Perbaiki Function processPayment di pos-client.ts
 
-#### 2.3 Reservation/Booking
-**Schema baru**:
-```typescript
-// reservations (nama, telepon, tanggal, jam, jumlah tamu, meja, status)
+**File**: `src/pages/pos-client.ts` - function `processPayment()`
+
+Pastikan function ini benar-benar memanggil API dan memproses pembayaran:
+
+```javascript
+async function processPayment() {
+  const total = parseInt(document.getElementById('summary-total').textContent.replace(/\./g, '')) || 0;
+  const paid = parseInt(document.getElementById('paid-input').value) || 0;
+  
+  if (paid < total) { 
+    toast('Uang kurang!', 'error'); 
+    return; 
+  }
+
+  // Jika bukan server order, buat order dulu
+  if (!state.isServerOrder && !state.currentOrderId) {
+    const cart = getCart();
+    const res = await fetch('/api/orders/with-items', { 
+      method: 'POST', 
+      headers: { 'Content-Type': 'application/json' }, 
+      body: JSON.stringify({ 
+        tableId: cart.tableId, 
+        userId: state.currentUserId, 
+        items: cart.items.map(i => ({ menuId: i.menuId, quantity: i.quantity, notes: i.notes || '' })) 
+      }) 
+    });
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    state.currentOrderId = data.order.id;
+    state.isServerOrder = true;
+    clearCart();
+  }
+
+  // Proses pembayaran
+  const res = await fetch('/api/orders/' + state.currentOrderId + '/pay', { 
+    method: 'POST', 
+    headers: { 'Content-Type': 'application/json' }, 
+    body: JSON.stringify({ amountPaid: paid }) 
+  });
+  const data = await res.json();
+  if (data.error) { toast(data.error, 'error'); }
+  else {
+    const cart = getCart();
+    if (cart && cart.items.length > 0) {
+      localStorage.setItem('last-receipt', JSON.stringify(cart));
+    }
+    toast('Pembayaran berhasil!'); 
+    printReceipt(); 
+    resetAfterPayment(); 
+  }
+}
 ```
 
-**Fitur**:
-- Buat reservasi
-- Calendar view
-- Assign meja otomatis
-- Status: Pending → Confirmed → Seated → Completed/No-show
+## Tahapan Implementasi
 
-#### 2.4 Split Bill
-**Fitur di POS**:
-- Split by item (tiap orang pilih item sendiri)
-- Split equally (bagi rata)
-- Custom split (manual assign)
+### Tahap 1: Persiapan
+1. Clone repository
+2. Buka file `src/pages/pos.ts`
+3. Buka file `src/pages/pos-client.ts`
 
-#### 2.5 Delivery/Takeaway
-**Schema baru**:
-```typescript
-// delivery_orders (customer, alamat, ongkir, driver, status)
-```
+### Tahap 2: Hapus Tombol Bayar (5 menit)
+1. Di `pos.ts`, cari bagian `pos-cart-actions`
+2. Hapus `<button class="pos-btn pos-btn-primary" onclick="togglePayment()">Bayar</button>`
+3. Simpan perubahan
 
-**Fitur**:
-- Order type: Dine-in / Takeaway / Delivery
-- Input alamat pengiriman
-- Assign driver
-- Status tracking: Pending → Preparing → On the way → Delivered
+### Tahap 3: Tampilkan Payment Section (5 menit)
+1. Di `pos.ts`, cari `<div class="pos-payment" id="payment-section">`
+2. Tambahkan class `show`: `<div class="pos-payment show" id="payment-section">`
+3. Simpan perubahan
 
-#### 2.6 Multi-Payment Methods
-**Schema update**:
-```typescript
-// orders — tambah payment_method, split_payments
-// payment_methods — cash, card, qris, gopay, ovo, dana, shopeepay
-```
+### Tahap 4: Test Payment Flow (10 menit)
+1. Jalankan server: `bun run src/index.ts`
+2. Login ke aplikasi
+3. Buka halaman POS
+4. Pilih meja, tambahkan menu ke cart
+5. Pastikan detail harga terlihat tanpa klik apapun
+6. Klik tombol "BAYAR" di section pembayaran
+7. Verifikasi pembayaran berhasil
 
-**Fitur**:
-- Pilih metode pembayaran saat checkout
-- Split payment (bayar sebagian cash, sebagian QRIS)
-- Integration-ready untuk QRIS (struktur data siap)
+### Tahap 5: Fix Jika Ada Bug
+1. Jika tombol Bayar tidak responsif, cek function `processPayment()` di `pos-client.ts`
+2. Pastikan semua fetch call ke API benar
+3. Cek console browser untuk error
 
----
+## Catatan
 
-### Fase 3: Competitive Edge (Week 5-6) — Modul NILAI TAMBAH
+- Gunakan browser console (F12) untuk debugging
+- Test dengan data menu yang ada di database
+- Pastikan API endpoint `/api/orders/with-items` dan `/api/orders/:id/pay` tersedia
 
-#### 3.1 Loyalty Program
-**Fitur**:
-- Earn points saat belanja
-- Redeem points untuk diskon
-- Tier upgrade (Regular → Silver → Gold)
-- Member-exclusive promo
+## File yang Dimodifikasi
 
-#### 3.2 Email/SMS Receipt
-**Fitur**:
-- Input email pelanggan saat checkout
-- Kirim struk via email (gunakan nodemailer atau API pihak ketiga)
-- Template struk email
+1. `src/pages/pos.ts` - Hapus tombol Bayar, tambahkan class show
+2. `src/pages/pos-client.ts` - Pastikan processPayment berfungsi
 
-#### 3.3 Expense Management
-**Schema baru**:
-```typescript
-// expenses (kategori, jumlah, keterangan, tanggal, bukti)
-```
+## Ekspektasi Hasil
 
-**Fitur**:
-- Catat pengeluaran (bahan baku, listrik, gaji, dll)
-- Kategori pengeluaran
-- Laporan pengeluaran vs pendapatan
-- Profit/loss otomatis
-
-#### 3.4 Multi-branch Support
-**Schema update**:
-```typescript
-// branches (nama, alamat, telepon, status)
-// Semua tabel utama — tambah branch_id
-```
-
-**Fitur**:
-- Kelola banyak cabang
-- Dashboard per cabang atau consolidated
-- Transfer stok antar cabang
-- Laporan per cabang
-
----
-
-## Prioritas Implementasi (Urutan yang Disarankan)
-
-Berdasarkan dampak bisnis, urutan pengerjaan yang optimal:
-
-1. **Settings** — Fondasi konfigurasi bisnis (4-6 jam)
-2. **Inventory** — Tanpa ini, stok tidak terkontrol (8-12 jam)
-3. **Reporting** — Owner butuh data untuk keputusan (8-10 jam)
-4. **Customer Management** — Retensi pelanggan (6-8 jam)
-5. **Supplier & PO** — Supply chain (6-8 jam)
-6. **Employee/Shift** — Operasional harian (6-8 jam)
-7. **Promotions** — Marketing (6-8 jam)
-8. **Kitchen Display** — Efisiensi dapur (6-8 jam)
-9. **Multi-Payment** — Fleksibilitas pembayaran (6-8 jam)
-10. **Split Bill** — UX pelanggan (4-6 jam)
-11. **Reservation** — Booking system (4-6 jam)
-12. **Delivery** — Revenue channel baru (6-8 jam)
-13. **Loyalty Program** — Retensi (4-6 jam)
-14. **Expense Management** — Financial control (4-6 jam)
-15. **Email Receipt** — Professional touch (2-4 jam)
-16. **Multi-branch** — Scale up (12-16 jam)
-
-**Total estimasi**: 96-134 jam kerja (~3-4 bulan untuk 1 developer)
-
----
-
-## Arsitektur File yang Disarankan
-
-```
-src/
-├── pages/
-│   ├── dashboard.ts          ✅ Sudah ada
-│   ├── pos.ts                ✅ Sudah ada
-│   ├── menu.ts               ✅ Sudah ada
-│   ├── tables.ts             ✅ Sudah ada
-│   ├── orders.ts             ✅ Sudah ada
-│   ├── admin.ts              ✅ Sudah ada
-│   ├── inventory.ts          🆕
-│   ├── customers.ts          🆕
-│   ├── reports.ts            🆕
-│   ├── settings.ts           🆕
-│   ├── suppliers.ts          🆕
-│   ├── purchase-orders.ts    🆕
-│   ├── employees.ts          🆕
-│   ├── shifts.ts             🆕
-│   ├── kitchen.ts            🆕
-│   ├── reservations.ts       🆕
-│   ├── promotions.ts         🆕
-│   ├── expenses.ts           🆕
-│   └── branches.ts           🆕
-├── routes/
-│   ├── inventory.ts          🆕
-│   ├── customers.ts          🆕
-│   ├── suppliers.ts          🆕
-│   ├── reservations.ts       🆕
-│   ├── promotions.ts         🆕
-│   └── expenses.ts           🆕
-├── repositories/
-│   ├── inventory.ts          🆕
-│   ├── customer.ts           🆕
-│   ├── supplier.ts           🆕
-│   ├── reservation.ts        🆕
-│   ├── promotion.ts          🆕
-│   └── expense.ts            🆕
-└── db/
-    └── schema.ts             🔄 Update — tambah semua tabel baru
-```
-
----
-
-## Catatan Penting
-
-- **JANGAN hapus** modul yang sudah ada
-- **JANGAN ubah** API endpoint yang sudah ada (backward compatible)
-- **Setiap modul harus independent** — bisa diaktifkan/nonaktifkan
-- **Gunakan RBAC yang sudah ada** — setiap modul punya role access
-- **Semua modul harus punya search, filter, pagination** — konsisten dengan modul existing
-- **Estimasi per modul** termasuk: database migration, API, UI, testing
+1. Detail harga (subtotal, pajak, total) terlihat dari awal
+2. Hanya ada 1 tombol Bayar (di dalam payment section)
+3. Klik Bayar akan memproses pembayaran dengan benar

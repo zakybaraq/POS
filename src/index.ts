@@ -39,6 +39,15 @@ const app = new Elysia()
     }
     return new Response('Not found', { status: 404 });
   })
+  .get('/pages/:path', ({ params }) => {
+    const pagesDir = join(__dirname, 'pages');
+    const filePath = join(pagesDir, params.path);
+    if (existsSync(filePath)) {
+      const content = readFileSync(filePath, 'utf-8');
+      return new Response(content, { headers: { 'Content-Type': 'application/javascript' } });
+    }
+    return new Response('Not found', { status: 404 });
+  })
   .use(authPages)
   .use(dashboardPage)
   .use(posPage)
