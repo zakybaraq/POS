@@ -359,7 +359,7 @@ function renderServerCart(order, items, readOnly = false) {
 
 function renderMultipleOrdersCart(orders) {
   document.getElementById('cart-meta').style.display = 'flex';
-  document.getElementById('cart-footer').style.display = 'block';
+  document.getElementById('cart-footer').style.display = 'none';
 
   let html = '';
   let hasActiveOrder = false;
@@ -423,6 +423,7 @@ async function addMoreOrder() {
   if (existingEmpty) {
     state.currentOrderId = existingEmpty.id;
     state.isServerOrder = true;
+    document.getElementById('cart-footer').style.display = 'block';
     toast('Menambah ke pesanan yang ada...');
     renderServerCart(existingEmpty, []);
     return;
@@ -438,6 +439,7 @@ async function addMoreOrder() {
   if (data.order) {
     state.currentOrderId = data.order.id;
     state.isServerOrder = true;
+    document.getElementById('cart-footer').style.display = 'block';
     toast('Pesanan baru dibuat');
     document.getElementById('btn-transfer').style.display = 'none';
     renderServerCart(data.order, []);
