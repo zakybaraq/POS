@@ -780,8 +780,8 @@ function cancelOrder() {
       state.isNewOrderOnOccupiedTable = false;
       document.getElementById('cart-footer').style.display = 'none';
       document.getElementById('btn-transfer').style.display = 'none';
-      document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + state.currentTableNumber + ' - Tambahkan menu</div>';
-      document.getElementById('cart-meta').style.display = 'none';
+      const orders = window._currentOrders || [];
+      renderMultipleOrdersCart(orders);
       return;
     }
   } else {
