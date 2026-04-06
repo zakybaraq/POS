@@ -31,6 +31,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     return { table, order: null };
   })
+  .get('/table/:tableId/all', async ({ params: { tableId } }) => {
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    const allOrders = await orderRepo.getOrdersByTableId(Number(tableId));
+    const ordersWithItems = await Promise.all(
+      allOrders.map(async (order) => {
+        const items = await orderItemRepo.getItemsWithMenuByOrderId(order.id);
+        return { ...order, items };
+      })
+    );
+    return { table, orders: ordersWithItems };
+  })
   .get('/:id', async ({ params: { id } }) => {
     const order = await orderRepo.getOrderById(Number(id));
     if (!order) {
@@ -218,6 +232,25 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     await orderItemRepo.deleteItemsByOrderId(Number(id));
     await orderRepo.updateOrderStatus(Number(id), 'cancelled');
     // Only free table for dine-in orders (takeaway has null tableId)
+    if (order.tableId) {
+      await tableRepo.updateTableStatus(order.tableId, 'available');
+    }
+    return { success: true };
+  })
+  .post('/:id/finish', async ({ cookie, headers, params: { id } }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
+      return { error: 'Akses ditolak' };
+    }
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    if (order.status !== 'active') {
+      return { error: 'Order already completed or cancelled' };
+    }
+    await orderRepo.updateOrderStatus(Number(id), 'completed');
     if (order.tableId) {
       await tableRepo.updateTableStatus(order.tableId, 'available');
     }

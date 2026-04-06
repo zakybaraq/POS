@@ -228,6 +228,32 @@ export const posPage = new Elysia()
           </div>
         </div>
         
+        <div class="pos-modal" id="kosongkan-meja-modal">
+          <div class="pos-modal-backdrop" onclick="closeKosongkanModal()"></div>
+          <div class="pos-modal-content" style="max-width:360px;">
+            <div class="pos-modal-header"><h3>Kosongkan Meja</h3><button class="pos-modal-close" onclick="closeKosongkanModal()">&times;</button></div>
+            <div class="pos-modal-body">
+              <div style="background:var(--color-bg-secondary);padding:16px;border-radius:8px;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                  <span style="color:var(--color-text-secondary);font-size:12px;">Meja</span>
+                  <span style="font-weight:600;" id="kosongkan-table-num">-</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                  <span style="color:var(--color-text-secondary);font-size:12px;">Status Pesanan</span>
+                  <span style="font-weight:600;" id="kosongkan-order-status">-</span>
+                </div>
+              </div>
+              <p style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:16px;">
+                ⚠️ Meja akan dikosongkan dan pesanan akan diselesaikan.
+              </p>
+              <div style="display:flex;gap:8px;">
+                <button class="pos-btn" style="flex:1;" onclick="closeKosongkanModal()">Batal</button>
+                <button class="pos-btn pos-btn-success" style="flex:1;" onclick="confirmKosongkanMeja()">Konfirmasi</button>
+              </div>
+            </div>
+          </div>
+        </div>
+        
         <script>
           var currentUserId = ${user.userId};
         </script>

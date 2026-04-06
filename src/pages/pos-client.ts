@@ -243,20 +243,17 @@ async function selectTable(id, num, status) {
   document.getElementById('btn-transfer').style.display = 'none';
 
   if (status === 'occupied') {
-    const res = await fetch('/api/orders/table/' + id);
+    const res = await fetch('/api/orders/table/' + id + '/all');
     const data = await res.json();
     state.currentOrderId = data.order ? data.order.id : null;
     state.isServerOrder = !!data.order;
     document.getElementById('cart-title').textContent = 'Meja ' + num;
     
-    // Show Kosongkan Meja button if table is occupied (even without active order)
     document.getElementById('btn-kosongkan').style.display = 'inline';
     
-    if (data.order) {
-      document.getElementById('btn-transfer').style.display = 'inline';
-      renderServerCart(data.order, data.items, true);
+    if (data.orders && data.orders.length > 0) {
+      renderMultipleOrdersCart(data.orders);
     } else {
-      // Table is occupied but has no order - show empty cart state but still allow kosongkan
       document.getElementById('btn-transfer').style.display = 'none';
       document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
       document.getElementById('cart-meta').style.display = 'none';
@@ -292,11 +289,29 @@ async function addTable() {
   location.reload();
 }
 
-async function kosongkanMeja() {
+function showKosongkanMejaModal() {
   if (!state.selectedTableId) { toast('Pilih meja dulu', 'warning'); return; }
-  if (!confirm('Kosongkan meja ini? (Semua pesanan akan dibatalkan)')) return;
+  const tableNum = state.currentTableNumber || state.selectedTableId;
+  document.getElementById('kosongkan-table-num').textContent = 'Meja ' + tableNum;
   if (state.currentOrderId) {
-    await fetch('/api/orders/' + state.currentOrderId + '/cancel', { method: 'POST' });
+    document.getElementById('kosongkan-order-status').textContent = 'Ada pesanan aktif';
+  } else {
+    document.getElementById('kosongkan-order-status').textContent = 'Tidak ada pesanan';
+  }
+  document.getElementById('kosongkan-meja-modal').style.display = 'flex';
+}
+
+function closeKosongkanModal() {
+  document.getElementById('kosongkan-meja-modal').style.display = 'none';
+}
+
+async function confirmKosongkanMeja() {
+  closeKosongkanModal();
+  if (state.currentOrderId) {
+    const res = await fetch('/api/orders/' + state.currentOrderId + '/finish', { method: 'POST' });
+    const data = await res.json();
+    if (data.error) { toast(data.error, 'error'); return; }
+    toast('Pesanan diselesaikan');
   }
   await fetch('/api/tables/' + state.selectedTableId, { 
     method: 'PUT', 
@@ -305,6 +320,10 @@ async function kosongkanMeja() {
   });
   toast('Meja dikosongkan');
   location.reload();
+}
+
+async function kosongkanMeja() {
+  showKosongkanMejaModal();
 }
 
 function renderServerCart(order, items, readOnly = false) {
@@ -334,6 +353,82 @@ function renderServerCart(order, items, readOnly = false) {
   document.getElementById('summary-subtotal').textContent = (order.subtotal || 0).toLocaleString('id-ID');
   document.getElementById('summary-tax').textContent = (order.tax || 0).toLocaleString('id-ID');
   document.getElementById('summary-total').textContent = (order.total || 0).toLocaleString('id-ID');
+}
+
+function renderMultipleOrdersCart(orders) {
+  document.getElementById('cart-meta').style.display = 'flex';
+  document.getElementById('cart-footer').style.display = 'block';
+
+  let html = '';
+  let hasActiveOrder = false;
+  let activeOrder = null;
+
+  orders.forEach((order, idx) => {
+    const items = order.items || [];
+    const isActive = order.status === 'active';
+    if (isActive) {
+      hasActiveOrder = true;
+      activeOrder = order;
+      state.currentOrderId = order.id;
+      state.isServerOrder = true;
+    }
+
+    const statusLabel = order.status === 'active' ? '<span style="color:var(--color-success);font-size:10px;font-weight:600;">● AKTIF</span>' 
+      : order.status === 'completed' ? '<span style="color:var(--color-text-secondary);font-size:10px;">✓ SELESAI</span>'
+      : '<span style="color:var(--color-error);font-size:10px;">✕ BATAL</span>';
+
+    html += '<div style="margin-bottom:12px;padding-bottom:8px;border-bottom:1px dashed var(--color-border);">';
+    html += '<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">';
+    html += '<span style="font-size:11px;font-weight:700;">Pesanan #' + (idx + 1) + '</span>';
+    html += statusLabel;
+    html += '</div>';
+
+    items.forEach(item => {
+      if (isActive) {
+        html += '<div class="pos-cart-item">' +
+          '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
+          '<div class="pos-cart-item-qty"><button onclick="updateServerQty(' + item.id + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="updateServerQty(' + item.id + ',1)">+</button></div></div>' +
+          '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div>' +
+          '<button class="pos-cart-item-remove" onclick="removeServerItem(' + item.id + ')">&times;</button></div>';
+      } else {
+        html += '<div class="pos-cart-item" style="opacity:0.6;">' +
+          '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
+          '<span class="pos-cart-item-qty-readonly">x' + item.quantity + '</span></div>' +
+          '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
+      }
+    });
+
+    html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;">';
+    html += '<span style="color:var(--color-text-secondary);">Total</span>';
+    html += '<span style="font-weight:700;">' + (order.total || 0).toLocaleString('id-ID') + '</span>';
+    html += '</div>';
+    html += '</div>';
+  });
+
+  if (!hasActiveOrder) {
+    html += '<button class="pos-btn pos-btn-add" style="width:100%;margin-top:8px;" onclick="addMoreOrder()">+ Tambah Pesanan Baru</button>';
+    document.getElementById('cart-footer').style.display = 'none';
+  }
+
+  document.getElementById('cart-items').innerHTML = html;
+}
+
+async function addMoreOrder() {
+  const res = await fetch('/api/orders', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      tableId: state.selectedTableId,
+      userId: state.currentUserId
+    })
+  });
+  const data = await res.json();
+  if (data.order) {
+    state.currentOrderId = data.order.id;
+    state.isServerOrder = true;
+    toast('Pesanan baru dibuat');
+    renderServerCart(data.order, []);
+  }
 }
 
 async function updateServerQty(itemId, delta) {
