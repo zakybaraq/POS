@@ -8,9 +8,9 @@ function todayStart() {
   return new Date(now.getTime() + (7 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
 }
 
-export async function createOrder(tableId: number, userId: number) {
+export async function createOrder(tableId: number | null, userId: number) {
   const result = await db.insert(orders).values({
-    tableId,
+    tableId: tableId ?? 0,
     userId,
     servedBy: '',
     status: 'active',

@@ -347,28 +347,28 @@ body {
 
 .pos-order-type-selection {
   display: flex;
-  gap: 12px;
-  padding: 16px;
-  background: #ffffff;
-  border: 1px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  gap: 10px;
+  margin-bottom: 15px;
 }
 .pos-btn-order-type {
   flex: 1;
-  padding: 24px 16px;
+  padding: 20px 10px;
+  font-size: 14px;
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 8px;
-  background: var(--color-bg);
+  justify-content: center;
+  gap: 6px;
   border: 2px solid var(--color-border);
-  border-radius: var(--radius-lg);
+  background: #ffffff;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  transition: all 0.2s;
-  color: var(--color-text);
+  transition: all 0.2s ease;
 }
 .pos-btn-order-type:hover {
   border-color: var(--color-primary);
-  background: var(--color-primary-10);
+  background: #f0f7ff;
 }
+.pos-btn-order-type:active {
+  transform: scale(0.98);
 }
