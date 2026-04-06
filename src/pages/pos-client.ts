@@ -358,6 +358,7 @@ function renderServerCart(order, items, readOnly = false) {
 }
 
 function renderMultipleOrdersCart(orders) {
+  window._currentOrders = orders;
   document.getElementById('cart-meta').style.display = 'flex';
   document.getElementById('cart-footer').style.display = 'none';
 
@@ -419,6 +420,7 @@ function renderMultipleOrdersCart(orders) {
 }
 
 async function addMoreOrder() {
+  const orders = window._currentOrders || [];
   const existingEmpty = orders.find(o => o.status === 'active' && (!o.items || o.items.length === 0));
   if (existingEmpty) {
     state.currentOrderId = existingEmpty.id;
