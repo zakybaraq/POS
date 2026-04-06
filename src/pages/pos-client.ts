@@ -31,6 +31,7 @@ const state = {
   guestCount: 1,
   currentTotal: 0,
   paymentConfirmed: false,
+  isNewOrderOnOccupiedTable: false,
 };
 
 function setCurrentUserId(userId) {
@@ -425,6 +426,7 @@ async function addMoreOrder() {
   if (existingEmpty) {
     state.currentOrderId = existingEmpty.id;
     state.isServerOrder = true;
+    state.isNewOrderOnOccupiedTable = true;
     document.getElementById('cart-footer').style.display = 'block';
     toast('Menambah ke pesanan yang ada...');
     renderServerCart(existingEmpty, []);
@@ -441,6 +443,7 @@ async function addMoreOrder() {
   if (data.order) {
     state.currentOrderId = data.order.id;
     state.isServerOrder = true;
+    state.isNewOrderOnOccupiedTable = true;
     document.getElementById('cart-footer').style.display = 'block';
     toast('Pesanan baru dibuat');
     document.getElementById('btn-transfer').style.display = 'none';
@@ -752,6 +755,16 @@ function cancelOrder() {
     if (!confirm('Batalkan pesanan?')) return;
     fetch('/api/orders/' + state.currentOrderId + '/cancel', { method: 'POST' });
     toast('Pesanan dibatalkan');
+    if (state.isNewOrderOnOccupiedTable) {
+      state.currentOrderId = null;
+      state.isServerOrder = false;
+      state.isNewOrderOnOccupiedTable = false;
+      document.getElementById('cart-footer').style.display = 'none';
+      document.getElementById('btn-transfer').style.display = 'none';
+      document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + state.currentTableNumber + ' - Tambahkan menu</div>';
+      document.getElementById('cart-meta').style.display = 'none';
+      return;
+    }
   } else {
     clearCart();
     toast('Cart dikosongkan');
