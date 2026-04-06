@@ -20,8 +20,6 @@ export async function processPayment(orderId: number, amountPaid: number) {
   
   const completedOrder = await orderRepo.completeOrder(orderId, amountPaid);
   
-  await tableRepo.updateTableStatus(order.tableId, 'available');
-  
   return completedOrder;
 }
 

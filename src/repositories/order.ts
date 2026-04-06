@@ -5,8 +5,7 @@ import type { Order, NewOrder } from '../db/schema';
 
 function todayStart() {
   const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  return now;
+  return new Date(now.getTime() + (7 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
 }
 
 export async function createOrder(tableId: number, userId: number) {
@@ -94,14 +93,14 @@ export async function calculateTotals(orderId: number) {
 export async function getTodaySales() {
   const result = await db.select({ total: sum(orders.total) })
     .from(orders)
-    .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')));
+    .where(eq(orders.status, 'completed'));
   return Number(result[0]?.total || 0);
 }
 
 export async function getTodayOrders() {
   const result = await db.select({ count: sql<number>`count(*)` })
     .from(orders)
-    .where(gte(orders.createdAt, todayStart()));
+    .where(eq(orders.status, 'completed'));
   return Number(result[0]?.count || 0);
 }
 
