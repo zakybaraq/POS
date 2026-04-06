@@ -245,9 +245,12 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     await orderItemRepo.deleteItemsByOrderId(Number(id));
     await orderRepo.updateOrderStatus(Number(id), 'cancelled');
-    // Only free table for dine-in orders (takeaway has null tableId)
+    // Only free table if no other active orders on this table
     if (order.tableId) {
-      await tableRepo.updateTableStatus(order.tableId, 'available');
+      const otherActiveOrders = await orderRepo.getActiveOrderByTableId(order.tableId);
+      if (!otherActiveOrders || otherActiveOrders.id === Number(id)) {
+        await tableRepo.updateTableStatus(order.tableId, 'available');
+      }
     }
     return { success: true };
   })
