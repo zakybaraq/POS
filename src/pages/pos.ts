@@ -2,6 +2,10 @@ import { Elysia } from 'elysia';
 import { htmlResponse } from '../templates/html';
 import { getCommonScripts } from '../templates/common-scripts';
 import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth';
+import { readFileSync } from 'fs';
+import { join } from 'path';
+
+const posClientContent = readFileSync(join(__dirname, 'pos-client.ts'), 'utf-8');
 
 export const posPage = new Elysia()
   .get('/pos', async ({ cookie, headers }) => {
@@ -154,7 +158,7 @@ export const posPage = new Elysia()
                 </div>
                 <div class="pos-payment-row"><span>Bayar</span><span id="paid-amount">0</span></div>
                 <div class="pos-payment-row"><span>Kembali</span><span id="paid-change" class="pos-payment-change">0</span></div>
-                <button class="pos-btn pos-btn-success" style="width:100%;margin-top:8px;" onclick="processPayment()">BAYAR</button>
+                <button class="pos-btn pos-btn-success" style="width:100%;margin-top:8px;" onclick="showPaymentConfirmation()">BAYAR</button>
               </div>
               <div class="pos-cart-actions">
                 <button class="pos-btn" onclick="holdOrder()">Hold</button>
@@ -182,6 +186,44 @@ export const posPage = new Elysia()
             <div class="pos-modal-body">
               <p style="margin-bottom:12px;font-size:12px;color:var(--color-text-secondary)">Dari Meja <strong id="transfer-from"></strong> ke:</p>
               <div id="transfer-targets" style="display:grid;grid-template-columns:repeat(4,1fr);gap:6px;"></div>
+            </div>
+          </div>
+        </div>
+        
+        <div class="pos-modal" id="payment-confirm-modal">
+          <div class="pos-modal-backdrop" onclick="closePaymentConfirm()"></div>
+          <div class="pos-modal-content" style="max-width:360px;">
+            <div class="pos-modal-header"><h3>Konfirmasi Pembayaran</h3><button class="pos-modal-close" onclick="closePaymentConfirm()">&times;</button></div>
+            <div class="pos-modal-body">
+              <div style="background:var(--color-bg-secondary);padding:16px;border-radius:8px;margin-bottom:16px;">
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                  <span style="color:var(--color-text-secondary);font-size:12px;">Jenis Pesanan</span>
+                  <span style="font-weight:600;" id="confirm-order-type">-</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-bottom:8px;">
+                  <span style="color:var(--color-text-secondary);font-size:12px;">Meja</span>
+                  <span style="font-weight:600;" id="confirm-table-info">-</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;padding-top:8px;border-top:1px dashed var(--color-border);">
+                  <span style="font-weight:600;">Total Bayar</span>
+                  <span style="font-weight:600;font-size:18px;color:var(--color-success);" id="confirm-total">0</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;margin-top:8px;">
+                  <span style="color:var(--color-text-secondary);font-size:12px;">Uang Diterima</span>
+                  <span style="font-weight:600;" id="confirm-paid">0</span>
+                </div>
+                <div style="display:flex;justify-content:space-between;">
+                  <span style="color:var(--color-text-secondary);font-size:12px;">Kembali</span>
+                  <span style="font-weight:600;color:var(--color-primary);" id="confirm-change">0</span>
+                </div>
+              </div>
+              <p style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:16px;">
+                ⚠️ Pembayaran tidak dapat dibatalkan setelah konfirmasi!
+              </p>
+              <div style="display:flex;gap:8px;">
+                <button class="pos-btn" style="flex:1;" onclick="closePaymentConfirm()">Batal</button>
+                <button class="pos-btn pos-btn-success" style="flex:1;" onclick="confirmPayment()">Konfirmasi Bayar</button>
+              </div>
             </div>
           </div>
         </div>
