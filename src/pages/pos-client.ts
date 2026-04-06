@@ -421,9 +421,11 @@ function renderMultipleOrdersCart(orders) {
 }
 
 async function addMoreOrder() {
+  console.log('addMoreOrder called, selectedTableId:', state.selectedTableId, 'currentUserId:', state.currentUserId);
   const orders = window._currentOrders || [];
   const existingEmpty = orders.find(o => o.status === 'active' && (!o.items || o.items.length === 0));
   if (existingEmpty) {
+    console.log('Reusing empty order:', existingEmpty.id);
     state.currentOrderId = existingEmpty.id;
     state.isServerOrder = true;
     state.isNewOrderOnOccupiedTable = true;
@@ -433,12 +435,17 @@ async function addMoreOrder() {
     return;
   }
 
+  if (!state.selectedTableId) { toast('Pilih meja dulu', 'warning'); return; }
+  if (!state.currentUserId) { toast('User tidak ditemukan', 'warning'); return; }
+
+  console.log('Creating new order for table:', state.selectedTableId);
   const res = await fetch('/api/orders/table/' + state.selectedTableId + '/new', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ userId: state.currentUserId })
   });
   const data = await res.json();
+  console.log('New order response:', data);
   if (data.error) { toast(data.error, 'error'); return; }
   if (data.order) {
     state.currentOrderId = data.order.id;
