@@ -368,9 +368,13 @@ function renderMultipleOrdersCart(orders) {
   orders.forEach((order, idx) => {
     const items = order.items || [];
     const isActive = order.status === 'active';
-    if (isActive) {
+    if (isActive && items.length > 0) {
       hasActiveOrder = true;
       activeOrder = order;
+      state.currentOrderId = order.id;
+      state.isServerOrder = true;
+    }
+    if (isActive && !state.currentOrderId) {
       state.currentOrderId = order.id;
       state.isServerOrder = true;
     }
@@ -415,6 +419,15 @@ function renderMultipleOrdersCart(orders) {
 }
 
 async function addMoreOrder() {
+  const existingEmpty = orders.find(o => o.status === 'active' && (!o.items || o.items.length === 0));
+  if (existingEmpty) {
+    state.currentOrderId = existingEmpty.id;
+    state.isServerOrder = true;
+    toast('Menambah ke pesanan yang ada...');
+    renderServerCart(existingEmpty, []);
+    return;
+  }
+
   const res = await fetch('/api/orders/table/' + state.selectedTableId + '/new', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
