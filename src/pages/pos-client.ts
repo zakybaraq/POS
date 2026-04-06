@@ -420,6 +420,12 @@ function renderMultipleOrdersCart(orders) {
   document.getElementById('cart-items').innerHTML = html;
 }
 
+window.addMoreOrder = addMoreOrder;
+window.kosongkanMeja = kosongkanMeja;
+window.showKosongkanMejaModal = showKosongkanMejaModal;
+window.closeKosongkanModal = closeKosongkanModal;
+window.confirmKosongkanMeja = confirmKosongkanMeja;
+
 async function addMoreOrder() {
   console.log('addMoreOrder called, selectedTableId:', state.selectedTableId, 'currentUserId:', state.currentUserId);
   const orders = window._currentOrders || [];
