@@ -98,7 +98,9 @@ function loadCart() { try { return JSON.parse(localStorage.getItem('pos-cart'));
 function clearCart() { localStorage.removeItem('pos-cart'); }
 function getCart() {
   const c = loadCart();
-  return c && c.tableId === state.selectedTableId ? c : null;
+  if (!c) return null;
+  if (state.orderType === 'takeaway') return c;
+  return c.tableId === state.selectedTableId ? c : null;
 }
 
 function addToCartLocal(id, name, price, event) {
@@ -684,8 +686,12 @@ function printReceipt() {
 }
 
 function holdOrder() {
-  const cart = getCart();
-  if (!cart || cart.items.length === 0) { toast('Cart kosong!', 'warning'); return; }
+  if (state.isServerOrder && state.currentOrderId) {
+    toast('Hold untuk pesanan server belum didukung', 'warning');
+    return;
+  }
+  const cart = loadCart();
+  if (!cart || !cart.items || cart.items.length === 0) { toast('Cart kosong!', 'warning'); return; }
   const held = JSON.parse(localStorage.getItem('pos-held') || '[]');
   held.push({ ...cart, heldAt: new Date().toISOString() });
   localStorage.setItem('pos-held', JSON.stringify(held));
