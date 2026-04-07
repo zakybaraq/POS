@@ -425,17 +425,10 @@ function renderMultipleOrdersCart(orders) {
     html += '</div>';
 
     items.forEach(item => {
-      if (isActive) {
-        html += '<div class="pos-cart-item">' +
-          '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
-          '<div class="pos-cart-item-qty"><button onclick="updateServerQty(' + item.id + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="updateServerQty(' + item.id + ',1)">+</button></div></div>' +
-          '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
-      } else {
-        html += '<div class="pos-cart-item" style="opacity:0.6;">' +
-          '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
-          '<span class="pos-cart-item-qty-readonly">x' + item.quantity + '</span></div>' +
-          '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
-      }
+      html += '<div class="pos-cart-item" style="opacity:0.7;background:var(--color-bg-secondary);">' +
+        '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
+        '<span class="pos-cart-item-qty-readonly">x' + item.quantity + '</span></div>' +
+        '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
     });
 
     html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;">';
