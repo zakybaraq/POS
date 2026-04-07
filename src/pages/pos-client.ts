@@ -415,9 +415,7 @@ function renderMultipleOrdersCart(orders) {
     html += '</div>';
   });
 
-  if (!hasActiveOrder) {
-    html += '<button class="pos-btn pos-btn-add" style="width:100%;margin-top:8px;" onclick="addMoreOrder()">+ Tambah Pesanan Baru</button>';
-  }
+  html += '<button class="pos-btn pos-btn-add" style="width:100%;margin-top:8px;" onclick="addMoreOrder()">+ Tambah Pesanan Baru</button>';
 
   document.getElementById('cart-items').innerHTML = html;
 }
