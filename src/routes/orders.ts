@@ -89,7 +89,7 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       return { error: 'Table not found' };
     }
     const order = await orderRepo.createOrder(Number(tableId), userId);
-    return order;
+    return { order };
   })
   .post('/with-items', async ({ cookie, headers, body }) => {
     const user = getUserFromRequest(cookie, headers);
