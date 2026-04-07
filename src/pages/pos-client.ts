@@ -259,8 +259,10 @@ async function selectTable(id, num, status) {
     document.getElementById('btn-kosongkan').style.display = 'inline';
     document.getElementById('btn-transfer').style.display = 'none';
     
-    if (data.orders && data.orders.length > 0) {
-      renderMultipleOrdersCart(data.orders);
+    const validOrders = (data.orders || []).filter(o => o.status === 'active' && o.subtotal > 0);
+    
+    if (validOrders.length > 0) {
+      renderMultipleOrdersCart(validOrders);
     } else {
       document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
       document.getElementById('cart-meta').style.display = 'none';

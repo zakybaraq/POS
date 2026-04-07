@@ -51,7 +51,7 @@ export async function getOrdersByTableId(tableId: number) {
 
 export async function getTodayOrdersByTableId(tableId: number) {
   return db.select().from(orders)
-    .where(and(eq(orders.tableId, tableId), sql`${orders.subtotal} > 0`))
+    .where(and(eq(orders.tableId, tableId), sql`${orders.subtotal} > 0`, sql`${orders.status} = 'active'`))
     .orderBy(desc(orders.createdAt));
 }
 
