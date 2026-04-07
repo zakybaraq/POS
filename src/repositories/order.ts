@@ -142,7 +142,7 @@ export async function getTopMenus(limit: number = 5) {
   .from(orderItems)
   .leftJoin(menus, eq(orderItems.menuId, menus.id))
   .leftJoin(orders, eq(orderItems.orderId, orders.id))
-  .where(gte(orders.createdAt, todayStart()))
+  .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')))
   .groupBy(menus.name)
   .orderBy(desc(sum(orderItems.quantity)))
   .limit(limit);
