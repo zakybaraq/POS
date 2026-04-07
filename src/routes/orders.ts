@@ -36,9 +36,9 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     if (!table) {
       return { error: 'Table not found' };
     }
-    const allOrders = await orderRepo.getOrdersByTableId(Number(tableId));
+    const todayOrders = await orderRepo.getTodayOrdersByTableId(Number(tableId));
     const ordersWithItems = await Promise.all(
-      allOrders.map(async (order) => {
+      todayOrders.map(async (order) => {
         const items = await orderItemRepo.getItemsWithMenuByOrderId(order.id);
         return { ...order, items };
       })
@@ -89,7 +89,7 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       return { error: 'Table not found' };
     }
     const order = await orderRepo.createOrder(Number(tableId), userId);
-    return order;
+    return { order };
   })
   .post('/with-items', async ({ cookie, headers, body }) => {
     const user = getUserFromRequest(cookie, headers);
@@ -290,4 +290,18 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     await orderRepo.updateOrder(Number(id), { tableId: newTableId });
     const updatedOrder = await orderRepo.getOrderById(Number(id));
     return { success: true, order: updatedOrder };
+  })
+  .delete('/:id', async ({ cookie, headers, params: { id } }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran'].includes(user.role)) {
+      return { error: 'Akses ditolak' };
+    }
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    await orderItemRepo.deleteItemsByOrderId(Number(id));
+    await orderRepo.deleteOrder(Number(id));
+    return { success: true };
   });

@@ -249,6 +249,8 @@ async function selectTable(id, num, status) {
     const res = await fetch('/api/orders/table/' + id + '/all');
     const data = await res.json();
     
+    window._currentOrders = data.orders || [];
+    
     const activeOrder = data.orders ? data.orders.find(o => o.status === 'active') : null;
     state.currentOrderId = activeOrder ? activeOrder.id : null;
     state.isServerOrder = !!activeOrder;
@@ -257,10 +259,13 @@ async function selectTable(id, num, status) {
     document.getElementById('btn-kosongkan').style.display = 'inline';
     document.getElementById('btn-transfer').style.display = 'none';
     
-    if (data.orders && data.orders.length > 0) {
-      renderMultipleOrdersCart(data.orders);
+    const validOrders = (data.orders || []).filter(o => o.status === 'active' && o.subtotal > 0);
+    
+    if (validOrders.length > 0) {
+      renderMultipleOrdersCart(validOrders);
     } else {
-      document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
+      document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>' +
+        '<button class="pos-btn" style="width:100%;margin-top:8px;background:var(--color-warning);color:white;" onclick="showKosongkanMejaModal()">Kosongkan Meja</button>';
       document.getElementById('cart-meta').style.display = 'none';
       document.getElementById('cart-footer').style.display = 'block';
     }
@@ -328,7 +333,34 @@ async function confirmKosongkanMeja() {
 }
 
 async function kosongkanMeja() {
-  showKosongkanMejaModal();
+  const tableId = state.selectedTableId;
+  if (!tableId) {
+    toast('Pilih meja dulu', 'warning');
+    return;
+  }
+
+  if (state.currentOrderId) {
+    const res = await fetch('/api/orders/' + state.currentOrderId + '/finish', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.error) {
+      toast(data.error, 'error');
+      return;
+    }
+    toast('Pesanan diselesaikan');
+  }
+
+  await fetch('/api/tables/' + tableId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'available' })
+  });
+
+  toast('Meja dikosongkan');
+  state.selectedTableId = null;
+  state.currentOrderId = null;
+  location.reload();
 }
 
 function renderServerCart(order, items, readOnly = false) {
@@ -394,18 +426,10 @@ function renderMultipleOrdersCart(orders) {
     html += '</div>';
 
     items.forEach(item => {
-      if (isActive) {
-        html += '<div class="pos-cart-item">' +
-          '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
-          '<div class="pos-cart-item-qty"><button onclick="updateServerQty(' + item.id + ',-1)">-</button><span>x' + item.quantity + '</span><button onclick="updateServerQty(' + item.id + ',1)">+</button></div></div>' +
-          '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div>' +
-          '<button class="pos-cart-item-remove" onclick="removeServerItem(' + item.id + ')">&times;</button></div>';
-      } else {
-        html += '<div class="pos-cart-item" style="opacity:0.6;">' +
-          '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
-          '<span class="pos-cart-item-qty-readonly">x' + item.quantity + '</span></div>' +
-          '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
-      }
+      html += '<div class="pos-cart-item" style="opacity:0.7;background:var(--color-bg-secondary);">' +
+        '<div class="pos-cart-item-info"><div class="pos-cart-item-name">' + (item.menuName || 'Item') + '</div>' +
+        '<span class="pos-cart-item-qty-readonly">x' + item.quantity + '</span></div>' +
+        '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
     });
 
     html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;">';
@@ -416,6 +440,7 @@ function renderMultipleOrdersCart(orders) {
   });
 
   html += '<button class="pos-btn pos-btn-add" style="width:100%;margin-top:8px;" onclick="addMoreOrder()">+ Tambah Pesanan Baru</button>';
+  html += '<button class="pos-btn" style="width:100%;margin-top:8px;background:var(--color-warning);color:white;" onclick="showKosongkanMejaModal()">Kosongkan Meja</button>';
 
   document.getElementById('cart-items').innerHTML = html;
 }

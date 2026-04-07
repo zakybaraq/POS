@@ -1,4 +1,4 @@
-import { eq, and, gte, desc, sql, sum } from 'drizzle-orm';
+import { eq, and, gte, gt, desc, sql, sum } from 'drizzle-orm';
 import { db } from '../db/index';
 import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
@@ -49,6 +49,12 @@ export async function getOrdersByTableId(tableId: number) {
     .orderBy(desc(orders.createdAt));
 }
 
+export async function getTodayOrdersByTableId(tableId: number) {
+  return db.select().from(orders)
+    .where(and(eq(orders.tableId, tableId), eq(orders.status, 'active'), gt(orders.subtotal, 0)))
+    .orderBy(desc(orders.createdAt));
+}
+
 export async function getOrdersToday() {
   return db.select().from(orders)
     .where(gte(orders.createdAt, todayStart()))
@@ -76,6 +82,10 @@ export async function updateOrder(id: number, data: Partial<{ tableId: number }>
   return getOrderById(id);
 }
 
+export async function deleteOrder(id: number) {
+  await db.delete(orders).where(eq(orders.id, id));
+}
+
 export async function updateOrderTotals(id: number, subtotal: number, tax: number, total: number) {
   await db.update(orders).set({ subtotal, tax, total }).where(eq(orders.id, id));
   return getOrderById(id);
@@ -86,7 +96,6 @@ export async function completeOrder(id: number, amountPaid: number) {
   if (!order) return null;
   const changeDue = amountPaid - order.total;
   await db.update(orders).set({
-    status: 'completed',
     amountPaid,
     changeDue,
     completedAt: new Date(),
