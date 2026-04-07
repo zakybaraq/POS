@@ -1,235 +1,151 @@
-# Issue: Fitur Kosongkan Meja dan Histori Pesanan per-Sesi
+# Issue: Perbaikan UI/UX dan Perhitungan di Modul POS
 
-## Ringkasan Masalah
+## Latar Belakang
 
-Pada halaman POS (`http://localhost:3000/pos`), terdapat dua masalah:
+Terdapat dua masalah yang perlu diperbaiki pada modul POS:
 
-1. **Tidak ada fitur "Kosongkan Meja"** - Ketika customer sudah pulang, meja yang berstatus `occupied` tidak bisa dikosongkan sehingga meja tidak bisa digunakan oleh customer lain.
+1. **Masalah Perhitungan di History**: Pada history meja occupied, total pesanan ditampilkan dengan pajak (10%), tetapi tidak ada rincian pajak yang ditampilkan. User tidak bisa melihat berapa subtotal sebelum pajak dan berapa jumlah pajaknya.
 
-2. **Histori pesanan terlalu banyak** - Ketika klik meja yang `occupied`, cart menampilkan SEMUA pesanan yang pernah ada di meja tersebut dari semua sesi/customer, bukan hanya pesanan customer yang sedang duduk di meja saat ini.
-
----
-
-## File yang Terlibat
-
-| File | Peran |
-|------|-------|
-| `src/repositories/table.ts` | Management status meja (updateTableStatus) |
-| `src/repositories/order.ts` | Fetch pesanan berdasarkan tableId |
-| `src/routes/tables.ts` | API endpoint untuk update status meja |
-| `src/routes/orders.ts` | API endpoint untuk order lifecycle |
-| `src/pages/pos-client.ts` | Client-side logic: selectTable(), renderMultipleOrdersCart(), kosongkanMeja() |
-| `src/pages/pos.ts` | HTML modal "Kosongkan Meja" |
+2. **Kurangnya Label pada Input**: Di bagian `pos-cart-meta` terdapat input untuk:
+   - Tipe pesanan (dine-in / take-away)
+   - Jumlah customer
+   
+   Tidak ada label/keterangan yang jelas bahwa input tersebut untuk apa, sehingga user bisa kebingungan.
 
 ---
 
-## Langkah Implementasi
+## Tahapan Implementasi
 
-### Masalah 1: Fitur Kosongkan Meja
+### Tahap 1: Tambahkan Rincian Pajak di History Meja Occupied
 
-**Kondisi Saat Ini:**
-- Ketika klik meja `occupied`, tombol "Kosongkan" muncul (baris 257 di pos-client.ts)
-- Tapi ketika diklik, fungsi `kosongkanMeja()` hanya memanggil modal saja (baris 330-332)
-- Modal "Kosongkan Meja" sudah ada di pos.ts (baris 231-248)
+**File yang perlu diubah:** `src/pages/pos-client.ts`
 
-**Yang Perlu Diperbaiki:**
-1. Fungsi `kosongkanMeja()` di `src/pages/pos-client.ts` harus benar-benar mengosongkan meja
+**Langkah-langkah:**
 
-**Langkah Implementasi:**
+1. Cari fungsi `renderMultipleOrdersCart(orders)` di dalam file `pos-client.ts`
+2. Di dalam fungsi tersebut, cari bagian yang menampilkan total pesanan (biasanya di baris yang menampilkan `order.total`)
+3. Tambahkan perhitungan pajak dan subtotal:
+   - Total yang ditampilkan sudah includes pajak (10%)
+   - Untuk mendapatkan subtotal: `subtotal = total / 1.1`
+   - Untuk mendapatkan pajak: `tax = total - subtotal`
+4. Tampilkan informasi ini dengan format yang jelas:
+   ```
+   Subtotal: Rp XXX.XXX
+   Pajak (10%): Rp XX.XXX
+   Total: Rp XXX.XXX
+   ```
 
-#### Langkah 1: Update fungsi kosongkanMeja() di pos-client.ts
+**Contoh kode yang perlu ditambahkan:**
 
-**Lokasi:** `src/pages/pos-client.ts`, baris ~330
+```javascript
+// Di dalam loop yang menampilkan pesanan, tambahkan:
+const subtotal = Math.round(order.total / 1.1);
+const tax = order.total - subtotal;
 
-**Kode saat ini (hanya menampilkan modal):**
-```typescript
-async function kosongkanMeja() {
-  showKosongkanMejaModal();
-}
+html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;">';
+html += '<span style="color:var(--color-text-secondary);">Subtotal</span>';
+html += '<span style="font-weight:700;">' + subtotal.toLocaleString('id-ID') + '</span>';
+html += '</div>';
+
+html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">';
+html += '<span style="color:var(--color-text-secondary);">Pajak (10%)</span>';
+html += '<span style="font-weight:700;">' + tax.toLocaleString('id-ID') + '</span>';
+html += '</div>';
+
+html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-top:1px dashed var(--color-border);margin-top:4px;">';
+html += '<span style="color:var(--color-text-secondary);font-weight:600;">Total</span>';
+html += '<span style="font-weight:700;font-size:13px;">' + (order.total || 0).toLocaleString('id-ID') + '</span>';
+html += '</div>';
 ```
 
-**Kode yang benar:**
-```typescript
-async function kosongkanMeja() {
-  const tableId = state.selectedTableId;
-  if (!tableId) {
-    toast('Pilih meja dulu', 'warning');
-    return;
-  }
-
-  // Jika ada pesanan aktif, selesaikan pesanan dulu (bukan cancel)
-  if (state.currentOrderId) {
-    const res = await fetch('/api/orders/' + state.currentOrderId + '/finish', {
-      method: 'POST'
-    });
-    const data = await res.json();
-    if (data.error) {
-      toast(data.error, 'error');
-      return;
-    }
-    toast('Pesanan diselesaikan');
-  }
-
-  // Update status meja menjadi available
-  await fetch('/api/tables/' + tableId, {
-    method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ status: 'available' })
-  });
-
-  toast('Meja dikosongkan');
-  // Reset state dan reload
-  state.selectedTableId = null;
-  state.currentOrderId = null;
-  location.reload();
-}
-```
-
-#### Langkah 2: Pastikan endpoint /finish ada
-
-**Lokasi:** `src/routes/orders.ts`
-
-**Jika belum ada, tambahkan endpoint ini:**
-```typescript
-// POST /api/orders/:id/finish - Selesai makan, meja dikosongkan
-.post('/:id/finish', async ({ cookie, headers, params: { id }, body }) => {
-  const user = getUserFromRequest(cookie, headers);
-  if (!user) return { error: 'Unauthorized' };
-  
-  const order = await orderRepo.getOrderById(Number(id));
-  if (!order) {
-    return { error: 'Order not found' };
-  }
-  
-  // Update status pesanan menjadi 'completed'
-  await orderRepo.updateOrderStatus(Number(id), 'completed');
-  
-  return { success: true, order };
-})
-```
+**Catatan:**
+- Jangan ubah logika perhitungan yang sudah ada di backend
+- Display saja di frontend untuk memberikan informasi ke user
+- Gunakan styling yang konsisten dengan elemen lain di history
 
 ---
 
-### Masalah 2: Histori Pesanan Terlalu Banyak
+### Tahap 2: Tambahkan Label pada Input Form di POS
 
-**Kondisi Saat Ini:**
-- Ketika klik meja `occupied`, kode memanggil `/api/orders/table/{id}/all` (baris 249 di pos-client.ts)
-- Ini mengambil SEMUA pesanan di meja tersebut, dari semua sesi/customer
-- Semua pesanan ditampilkan di cart pakai `renderMultipleOrdersCart()`
+**File yang perlu diubah:** `src/pages/pos.ts` dan/atau `src/pages/pos-client.ts`
 
-**Yang Perlu Diperbaiki:**
-- Hanya tampilkan pesanan yang sedang aktif (status `active`) di meja tersebut
-- Jika ada pesanan lama yang `completed`, jangan tampilkan di cart utama
+**Langkah-langkah:**
 
-**Langkah Implementasi:**
+1. Cari elemen `pos-cart-meta` di file HTML atau fungsi yang merender cart
+2. Tambahkan label untuk input yang sudah ada:
+   - Untuk selector tipe pesanan: tambahkan label "Tipe Pesanan"
+   - Untuk input jumlah customer: tambahkan label "Jumlah Tamu"
 
-#### Langkah 1: Ubah logika selectTable() di pos-client.ts
+**Jika menggunakan HTML (pos.ts):**
 
-**Lokasi:** `src/pages/pos-client.ts`, baris ~248-267
-
-**Kode saat ini:**
-```typescript
-if (status === 'occupied') {
-  const res = await fetch('/api/orders/table/' + id + '/all');
-  const data = await res.json();
-  
-  const activeOrder = data.orders ? data.orders.find(o => o.status === 'active') : null;
-  state.currentOrderId = activeOrder ? activeOrder.id : null;
-  state.isServerOrder = !!activeOrder;
-  document.getElementById('cart-title').textContent = 'Meja ' + num;
-  
-  document.getElementById('btn-kosongkan').style.display = 'inline';
-  document.getElementById('btn-transfer').style.display = 'none';
-  
-  if (data.orders && data.orders.length > 0) {
-    renderMultipleOrdersCart(data.orders);  // <-- Menampilkan SEMUA pesanan
-  } else {
-    document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
-    document.getElementById('cart-meta').style.display = 'none';
-    document.getElementById('cart-footer').style.display = 'block';
-  }
-  return;
-}
+Cari bagian yang like ini:
+```html
+<div id="cart-meta" style="display:none;">
+  <!-- Tambahkan label di sini -->
+  <select id="order-type">...</select>
+  <input type="number" id="guest-count">...</input>
+</div>
 ```
 
-**Kode yang benar:**
-```typescript
-if (status === 'occupied') {
-  const res = await fetch('/api/orders/table/' + id + '/all');
-  const data = await res.json();
-  
-  // Hanya ambil pesanan yang sedang aktif (status = 'active')
-  // Jangan tampilkan pesanan lama (completed/cancelled)
-  const activeOrder = data.orders ? data.orders.find(o => o.status === 'active') : null;
-  state.currentOrderId = activeOrder ? activeOrder.id : null;
-  state.isServerOrder = !!activeOrder;
-  document.getElementById('cart-title').textContent = 'Meja ' + num;
-  
-  document.getElementById('btn-kosongkan').style.display = 'inline';
-  document.getElementById('btn-transfer').style.display = 'none';
-  
-  // Jika ada pesanan aktif, tampilkan di cart
-  if (activeOrder) {
-    // Fetch items untuk pesanan aktif saja
-    const itemsRes = await fetch('/api/orders/' + activeOrder.id + '/items');
-    const itemsData = await itemsRes.json();
-    renderServerCart(activeOrder, itemsData.items || [], false);
-  } else {
-    // Tidak ada pesanan aktif - meja masih occupied tapi tidak ada pesanan
-    // Ini bisa terjadi jika pesanan sebelumnya sudah selesai tapi status meja belum diupdate
-    document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
-    document.getElementById('cart-meta').style.display = 'none';
-    document.getElementById('cart-footer').style.display = 'block';
-  }
-  return;
-}
+Menjadi:
+```html
+<div id="cart-meta" style="display:none;">
+  <div class="pos-form-group">
+    <label style="font-size:11px;color:var(--color-text-secondary);">Tipe Pesanan</label>
+    <select id="order-type">...</select>
+  </div>
+  <div class="pos-form-group">
+    <label style="font-size:11px;color:var(--color-text-secondary);">Jumlah Tamu</label>
+    <input type="number" id="guest-count">...</input>
+  </div>
+</div>
 ```
 
-#### Langkah 2: Hapus atau update fungsi renderMultipleOrdersCart()
+**Jika menggunakan JavaScript (pos-client.ts):**
 
-Karena sekarang tidak perlu menampilkan banyak pesanan, fungsi `renderMultipleOrdersCart()` mungkin tidak diperlukan lagi. Namun, bisa juga dipertahankan untuk fiturOpsional: lihat histori pesanan lama di meja.
+Cari fungsi yang merender cart-meta dan tambahkan label di sana.
 
-Jika ingin menghapus:
-```typescript
-// Comment out atau hapus fungsi ini
-// function renderMultipleOrdersCart(orders) { ... }
-```
-
----
-
-## Urutan Implementasi (Disarankan)
-
-1. **Mulai dari Masalah 2** (Histori pesanan) - Paling sederhana, hanya ubah logika display
-2. **Lanjut ke Masalah 1** (Kosongkan Meja) - Butuh API endpoint baru + update fungsi client
+**Styling yang disarankan:**
+- Label menggunakan font size kecil (11px)
+- Warna text menggunakan `var(--color-text-secondary)` atau warna abu-abu
+- Letakkan di atas input masing-masing
 
 ---
 
-## Ringkasan Perubahan
+## Verifikasi
 
-| File | Masalah | Perubahan |
-|------|---------|-----------|
-| `src/pages/pos-client.ts` | Kosongkan Meja | Update fungsi `kosongkanMeja()` agar benar-benar mengosongkan meja |
-| `src/pages/pos-client.ts` | Histori Pesanan | Ubah `selectTable()` untuk hanya tampilkan pesanan aktif |
-| `src/routes/orders.ts` | Kosongkan Meja | Tambah endpoint `/:id/finish` jika belum ada |
+Setelah implementasi, lakukan verifikasi:
 
----
+1. **Verifikasi Tahap 1:**
+   - Buka POS, pilih meja yang occupied
+   - Lihat history - seharusnya ada rincian: Subtotal, Pajak (10%), Total
+   - Total harus sesuai dengan yang di bayarkan (sudah including pajak)
 
-## Catatan untuk Junior Programmer
-
-1. **Status meja dan pesanan harus sinkron** - Ketika pesanan selesai (completed), meja harus jadi `available`. Ini sudah dilakukan oleh fungsi `kosongkanMeja()` yang diperbaiki.
-
-2. **Endpoint /finish** - endpoint ini berbeda dari /cancel. /finish menandakan pesanan selesai (customer sudah membayar dan pergi), sedangkan /cancel menandakan pesanan dibatalkan.
-
-3. **Histori pesanan lama** - Dengan perubahan ini, pesanan lama tidak akan muncul di cart. Tapi data pesanan lama tetap ada di database dan bisa diakses melalui halaman "Pesanan" (/orders) jika perlu dilihat kembali.
-
-4. **Testing** - Setelah mengimplementasikan, test:
-   - Pilih meja occupied → klik "Kosongkan" → meja harus menjadi available
-   - Pilih meja occupied dengan pesanan → cart hanya menampilkan pesanan saat ini (bukan histori semua pesanan)
+2. **Verifikasi Tahap 2:**
+   - Buka POS, mulai pesanan baru (dine-in atau take-away)
+   - Pastikan ada label yang jelas di atas input tipe pesanan dan jumlah customer
+   - User harus bisa memahami tanpa perlu bertanya
 
 ---
 
-## Referensi
+## Catatan Penting
 
-- File similar: `src/routes/orders.ts` - Cara membuat endpoint baru
-- File similar: `src/pages/pos-client.ts` - Cara membuat fungsi cart
-- Testing: `http://localhost:3000/pos` - Untuk test manual
+- Perubahan ini hanya untuk perbaikan UI/frontend, tidak mengubah data atau logika backend
+- Pastikan styling tetap konsisten dengan desain yang sudah ada
+- Jangan hapus fungsionalitas yang sudah ada
+- Jangan tambahkan fitur baru selain yang diminta
+
+---
+
+## Estimasi Waktu
+
+- Tahap 1: 15-30 menit
+- Tahap 2: 15-30 menit
+- Total: 30-60 menit
+
+---
+
+## Referensi File
+
+- `src/pages/pos-client.ts` - berisi fungsi `renderMultipleOrdersCart()`
+- `src/pages/pos.ts` - berisi HTML untuk cart dan form inputs
