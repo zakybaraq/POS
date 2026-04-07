@@ -36,9 +36,9 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     if (!table) {
       return { error: 'Table not found' };
     }
-    const allOrders = await orderRepo.getOrdersByTableId(Number(tableId));
+    const todayOrders = await orderRepo.getTodayOrdersByTableId(Number(tableId));
     const ordersWithItems = await Promise.all(
-      allOrders.map(async (order) => {
+      todayOrders.map(async (order) => {
         const items = await orderItemRepo.getItemsWithMenuByOrderId(order.id);
         return { ...order, items };
       })
