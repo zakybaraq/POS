@@ -3,9 +3,16 @@ import { db } from '../db/index';
 import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
 
-function todayStart() {
+function todayStart(): Date {
   const now = new Date();
-  return new Date(now.getTime() + (7 * 60 * 60 * 1000) - (now.getTimezoneOffset() * 60 * 1000));
+  const wibString = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
+  const wibDate = new Date(wibString);
+  return new Date(Date.UTC(
+    wibDate.getUTCFullYear(),
+    wibDate.getUTCMonth(),
+    wibDate.getUTCDate(),
+    0, 0, 0, 0
+  ));
 }
 
 export async function createOrder(tableId: number | null, userId: number) {
@@ -135,7 +142,7 @@ export async function getTopMenus(limit: number = 5) {
   .from(orderItems)
   .leftJoin(menus, eq(orderItems.menuId, menus.id))
   .leftJoin(orders, eq(orderItems.orderId, orders.id))
-  .where(gte(orders.createdAt, todayStart()))
+  .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')))
   .groupBy(menus.name)
   .orderBy(desc(sum(orderItems.quantity)))
   .limit(limit);
