@@ -51,7 +51,7 @@ export async function getOrdersByTableId(tableId: number) {
 
 export async function getTodayOrdersByTableId(tableId: number) {
   return db.select().from(orders)
-    .where(and(eq(orders.tableId, tableId), gte(orders.createdAt, todayStart())))
+    .where(and(eq(orders.tableId, tableId), eq(orders.status, 'active')))
     .orderBy(desc(orders.createdAt));
 }
 
