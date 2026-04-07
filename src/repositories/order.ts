@@ -1,4 +1,4 @@
-import { eq, and, gte, desc, sql, sum } from 'drizzle-orm';
+import { eq, and, gte, gt, desc, sql, sum } from 'drizzle-orm';
 import { db } from '../db/index';
 import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
@@ -51,7 +51,7 @@ export async function getOrdersByTableId(tableId: number) {
 
 export async function getTodayOrdersByTableId(tableId: number) {
   return db.select().from(orders)
-    .where(and(eq(orders.tableId, tableId), sql`${orders.subtotal} > 0`, sql`${orders.status} = 'active'`))
+    .where(and(eq(orders.tableId, tableId), eq(orders.status, 'active'), gt(orders.subtotal, 0)))
     .orderBy(desc(orders.createdAt));
 }
 
