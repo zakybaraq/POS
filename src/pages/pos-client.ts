@@ -432,9 +432,19 @@ function renderMultipleOrdersCart(orders) {
         '<div class="pos-cart-item-price">' + (item.priceAtOrder * item.quantity).toLocaleString('id-ID') + '</div></div>';
     });
 
+    const subtotal = Math.round((order.total || 0) / 1.1);
+    const tax = (order.total || 0) - subtotal;
     html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;">';
-    html += '<span style="color:var(--color-text-secondary);">Total</span>';
-    html += '<span style="font-weight:700;">' + (order.total || 0).toLocaleString('id-ID') + '</span>';
+    html += '<span style="color:var(--color-text-secondary);">Subtotal</span>';
+    html += '<span style="font-weight:700;">' + subtotal.toLocaleString('id-ID') + '</span>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:2px 0;">';
+    html += '<span style="color:var(--color-text-secondary);">Pajak (10%)</span>';
+    html += '<span style="font-weight:700;">' + tax.toLocaleString('id-ID') + '</span>';
+    html += '</div>';
+    html += '<div style="display:flex;justify-content:space-between;font-size:11px;padding:4px 0;border-top:1px dashed var(--color-border);margin-top:4px;">';
+    html += '<span style="color:var(--color-text-secondary);font-weight:600;">Total</span>';
+    html += '<span style="font-weight:700;font-size:13px;">' + (order.total || 0).toLocaleString('id-ID') + '</span>';
     html += '</div>';
     html += '</div>';
   });

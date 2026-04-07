@@ -125,11 +125,17 @@ export const posPage = new Elysia()
               <span class="pos-cart-title" id="cart-title">Pilih Jenis Pesanan</span>
             </div>
             <div class="pos-cart-meta" id="cart-meta" style="display:none;">
-              <input type="number" id="guest-count" value="1" min="1" max="20" onchange="state.guestCount = parseInt(this.value) || 1" placeholder="Tamu">
-              <select id="order-type" onchange="state.orderType = this.value">
-                <option value="dine-in">Dine-in</option>
-                <option value="takeaway">Takeaway</option>
-              </select>
+              <div class="pos-cart-meta-group">
+                <label style="font-size:10px;color:var(--color-text-secondary);">Jumlah Tamu</label>
+                <input type="number" id="guest-count" value="1" min="1" max="20" onchange="state.guestCount = parseInt(this.value) || 1" placeholder="Tamu">
+              </div>
+              <div class="pos-cart-meta-group">
+                <label style="font-size:10px;color:var(--color-text-secondary);">Tipe Pesanan</label>
+                <select id="order-type" onchange="state.orderType = this.value">
+                  <option value="dine-in">Dine-in</option>
+                  <option value="takeaway">Takeaway</option>
+                </select>
+              </div>
             </div>
             <div class="pos-cart-items" id="cart-items">
               <div class="pos-cart-empty">Pilih meja terlebih dahulu</div>
