@@ -264,7 +264,8 @@ async function selectTable(id, num, status) {
     if (validOrders.length > 0) {
       renderMultipleOrdersCart(validOrders);
     } else {
-      document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
+      document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>' +
+        '<button class="pos-btn" style="width:100%;margin-top:8px;background:var(--color-warning);color:white;" onclick="showKosongkanMejaModal()">Kosongkan Meja</button>';
       document.getElementById('cart-meta').style.display = 'none';
       document.getElementById('cart-footer').style.display = 'block';
     }
@@ -439,6 +440,7 @@ function renderMultipleOrdersCart(orders) {
   });
 
   html += '<button class="pos-btn pos-btn-add" style="width:100%;margin-top:8px;" onclick="addMoreOrder()">+ Tambah Pesanan Baru</button>';
+  html += '<button class="pos-btn" style="width:100%;margin-top:8px;background:var(--color-warning);color:white;" onclick="showKosongkanMejaModal()">Kosongkan Meja</button>';
 
   document.getElementById('cart-items').innerHTML = html;
 }
