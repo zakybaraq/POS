@@ -31,6 +31,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     return { table, order: null };
   })
+  .get('/table/:tableId/all', async ({ params: { tableId } }) => {
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    const allOrders = await orderRepo.getOrdersByTableId(Number(tableId));
+    const ordersWithItems = await Promise.all(
+      allOrders.map(async (order) => {
+        const items = await orderItemRepo.getItemsWithMenuByOrderId(order.id);
+        return { ...order, items };
+      })
+    );
+    return { table, orders: ordersWithItems };
+  })
   .get('/:id', async ({ params: { id } }) => {
     const order = await orderRepo.getOrderById(Number(id));
     if (!order) {
@@ -62,6 +76,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       tableId: t.Number(),
       userId: t.Number(),
     }),
+  })
+  .post('/table/:tableId/new', async ({ cookie, headers, params: { tableId }, body }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    const { userId } = body as any;
+    if (!userId) {
+      return { error: 'userId is required' };
+    }
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    const order = await orderRepo.createOrder(Number(tableId), userId);
+    return order;
   })
   .post('/with-items', async ({ cookie, headers, body }) => {
     const user = getUserFromRequest(cookie, headers);
@@ -217,7 +245,29 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     await orderItemRepo.deleteItemsByOrderId(Number(id));
     await orderRepo.updateOrderStatus(Number(id), 'cancelled');
-    // Only free table for dine-in orders (takeaway has null tableId)
+    // Only free table if no other active orders on this table
+    if (order.tableId) {
+      const otherActiveOrders = await orderRepo.getActiveOrderByTableId(order.tableId);
+      if (!otherActiveOrders || otherActiveOrders.id === Number(id)) {
+        await tableRepo.updateTableStatus(order.tableId, 'available');
+      }
+    }
+    return { success: true };
+  })
+  .post('/:id/finish', async ({ cookie, headers, params: { id } }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
+      return { error: 'Akses ditolak' };
+    }
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    if (order.status !== 'active') {
+      return { error: 'Order already completed or cancelled' };
+    }
+    await orderRepo.updateOrderStatus(Number(id), 'completed');
     if (order.tableId) {
       await tableRepo.updateTableStatus(order.tableId, 'available');
     }
