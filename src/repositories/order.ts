@@ -96,7 +96,6 @@ export async function completeOrder(id: number, amountPaid: number) {
   if (!order) return null;
   const changeDue = amountPaid - order.total;
   await db.update(orders).set({
-    status: 'completed',
     amountPaid,
     changeDue,
     completedAt: new Date(),
