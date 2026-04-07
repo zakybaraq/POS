@@ -249,6 +249,8 @@ async function selectTable(id, num, status) {
     const res = await fetch('/api/orders/table/' + id + '/all');
     const data = await res.json();
     
+    window._currentOrders = data.orders || [];
+    
     const activeOrder = data.orders ? data.orders.find(o => o.status === 'active') : null;
     state.currentOrderId = activeOrder ? activeOrder.id : null;
     state.isServerOrder = !!activeOrder;
@@ -257,10 +259,8 @@ async function selectTable(id, num, status) {
     document.getElementById('btn-kosongkan').style.display = 'inline';
     document.getElementById('btn-transfer').style.display = 'none';
     
-    if (activeOrder) {
-      const itemsRes = await fetch('/api/orders/' + activeOrder.id + '/items');
-      const itemsData = await itemsRes.json();
-      renderServerCart(activeOrder, itemsData.items || [], false);
+    if (data.orders && data.orders.length > 0) {
+      renderMultipleOrdersCart(data.orders);
     } else {
       document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
       document.getElementById('cart-meta').style.display = 'none';
