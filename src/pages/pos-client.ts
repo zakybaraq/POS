@@ -257,8 +257,10 @@ async function selectTable(id, num, status) {
     document.getElementById('btn-kosongkan').style.display = 'inline';
     document.getElementById('btn-transfer').style.display = 'none';
     
-    if (data.orders && data.orders.length > 0) {
-      renderMultipleOrdersCart(data.orders);
+    if (activeOrder) {
+      const itemsRes = await fetch('/api/orders/' + activeOrder.id + '/items');
+      const itemsData = await itemsRes.json();
+      renderServerCart(activeOrder, itemsData.items || [], false);
     } else {
       document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Meja ' + num + ' - Tambahkan menu</div>';
       document.getElementById('cart-meta').style.display = 'none';
@@ -328,7 +330,34 @@ async function confirmKosongkanMeja() {
 }
 
 async function kosongkanMeja() {
-  showKosongkanMejaModal();
+  const tableId = state.selectedTableId;
+  if (!tableId) {
+    toast('Pilih meja dulu', 'warning');
+    return;
+  }
+
+  if (state.currentOrderId) {
+    const res = await fetch('/api/orders/' + state.currentOrderId + '/finish', {
+      method: 'POST'
+    });
+    const data = await res.json();
+    if (data.error) {
+      toast(data.error, 'error');
+      return;
+    }
+    toast('Pesanan diselesaikan');
+  }
+
+  await fetch('/api/tables/' + tableId, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ status: 'available' })
+  });
+
+  toast('Meja dikosongkan');
+  state.selectedTableId = null;
+  state.currentOrderId = null;
+  location.reload();
 }
 
 function renderServerCart(order, items, readOnly = false) {
