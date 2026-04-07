@@ -290,4 +290,18 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     await orderRepo.updateOrder(Number(id), { tableId: newTableId });
     const updatedOrder = await orderRepo.getOrderById(Number(id));
     return { success: true, order: updatedOrder };
+  })
+  .delete('/:id', async ({ cookie, headers, params: { id } }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran'].includes(user.role)) {
+      return { error: 'Akses ditolak' };
+    }
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    await orderItemRepo.deleteItemsByOrderId(Number(id));
+    await orderRepo.deleteOrder(Number(id));
+    return { success: true };
   });

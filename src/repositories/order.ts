@@ -82,6 +82,10 @@ export async function updateOrder(id: number, data: Partial<{ tableId: number }>
   return getOrderById(id);
 }
 
+export async function deleteOrder(id: number) {
+  await db.delete(orders).where(eq(orders.id, id));
+}
+
 export async function updateOrderTotals(id: number, subtotal: number, tax: number, total: number) {
   await db.update(orders).set({ subtotal, tax, total }).where(eq(orders.id, id));
   return getOrderById(id);
