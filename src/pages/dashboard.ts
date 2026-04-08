@@ -168,12 +168,12 @@ export const dashboardPage = new Elysia()
                 <div class="table-container">
                   <table class="table">
                     <thead>
-                      <tr><th>Meja</th><th>Total</th><th>Status</th><th>Waktu</th></tr>
+                      <tr><th>Pesanan</th><th>Total</th><th>Status</th><th>Waktu</th></tr>
                     </thead>
                     <tbody>
                       ${recentOrders.map((o: any) => `
                         <tr>
-                          <td><strong>Meja ${o.tableNumber || '-'}</strong></td>
+                          <td><strong>#${o.id}</strong></td>
                           <td>Rp ${(o.total || 0).toLocaleString('id-ID')}</td>
                           <td><span class="badge ${statusBadge(o.status)}">${statusLabel(o.status)}</span></td>
                           <td>${new Date(o.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
