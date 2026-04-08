@@ -115,14 +115,14 @@ export async function calculateTotals(orderId: number) {
 export async function getTodaySales() {
   const result = await db.select({ total: sum(orders.total) })
     .from(orders)
-    .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')));
+    .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')));
   return Number(result[0]?.total || 0);
 }
 
 export async function getTodayOrders() {
   const result = await db.select({ count: sql<number>`count(*)` })
     .from(orders)
-    .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')));
+    .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')));
   return Number(result[0]?.count || 0);
 }
 
@@ -137,8 +137,8 @@ export async function getRecentOrders(limit: number = 5) {
   })
   .from(orders)
   .leftJoin(tables, eq(orders.tableId, tables.id))
-  .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')))
-  .orderBy(desc(orders.createdAt))
+  .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')))
+  .orderBy(desc(orders.completedAt))
   .limit(limit);
 }
 
@@ -151,7 +151,7 @@ export async function getTopMenus(limit: number = 5) {
   .from(orderItems)
   .leftJoin(menus, eq(orderItems.menuId, menus.id))
   .leftJoin(orders, eq(orderItems.orderId, orders.id))
-  .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')))
+  .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')))
   .groupBy(menus.name)
   .orderBy(desc(sum(orderItems.quantity)))
   .limit(limit);
