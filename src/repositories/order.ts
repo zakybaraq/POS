@@ -91,15 +91,19 @@ export async function updateOrderTotals(id: number, subtotal: number, tax: numbe
   return getOrderById(id);
 }
 
-export async function completeOrder(id: number, amountPaid: number) {
+export async function completeOrder(id: number, amountPaid: number, markCompleted: boolean = false) {
   const order = await getOrderById(id);
   if (!order) return null;
   const changeDue = amountPaid - order.total;
-  await db.update(orders).set({
+  const updateData: Record<string, unknown> = {
     amountPaid,
     changeDue,
     completedAt: new Date(),
-  }).where(eq(orders.id, id));
+  };
+  if (markCompleted) {
+    updateData.status = 'completed';
+  }
+  await db.update(orders).set(updateData).where(eq(orders.id, id));
   return getOrderById(id);
 }
 
