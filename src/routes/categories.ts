@@ -37,4 +37,11 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
   .delete('/:id', async ({ params: { id } }) => {
     await categoryRepo.deleteCategory(Number(id));
     return { success: true };
+  })
+  .patch('/:id/toggle', async ({ params: { id } }) => {
+    const category = await categoryRepo.getCategoryById(Number(id));
+    if (!category) return { error: 'Category not found' };
+    
+    await categoryRepo.updateCategory(Number(id), { isAvailable: !category.isAvailable });
+    return { success: true };
   });

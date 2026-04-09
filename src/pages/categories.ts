@@ -36,6 +36,11 @@ export const categoriesPage = new Elysia()
                 <div class="stats-change">Semua kategori</div>
               </div>
               <div class="stats-card">
+                <div class="stats-label">Total Menu</div>
+                <div class="stats-value" style="color: var(--color-info);" id="stat-menus">0</div>
+                <div class="stats-change">Menu tersedia</div>
+              </div>
+              <div class="stats-card">
                 <div class="stats-label">Aktif</div>
                 <div class="stats-value" style="color: var(--color-success);" id="stat-active">0</div>
                 <div class="stats-change">Bisa digunakan</div>
@@ -115,6 +120,12 @@ export const categoriesPage = new Elysia()
         .menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
         .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
         .menu-toolbar-right { display: flex; gap: 8px; }
+        .toggle-switch { display: inline-flex; align-items: center; cursor: pointer; position: relative; }
+        .toggle-switch input { opacity: 0; width: 0; height: 0; }
+        .toggle-slider { width: 40px; height: 22px; background: var(--color-border); border-radius: 11px; position: relative; transition: var(--transition); }
+        .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: var(--transition); }
+        .toggle-switch input:checked + .toggle-slider { background: var(--color-success); }
+        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
       </style>
       <script>
         let currentCategories = [];
@@ -168,7 +179,9 @@ export const categoriesPage = new Elysia()
           
           const activeCount = currentCategories.filter(c => c.isAvailable).length;
           const inactiveCount = currentCategories.length - activeCount;
+          const totalMenus = Object.values(currentMenus).reduce((sum, count) => sum + count, 0);
           document.getElementById('stat-total').textContent = currentCategories.length;
+          document.getElementById('stat-menus').textContent = totalMenus;
           document.getElementById('stat-active').textContent = activeCount;
           document.getElementById('stat-inactive').textContent = inactiveCount;
           
@@ -189,7 +202,10 @@ export const categoriesPage = new Elysia()
             html += '<tr data-category-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '">' +
               '<td><strong>' + c.name + '</strong></td>' +
               '<td>' + menuCount + ' menu</td>' +
-              '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
+              '<td><label class="toggle-switch" onclick="event.stopPropagation(); toggleCategory(' + c.id + ', ' + c.isAvailable + ')">' +
+                '<input type="checkbox" ' + (c.isAvailable ? 'checked' : '') + '>' +
+                '<span class="toggle-slider"></span>' +
+              '</label></td>' +
               '<td style="white-space: nowrap;">' +
                 '<button class="btn btn-secondary" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">Edit</button>' +
                 '<button class="btn btn-danger" data-action="delete" data-id="' + c.id + '" style="padding: 4px 8px; font-size: 11px;">Hapus</button>' +
@@ -284,11 +300,7 @@ export const categoriesPage = new Elysia()
 
         async function toggleCategory(id, currentAvailable) {
           try {
-            await fetch('/categories/' + id, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ isAvailable: !currentAvailable })
-            });
+            await fetch('/categories/' + id + '/toggle', { method: 'PATCH' });
             loadData();
           } catch (e) {
             alert('Gagal mengubah status');
