@@ -1,183 +1,160 @@
-# Issue: Custom Kategori Menu
+# Issue: Simplifikasi Kategori - Hapus Emoji & Warna, Buat Dedicated Page
 
 ## Masalah
 
-Saat ini, kategori Menu hanya固定 duo:
-- `makanan` (Makanan)
-- `minuman` (Minuman)
-
-Tidak bisa tambah, edit, atau hapus kategori. Perlu改成 custom (bisa tambah sendiri).
+1. Field `emoji` dan `color` di kategori tidak diperlukan
+2. Belum ada halaman Kategori yang khusus
+3. Tombol di Menu page perlu diarahkan ke halaman baru
 
 ---
 
-## Analisis Struktur
+## Analisis struktur Data
 
-### Database Schema
-File: `src/db/schema.ts`
-```typescript
-export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
-```
-→ Ganti jadi `varchar(100)` biar bisa custom string.
-
-### Menu Repository
-File: `src/repositories/menu.ts`
-```typescript
-export async function getMenusByCategory(category: 'makanan' | 'minuman') {
-```
-→ Ganti parameter type jadi `string`.
-
-### Menu Routes
-File: `src/routes/menus.ts`
-```typescript
-if (category !== 'makanan' && category !== 'minuman') {
-  return { error: 'Invalid category' };
-}
-```
-→ Hapus validasi rigid, boleh任意 string.
-
-### Menu Pages
-Files:
-- `src/pages/menu.ts` - Category dropdown di form
-- `src/pages/pos.ts` - Category filter buttons
-- `src/pages/kitchen.ts` - Category display
-
-Badge styles di `src/public/styles/pos.css`:
-```css
-.badge-makanan { background: #fff3cd; color: #856404; }
-.badge-minuman { background: #cce5ff; color: #004085; }
+### DB Saat Ini
+```sql
+categories table:
+- id INT PRIMARY KEY
+- name VARCHAR(100) NOT NULL UNIQUE
+- emoji VARCHAR(10) DEFAULT ''
+- color VARCHAR(20) DEFAULT ''
+- sort_order INT DEFAULT 0
+- created_at DATETIME
 ```
 
 ---
 
 ## Tahapan Implementasi
 
-### Langkah 1: Update Database Schema
+### Langkah 1: Modifikasi DB Schema
 
-File: `src/db/schema.ts`
+**File:** `src/db/schema.ts`
 
-**Sebelum:**
-```typescript
-export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
-category: categoryEnum.notNull(),
-```
-
-**Sesudah:**
-```typescript
-category: varchar('category', { length: 100 }).default('makanan'),
-```
-
-### Langkah 2: Create Categories Table (Optional - Lebih Good)
-
-Buat table `categories` untuk manage kategori:
-```sql
-CREATE TABLE categories (
-  id INT PRIMARY KEY AUTO_INCREMENT,
-  name VARCHAR(100) NOT NULL UNIQUE,
-  emoji VARCHAR(10) DEFAULT(''),
-  color VARCHAR(20) DEFAULT(''),
-  sort_order INT DEFAULT(0),
-  created_at DATETIME DEFAULT CURRENT_TIMESTAMP
-);
-```
-
-NANTI bisa add API endpoints:
-- `GET /categories` - list all
-- `POST /categories` - create
-- `PUT /categories/:id` - update
-- `DELETE /categories/:id` - delete
-
-### Langkah 3: Update Repository
-
-File: `src/repositories/menu.ts`
+Hapus kolom `emoji` dan `color` dari categories table:
 
 ```typescript
 // Sebelum
-export async function getMenusByCategory(category: 'makanan' | 'minuman')
+export const categories = mysqlTable('categories', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  emoji: varchar('emoji', { length: 10 }).default(''),
+  color: varchar('color', { length: 20 }).default(''),
+  sortOrder: int('sort_order').default(0),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+});
 
 // Sesudah
-export async function getMenusByCategory(category: string)
+export const categories = mysqlTable('categories', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  sortOrder: int('sort_order').default(0),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+});
 ```
 
-### Langkah 4: Update Routes
+###Langkah 2: Update Repository
 
-File: `src/routes/menus.ts`
+**File:** `src/repositories/category.ts`
 
-1. Hapus rigid validation:
-```typescript
-// Hapus ini:
-if (category !== 'makanan' && category !== 'minuman') {
-  return { error: 'Invalid category' };
-}
-```
+- Hapus field `emoji` dan `color` dari semua functions
+- Update `createCategory`, `updateCategory`, `seedDefaultCategories`
 
-2. Tambah endpoints untuk categories (kalo make table terpisah).
+### Langkah 3: Update Routes
 
-### Langkah 5: Update Pages
+**File:** `src/routes/categories.ts`
 
-#### `src/pages/menu.ts`
-- Ambil kategori dari API/database
-- Render dynamic dropdown
-- Tambah form untuk create/edit category
+- Hapus validation untuk `emoji` dan `color`
+- Update type definitions
 
-#### `src/pages/pos.ts`
-- Ambil kategori dari API
-- Render category buttons dynamically
+###Langkah 4: Migration DB (Jika Ada Data)
 
-#### `src/pages/kitchen.ts`
-- Dynamic category display
+Eksekusi SQL:
 
-### Langkah 6: Dynamic Badge Styles
-
-Di `src/public/styles/pos.css`:
-```css
-/* Dynamic Badge Colors based on category name */
-.badge { padding: 2px 8px; border-radius: var(--radius-sm); font-size: 10px; font-weight: 600; }
-```
-
-Bisa generate warna dari nama kategori ato fetch dari database.
-
-### Langkah 7: Migration
-
-Run SQL kalo ubah schema:
-```bash
-bun run db:push
-```
-
-Atau manual alter:
 ```sql
-ALTER TABLE menus MODIFY COLUMN category VARCHAR(100) DEFAULT 'makanan';
+-- Hapus kolom emoji dan color (setelah schema di-update)
+ALTER TABLE categories DROP COLUMN emoji;
+ALTER TABLE categories DROP COLUMN color;
 ```
+
+### Langkah 5: Buat Halaman Kategori Baru
+
+**File:** `src/pages/categories.ts`
+
+Buat halaman dedicated untuk Kelola Kategori:
+- List semua kategori
+- Form tambah/edit kategori (hanya nama)
+- Tombol hapus
+- Pagination jika banyak
+
+**UI Mockup:**
+```
+┌─────────────────────────────────────────┐
+│  Home / Pengaturan / Kelola Kategori    │
+├─────────────────────────────────────────┤
+│  🔍 Cari...          [+ Tambah Kategori]│
+├─────────────────────────────────────────┤
+│  #  Nama            Aksi                │
+│  1  Makanan        [Edit] [Hapus]      │
+│  2  Minuman         [Edit] [Hapus]      │
+│  3  Camilan        [Edit] [Hapus]      │
+└─────────────────────────────────────────┘
+```
+
+###Langkah 6: Update Tombol di Menu Page
+
+**File:** `src/pages/menu.ts`
+
+```typescript
+// Sebelum
+<button class="btn btn-secondary" onclick="showCategoryModal()">🏷️ Kelola Kategori</button>
+
+// Sesudah - link ke halaman kategori
+<a href="/categories" class="btn btn-secondary">🏷️ Kelola Kategori</a>
+```
+
+atau cukup:
+
+```typescript
+<button class="btn btn-secondary" onclick="window.location.href='/categories'">🏷️ Kelola Kategori</button>
+```
+
+###Langkah 7: Hapus Modal Category dari Menu Page
+
+Setelah punya halaman khusus:
+- Hapus modal "category-modal" dari menu.ts
+- Hapus fungsi `showCategoryModal`, `closeCategoryModal`, `saveCategory`, `renderCategoriesList`, `deleteCategory`
+- Hapus CSS `.category-item`
+- Hapus button "Kelola Kategori" dari toolbar
 
 ---
 
 ## Files yang Diubah
 
 | File | Perubahan |
-|------|-----------|
-| `src/db/schema.ts` | Category jadi varchar |
-| `src/repositories/menu.ts` | Type parameter string |
-| `src/routes/menus.ts` | Hapus validasi, tambah category endpoints |
-| `src/pages/menu.ts` | Dynamic category dropdown |
-| `src/pages/pos.ts` | Dynamic category filter |
-| `src/pages/kitchen.ts` | Dynamic category display |
-| `src/public/styles/pos.css` | Dynamic badge styles |
-| `src/repositories/kitchen.ts` | Type parameter string |
-
----
-
-## Catatan Penting
-
-1. **Backward Compatibility**: Data lama (`makanan`, `minuman`) harus tetep bisa.
-2. **Default Value**: Kalo kosong, default ke `makanan`.
-3. **Case Sensitive**: Samakan format (lowercase recommended).
-4. **API Response**: Tambah field `categories` di menu responses punya.
+|------|------------|
+| `src/db/schema.ts` | Hapus emoji, color columns |
+| `src/repositories/category.ts` | Update functions |
+| `src/routes/categories.ts` | Update routes |
+| `src/pages/categories.ts` | **BARU** - halaman kategori |
+| `src/index.ts` | Register categories page |
+| `src/pages/menu.ts` | Hapus modal, ubah tombol ke link |
 
 ---
 
 ## Estimasi Effort
 
-- Basic (varchar only): 1-2 jam
-- With Categories Table: 3-4 jam
+- 1-2 jam untuk simplifikasi DB + repo
+- 2-3 jam untuk halaman kategori baru
+- 1 jam untuk cleanup menu page
+
+**Total: ~4-6 jam**
+
+---
+
+## Catatan
+
+- Data emoji/color yang sudah ada di DB akan di-drop saat migration
+- Pastikan backup sebelum migration
+- Default kategori (makanan, minuman) tetap ada tapi tanpa emoji/color
 
 ---
 
