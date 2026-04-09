@@ -91,15 +91,19 @@ export async function updateOrderTotals(id: number, subtotal: number, tax: numbe
   return getOrderById(id);
 }
 
-export async function completeOrder(id: number, amountPaid: number) {
+export async function completeOrder(id: number, amountPaid: number, markCompleted: boolean = false) {
   const order = await getOrderById(id);
   if (!order) return null;
   const changeDue = amountPaid - order.total;
-  await db.update(orders).set({
+  const updateData: Record<string, unknown> = {
     amountPaid,
     changeDue,
     completedAt: new Date(),
-  }).where(eq(orders.id, id));
+  };
+  if (markCompleted) {
+    updateData.status = 'completed';
+  }
+  await db.update(orders).set(updateData).where(eq(orders.id, id));
   return getOrderById(id);
 }
 
@@ -115,14 +119,14 @@ export async function calculateTotals(orderId: number) {
 export async function getTodaySales() {
   const result = await db.select({ total: sum(orders.total) })
     .from(orders)
-    .where(eq(orders.status, 'completed'));
+    .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')));
   return Number(result[0]?.total || 0);
 }
 
 export async function getTodayOrders() {
   const result = await db.select({ count: sql<number>`count(*)` })
     .from(orders)
-    .where(eq(orders.status, 'completed'));
+    .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')));
   return Number(result[0]?.count || 0);
 }
 
@@ -137,8 +141,8 @@ export async function getRecentOrders(limit: number = 5) {
   })
   .from(orders)
   .leftJoin(tables, eq(orders.tableId, tables.id))
-  .where(gte(orders.createdAt, todayStart()))
-  .orderBy(desc(orders.createdAt))
+  .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')))
+  .orderBy(desc(orders.completedAt))
   .limit(limit);
 }
 
@@ -151,7 +155,7 @@ export async function getTopMenus(limit: number = 5) {
   .from(orderItems)
   .leftJoin(menus, eq(orderItems.menuId, menus.id))
   .leftJoin(orders, eq(orderItems.orderId, orders.id))
-  .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')))
+  .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')))
   .groupBy(menus.name)
   .orderBy(desc(sum(orderItems.quantity)))
   .limit(limit);

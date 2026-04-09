@@ -18,7 +18,8 @@ export async function processPayment(orderId: number, amountPaid: number) {
     throw new Error('Insufficient payment');
   }
   
-  const completedOrder = await orderRepo.completeOrder(orderId, amountPaid);
+  const shouldComplete = !order.tableId || order.tableId === 0;
+  const completedOrder = await orderRepo.completeOrder(orderId, amountPaid, shouldComplete);
   
   return completedOrder;
 }
