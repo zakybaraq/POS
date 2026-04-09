@@ -1,159 +1,80 @@
-# Issue: Dashboard Tidak Menampilkan Data Hari Ini
+# Issue: Konsolidasi File CSS Duplikat
 
-## Latar Belakang
+## Masalah
 
-Dashboard saat ini menampilkan seluruh data penjualan dari semua waktu, bukan hanya hari ini. Hal ini menyebabkan:
+Terdapat dua file CSS dengan isi yang hampir sama:
 
-1. **Total Penjualan**: Menampilkan jumlah seluruh penjualan, bukan penjualan hari ini
-2. **Jumlah Pesanan**: Menampilkan total semua pesanan, bukan pesanan hari ini
-3. **Pesanan Terbaru**: Menampilkan pesanan dari semua waktu, bukan pesanan hari ini
-4. **Menu Terlaris**: Menghitung dari seluruh waktu, bukan dari hari ini
+1. `/Users/zakybaraq/Desktop/pos/src/styles/pos.css` (385 baris)
+2. `/Users/zakybaraq/Desktop/pos/src/public/styles/pos.css` (374 baris)
 
-User tidak bisa melihat performa restoran hari ini dengan jelas karena data tercampur dengan data historis.
+Kedua file ini duplicate dan perlu dibersihkan. Pilih salah satu sebagai sumber utama dan hapus yang lain.
+
+---
+
+## Analisis Perbedaan
+
+### Perbedaan di `src/styles/pos.css` (baris 358-385):
+
+```css
+.pos-order-type-selection {
+  display: flex;
+  gap: 10px;
+  margin-bottom: 15px;
+}
+/* kode order type selection berbeda - lebih lengkap */
+```
+
+### File `src/public/styles/pos.css` (baris 348-374):
+
+```css
+.pos-order-type-selection {
+  display: flex;
+  gap: 12px;
+  padding: 16px;
+  background: #ffffff;
+  border: 1px solid var(--color-border);
+  border-radius: var(--radius-lg);
+}
+/* kode order type selection berbeda */
+```
 
 ---
 
 ## Tahapan Implementasi
 
-### Tahap 1: Perbaiki Fungsi `todayStart()` untuk Waktu WIB
+### Langkah 1: Pilih File Utama
 
-**File yang perlu diubah:** `src/repositories/order.ts`
+Pilih `src/public/styles/pos.css` sebagai file utama karena:
+- Lebih ringkas (374 vs 385 baris)
+- Sudah di-serving via endpoint `/styles/:path` di `src/index.ts`
 
-**Langkah-langkah:**
+### Langkah 2: Gabungkan Perbedaan
 
-1. Cari fungsi `todayStart()` di file `src/repositories/order.ts`
-2. Pastikan fungsi ini menghitung tengah malam WIB (Asia/Jakarta) dengan benar
-3. Fungsi harus mengembalikan tanggal awal hari ini dalam format UTC yang sesuai dengan timezone WIB
+Copy kode `.pos-order-type-selection` dari `src/styles/pos.css` ke `src/public/styles/pos.css` untuk memastikan tidak ada fitur yang hilang.
 
-**Kode yang seharusnya:**
+### Langkah 3: Hapus File Duplicate
 
-```typescript
-function todayStart(): Date {
-  const now = new Date();
-  const wibString = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
-  const wibDate = new Date(wibString);
-  return new Date(Date.UTC(
-    wibDate.getUTCFullYear(),
-    wibDate.getUTCMonth(),
-    wibDate.getUTCDate(),
-    0, 0, 0, 0
-  ));
-}
-```
+Hapus file `src/styles/pos.css` setelah penggabungan selesai.
 
-**Catatan:**
-- Pastikan menggunakan `Asia/Jakarta` sebagai timezone
-- Return value harus berupa Date object yang bisa digunakan untuk filtering di query
+### Langkah 4: Verifikasi
+
+Pastikan semua halaman POS masih berjalan normal setelah perubahan.
 
 ---
 
-### Tahap 2: Tambahkan Filter Tanggal pada Query Dashboard
+## Aksi yang Diperlukan
 
-**File yang perlu diubah:** `src/repositories/order.ts`
-
-**Langkah-langkah:**
-
-1. **Perbaiki fungsi `getTodaySales()`:**
-   - Cek apakah sudah menggunakan filter `todayStart()`
-   - Jika belum, tambahkan `.where(gte(orders.createdAt, todayStart()))`
-   - Juga filter berdasarkan `status = 'completed'`
-
-2. **Perbaiki fungsi `getTodayOrders()`:**
-   - Tambahkan filter `todayStart()`
-   - Filter juga berdasarkan `status = 'completed'`
-
-3. **Perbaiki fungsi `getTopMenus()`:**
-   - Tambahkan filter `todayStart()` pada query
-   - Hanya hitung menu dari pesanan yang sudah selesai (completed) hari ini
-
-**Contoh perbaikan getTodaySales:**
-
-```typescript
-export async function getTodaySales() {
-  const result = await db.select({ total: sum(orders.total) })
-    .from(orders)
-    .where(and(
-      gte(orders.createdAt, todayStart()),
-      eq(orders.status, 'completed')
-    ));
-  return Number(result[0]?.total || 0);
-}
-```
-
-**Contoh perbaikan getTopMenus:**
-
-```typescript
-export async function getTopMenus(limit: number = 5) {
-  return db.select({
-    name: menus.name,
-    totalSold: sum(orderItems.quantity).mapWith(Number),
-  })
-  .from(orderItems)
-  .leftJoin(menus, eq(orderItems.menuId, menus.id))
-  .leftJoin(orders, eq(orderItems.orderId, orders.id))
-  .where(and(
-    gte(orders.createdAt, todayStart()),
-    eq(orders.status, 'completed')
-  ))
-  .groupBy(menus.name)
-  .orderBy(desc(sum(orderItems.quantity)))
-  .limit(limit);
-}
-```
+1. **Gabungkan** kode `.pos-order-type-selection` yang lebih lengkap dari `src/styles/pos.css` ke `src/public/styles/pos.css`
+2. **Hapus** file `src/styles/pos.css`
+3. **Verifikasi** aplikasi tetap berfungsi
 
 ---
 
-### Tahap 3: Verifikasi Endpoint Dashboard
+## Catatan
 
-**File yang perlu diubah:** `src/pages/dashboard.ts` (jika ada)
-
-**Langkah-langkah:**
-
-1. Cek bagaimana dashboard mengambil data
-2. Pastikan menggunakan fungsi yang sudah diperbaiki (getTodaySales, getTodayOrders, getTopMenus)
-3. Pastikan tidak ada endpoint yang mengambil data tanpa filter tanggal
+- Setelah file duplikat dihapus, perlu memastikan tidak ada import/reference ke `src/styles/pos.css` yang tersisa di codebase.
+- Cek apakah folder `src/styles` masih butuh atau bisa dihapus juga.
 
 ---
 
-## Verifikasi
-
-Setelah implementasi, lakukan verifikasi:
-
-1. **Total Penjualan Hari Ini:**
-   - Buka dashboard
-   - Bandingkan dengan jumlah pesanan yang sudah selesai hari ini
-   - Harus sesuai
-
-2. **Pesanan Terbaru:**
-   - Bagian "Pesanan Terbaru" hanya menampilkan pesanan hari ini
-   - Tidak ada pesanan dari hari sebelumnya
-
-3. **Menu Terlaris:**
-   - Hanya menghitung menu yang terjual hari ini
-   - Tidak termasuk menu yang terjual kemarin atau sebelumnya
-
----
-
-## Catatan Penting
-
-- Jangan ubah struktur data atau schema database
-- Jangan hapus fungsi yang sudah ada (misalnya getAllSales) - buat fungsi baru jika perlu
-- Gunakan operator `gte` (greater than or equal) untuk filter tanggal
-- Pastikan timezone selalu menggunakan WIB (Asia/Jakarta)
-
----
-
-## Estimasi Waktu
-
-- Tahap 1: 10-15 menit
-- Tahap 2: 20-30 menit
-- Tahap 3: 10-15 menit
-- Total: 40-60 menit
-
----
-
-## Referensi File
-
-- `src/repositories/order.ts` - berisi fungsi query untuk dashboard
-- `src/pages/dashboard.ts` - halaman dashboard (jika perlu dicek)
-- `src/repositories/report.ts` - fungsi report (cek juga jika ada yang perlu diperbaiki)
+*Ditugaskan untuk: Junior Programmer / AI Model Murah*
