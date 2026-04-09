@@ -145,12 +145,21 @@ export const categoriesPage = new Elysia()
               '<td><strong>#' + c.id + '</strong></td>' +
               '<td>' + c.name + '</td>' +
               '<td>' +
-                '<button class="btn btn-sm" onclick="editCategory(' + c.id + ', \'' + c.name + '\')">Edit</button> ' +
-                '<button class="btn btn-sm btn-danger" onclick="deleteCategory(' + c.id + ')">Hapus</button>' +
+                '<button class="btn btn-sm" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '">Edit</button> ' +
+                '<button class="btn btn-sm btn-danger" data-action="delete" data-id="' + c.id + '">Hapus</button>' +
               '</td>' +
             '</tr>';
           }
           tbody.innerHTML = html;
+          
+          tbody.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const action = this.dataset.action;
+              const id = parseInt(this.dataset.id);
+              if (action === 'edit') editCategory(id, this.dataset.name);
+              else if (action === 'delete') deleteCategory(id);
+            });
+          });
         }
 
         function filterCategories() {
