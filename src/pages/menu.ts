@@ -89,7 +89,7 @@ export const menuPage = new Elysia()
                   <div class="menu-toolbar-right">
                     <button class="btn btn-secondary btn-bulk-delete" onclick="bulkDeleteSelected()" id="btn-bulk-delete" style="display: none;">🗑️ Hapus Terpilih</button>
                     <button class="btn btn-secondary btn-bulk-toggle" onclick="bulkToggleSelected()" id="btn-bulk-toggle" style="display: none;">🔄 Toggle Status</button>
-                    <a href="/categories" class="btn btn-secondary">🏷️ Kelola Kategori</a>
+                    <a href="/kategori" class="btn btn-secondary">🏷️ Kelola Kategori</a>
                     <button class="btn btn-primary" onclick="showAddMenuModal()">+ Tambah Menu</button>
                   </div>
                 </div>

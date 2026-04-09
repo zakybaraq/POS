@@ -7,7 +7,7 @@ import { getCommonScripts } from '../templates/common-scripts';
 import { getTokenFromCookies, verifyToken, redirectToLogin } from '../utils/auth';
 
 export const categoriesPage = new Elysia()
-  .get('/categories', async ({ cookie, headers }) => {
+  .get('/kategori', async ({ cookie, headers }) => {
     const token = getTokenFromCookies(cookie, headers);
     if (!token) return redirectToLogin();
 
@@ -27,7 +27,7 @@ export const categoriesPage = new Elysia()
       <div class="app-layout">
         ${getSidebarHtml('categories', user)}
         <div class="app-content">
-          ${getNavbarHtml('Kelola Kategori', 'categories', user)}
+          ${getNavbarHtml('Kelola Kategori', 'kategori', user)}
           <main class="app-main">
             <div class="categories-toolbar">
               <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
@@ -100,11 +100,14 @@ export const categoriesPage = new Elysia()
       <script>
         async function loadCategories() {
           try {
+            console.log('Loading categories...');
             const res = await fetch('/categories');
             const categories = await res.json();
+            console.log('Loaded:', categories);
             renderCategories(categories);
           } catch (e) {
-            document.getElementById('categories-table-body').innerHTML = '<tr><td colspan="3">Gagal memuat kategori</td></tr>';
+            console.error('Error loading:', e);
+            document.getElementById('categories-table-body').innerHTML = '<tr><td colspan="3">Gagal memuat kategori: ' + e.message + '</td></tr>';
           }
         }
 
@@ -121,12 +124,25 @@ export const categoriesPage = new Elysia()
               '<td>' + (i + 1) + '</td>' +
               '<td><strong>' + c.name + '</strong></td>' +
               '<td>' +
-                '<button class="btn btn-sm" onclick="editCategory(' + c.id + ', \'' + c.name + '\')">Edit</button> ' +
-                '<button class="btn btn-sm btn-danger" onclick="deleteCategory(' + c.id + ')">Hapus</button>' +
+                '<button class="btn btn-sm" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '">Edit</button> ' +
+                '<button class="btn btn-sm btn-danger" data-action="delete" data-id="' + c.id + '">Hapus</button>' +
               '</td>' +
             '</tr>';
           }
           tbody.innerHTML = html;
+          
+          // Attach event listeners
+          tbody.querySelectorAll('button[data-action]').forEach(btn => {
+            btn.addEventListener('click', function() {
+              const action = this.dataset.action;
+              const id = parseInt(this.dataset.id);
+              if (action === 'edit') {
+                editCategory(id, this.dataset.name);
+              } else if (action === 'delete') {
+                deleteCategory(id);
+              }
+            });
+          });
         }
 
         function filterCategories() {
