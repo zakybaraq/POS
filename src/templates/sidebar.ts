@@ -1,7 +1,7 @@
 export function getSidebarHtml(activePage: string, user: { role: string; name: string }) {
   const roleMenuMap: Record<string, string[]> = {
-    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance', 'kitchen'],
-    admin_restoran: ['pos', 'menu', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance', 'kitchen'],
+    super_admin: ['dashboard', 'admin', 'pos', 'menu', 'categories', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance', 'kitchen'],
+    admin_restoran: ['pos', 'menu', 'categories', 'tables', 'orders', 'inventory', 'customers', 'reports', 'settings', 'suppliers', 'purchase-orders', 'employees', 'shifts', 'attendance', 'kitchen'],
     kasir: ['pos', 'customers', 'shifts', 'attendance'],
     waitress: ['orders', 'tables', 'shifts', 'attendance'],
     chef: ['orders', 'attendance', 'kitchen']
@@ -56,6 +56,14 @@ export function getSidebarHtml(activePage: string, user: { role: string; name: s
         <a href="/menu" class="sidebar-menu-link ${activePage === 'menu' ? 'active' : ''}">
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"></path><polyline points="14 2 14 8 20 8"></polyline><line x1="16" y1="13" x2="8" y2="13"></line><line x1="16" y1="17" x2="8" y2="17"></line></svg>
           <span class="sidebar-menu-label">Menu</span>
+        </a>
+      </li>` : ''}
+
+      ${isMenuAllowed('categories') ? `
+      <li class="sidebar-menu-item">
+        <a href="/kategori" class="sidebar-menu-link ${activePage === 'kategori' ? 'active' : ''}">
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z"></path><line x1="7" y1="7" x2="7.01" y2="7"></line></svg>
+          <span class="sidebar-menu-label">Kategori</span>
         </a>
       </li>` : ''}
 

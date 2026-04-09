@@ -89,7 +89,7 @@ export const menuPage = new Elysia()
                   <div class="menu-toolbar-right">
                     <button class="btn btn-secondary btn-bulk-delete" onclick="bulkDeleteSelected()" id="btn-bulk-delete" style="display: none;">🗑️ Hapus Terpilih</button>
                     <button class="btn btn-secondary btn-bulk-toggle" onclick="bulkToggleSelected()" id="btn-bulk-toggle" style="display: none;">🔄 Toggle Status</button>
-                    <button class="btn btn-secondary" onclick="showCategoryModal()">🏷️ Kelola Kategori</button>
+                    <a href="/kategori" class="btn btn-secondary">🏷️ Kelola Kategori</a>
                     <button class="btn btn-primary" onclick="showAddMenuModal()">+ Tambah Menu</button>
                   </div>
                 </div>
@@ -174,35 +174,6 @@ export const menuPage = new Elysia()
         </div>
       </div>
 
-      <div class="modal" id="category-modal">
-        <div class="modal-backdrop" onclick="closeCategoryModal()"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Kelola Kategori</h3>
-            <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <div class="form-group">
-              <label>Nama Kategori</label>
-              <input type="text" id="category-name" class="input" placeholder="cth: makanan, jalanan, premium">
-            </div>
-            <div class="form-group">
-              <label>Emoji (opsional)</label>
-              <input type="text" id="category-emoji" class="input" placeholder="cth: 🍕" maxlength="10">
-            </div>
-            <div class="form-group">
-              <label>Warna (opsional)</label>
-              <input type="text" id="category-color" class="input" placeholder="#fff3cd">
-            </div>
-            <button onclick="saveCategory()" class="btn btn-primary" style="margin-bottom: 12px;">+ Tambah Kategori</button>
-            <div id="categories-list"></div>
-          </div>
-          <div class="modal-footer">
-            <button onclick="closeCategoryModal()" class="btn btn-secondary">Tutup</button>
-          </div>
-        </div>
-      </div>
-
       <div class="modal" id="edit-menu-modal">
         <div class="modal-backdrop" onclick="closeEditMenuModal()"></div>
         <div class="modal-content">
@@ -283,8 +254,6 @@ export const menuPage = new Elysia()
         .pagination-btn.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
         .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
         textarea.input { resize: vertical; min-height: 60px; }
-        .category-item { display: flex; justify-content: space-between; align-items: center; padding: 8px 12px; background: #f8f9fa; border-radius: 6px; margin-bottom: 6px; }
-        .category-item .btn-delete { background: none; border: none; cursor: pointer; font-size: 14px; }
       </style>
       <script>
         let currentPage = 1;
@@ -323,74 +292,6 @@ export const menuPage = new Elysia()
         }
 
         loadCategories();
-
-        function showCategoryModal() {
-          document.getElementById('category-modal').classList.add('show');
-          renderCategoriesList();
-        }
-
-        function closeCategoryModal() {
-          document.getElementById('category-modal').classList.remove('show');
-        }
-
-        async function saveCategory() {
-          const name = document.getElementById('category-name').value.trim();
-          const emoji = document.getElementById('category-emoji').value.trim();
-          const color = document.getElementById('category-color').value.trim();
-          
-          if (!name) return alert('Nama kategori wajib diisi');
-          
-          try {
-            const res = await fetch('/categories', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name, emoji, color })
-            });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            
-            document.getElementById('category-name').value = '';
-            document.getElementById('category-emoji').value = '';
-            document.getElementById('category-color').value = '';
-            
-            renderCategoriesList();
-            loadCategories();
-            renderCategoryOptions();
-          } catch (e) {
-            alert('Gagalsimpan kategori');
-          }
-        }
-
-        async function renderCategoriesList() {
-          const list = document.getElementById('categories-list');
-          try {
-            const res = await fetch('/categories');
-            const cats = await res.json();
-            let html = '';
-            for (let i = 0; i < cats.length; i++) {
-              const c = cats[i];
-              html += '<div class="category-item">' +
-                '<span>' + (c.emoji || '') + ' ' + c.name + '</span>' +
-                '<button onclick="deleteCategory(' + c.id + ')" class="btn-delete">🗑️</button>' +
-              '</div>';
-            }
-            list.innerHTML = html;
-          } catch (e) {
-            list.innerHTML = '<p>Gagal memuat kategori</p>';
-          }
-        }
-
-        async function deleteCategory(id) {
-          if (!confirm('Hapus kategori ini?')) return;
-          try {
-            await fetch('/categories/' + id, { method: 'DELETE' });
-            renderCategoriesList();
-            loadCategories();
-            renderCategoryOptions();
-          } catch (e) {
-            alert('Gagal hapus kategori');
-          }
-        }
 
         function filterMenus() {
           const search = document.getElementById('menu-search').value.toLowerCase();

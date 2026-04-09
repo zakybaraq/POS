@@ -7,8 +7,6 @@ export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
 export const categories = mysqlTable('categories', {
   id: serial('id').primaryKey(),
   name: varchar('name', { length: 100 }).notNull().unique(),
-  emoji: varchar('emoji', { length: 10 }).default(''),
-  color: varchar('color', { length: 20 }).default(''),
   sortOrder: int('sort_order').default(0),
   createdAt: datetime('created_at').notNull().default(new Date()),
 });
