@@ -24,7 +24,7 @@ export async function getActiveKitchenOrders() {
   .orderBy(desc(orders.createdAt));
 }
 
-export async function getKitchenOrdersByCategory(category: 'makanan' | 'minuman') {
+export async function getKitchenOrdersByCategory(category: string) {
   return db.select({
     id: orders.id,
     tableNumber: tables.tableNumber,

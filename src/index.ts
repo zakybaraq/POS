@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import { cookie } from '@elysiajs/cookie';
 import { routes } from './routes';
+import { categoryRoutes } from './routes/categories';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { authPages } from './pages/auth';
@@ -24,11 +25,14 @@ import { shiftsPage } from './pages/shifts';
 import { attendancePage } from './pages/attendance';
 import { kitchenPage } from './pages/kitchen';
 import { seedDefaultSettings } from './repositories/settings';
+import { seedDefaultCategories } from './repositories/category';
 
 seedDefaultSettings().catch(console.error);
+seedDefaultCategories().catch(console.error);
 
 const app = new Elysia()
   .use(routes)
+  .use(categoryRoutes)
   .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
   .get('/styles/:path', ({ params }) => {
     const stylesDir = join(__dirname, 'public/styles');

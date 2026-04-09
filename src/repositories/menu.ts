@@ -11,7 +11,7 @@ export async function getAvailableMenus() {
   return db.select().from(menus).where(eq(menus.isAvailable, true));
 }
 
-export async function getMenusByCategory(category: 'makanan' | 'minuman') {
+export async function getMenusByCategory(category: string) {
   return db.select().from(menus).where(and(eq(menus.category, category), eq(menus.isAvailable, true)));
 }
 
