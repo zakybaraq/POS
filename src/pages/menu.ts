@@ -89,6 +89,7 @@ export const menuPage = new Elysia()
                   <div class="menu-toolbar-right">
                     <button class="btn btn-secondary btn-bulk-delete" onclick="bulkDeleteSelected()" id="btn-bulk-delete" style="display: none;">🗑️ Hapus Terpilih</button>
                     <button class="btn btn-secondary btn-bulk-toggle" onclick="bulkToggleSelected()" id="btn-bulk-toggle" style="display: none;">🔄 Toggle Status</button>
+                    <a href="/kategori" class="btn btn-secondary">🏷️ Kelola Kategori</a>
                     <button class="btn btn-primary" onclick="showAddMenuModal()">+ Tambah Menu</button>
                   </div>
                 </div>
@@ -115,7 +116,7 @@ export const menuPage = new Elysia()
                         <td><strong>${m.name}</strong></td>
                         <td>Rp ${m.price.toLocaleString('id-ID')}</td>
                         <td style="max-width: 200px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--color-text-secondary); font-size: 13px;">${m.description || '-'}</td>
-                        <td><span class="badge ${m.category === 'makanan' ? 'badge-warning' : 'badge-primary'}">${m.category}</span></td>
+                        <td><a href="/kategori?filter=${encodeURIComponent(m.category)}" class="category-link"><span class="badge ${m.category === 'makanan' ? 'badge-warning' : 'badge-primary'}">${m.category}</span></a></td>
                         <td>
                           <label class="toggle-switch" onclick="toggleMenu(${m.id})">
                             <input type="checkbox" ${m.isAvailable ? 'checked' : ''}>
@@ -233,33 +234,80 @@ export const menuPage = new Elysia()
         </div>
       </div>
 
-      <style>
-        .menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
-        .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
-        .menu-toolbar-right { display: flex; gap: 8px; }
-        .menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
-        .menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
-        .toggle-switch { display: inline-flex; align-items: center; cursor: pointer; position: relative; }
-        .toggle-switch input { opacity: 0; width: 0; height: 0; }
-        .toggle-slider { width: 40px; height: 22px; background: var(--color-border); border-radius: 11px; position: relative; transition: var(--transition); }
-        .toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: var(--transition); }
-        .toggle-switch input:checked + .toggle-slider { background: var(--color-success); }
-        .toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
-        .pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--color-border); }
-        .pagination-info { font-size: 13px; color: var(--color-text-secondary); }
-        .pagination-buttons { display: flex; gap: 4px; }
-        .pagination-btn { padding: 4px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); cursor: pointer; font-size: 12px; }
-        .pagination-btn:hover { background: var(--color-bg-hover); }
-        .pagination-btn.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
-        .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-        textarea.input { resize: vertical; min-height: 60px; }
-      </style>
+<style>
+.menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
+.menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+.menu-toolbar-right { display: flex; gap: 8px; }
+.menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
+.menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
+.toggle-switch { display: inline-flex; align-items: center; cursor: pointer; position: relative; }
+.toggle-switch input { opacity: 0; width: 0; height: 0; }
+.toggle-slider { width: 40px; height: 22px; background: var(--color-border); border-radius: 11px; position: relative; transition: var(--transition); }
+.toggle-slider::before { content: ''; position: absolute; width: 18px; height: 18px; background: white; border-radius: 50%; top: 2px; left: 2px; transition: var(--transition); }
+.toggle-switch input:checked + .toggle-slider { background: var(--color-success); }
+.toggle-switch input:checked + .toggle-slider::before { transform: translateX(18px); }
+.pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--color-border); }
+.pagination-info { font-size: 13px; color: var(--color-text-secondary); }
+.pagination-buttons { display: flex; gap: 4px; }
+.pagination-btn { padding: 4px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); cursor: pointer; font-size: 12px; }
+.pagination-btn:hover { background: var(--color-bg-hover); }
+.pagination-btn.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+.pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+textarea.input { resize: vertical; min-height: 60px; }
+.category-link { color: var(--color-primary); cursor: pointer; text-decoration: none; }
+.category-link:hover { text-decoration: underline; }
+</style>
       <script>
         let currentPage = 1;
         const itemsPerPage = 15;
         let sortField = 'name';
         let sortDir = 'asc';
         let pendingDeleteId = null;
+        let cachedCategories = [];
+
+        async function loadCategories() {
+          try {
+            const res = await fetch('/categories');
+            cachedCategories = await res.json();
+            renderCategoryOptions();
+          } catch (e) {
+            console.error('Failed to load categories:', e);
+          }
+        }
+
+function renderCategoryOptions() {
+const selects = ['menu-filter-category', 'menu-category', 'edit-menu-category'];
+selects.forEach(id => {
+const sel = document.getElementById(id);
+if (!sel) return;
+const origVal = sel.value;
+const isFilter = id === 'menu-filter-category';
+sel.innerHTML = isFilter ? '<option value="all">Semua Kategori</option>' : '';
+cachedCategories.forEach(cat => {
+const opt = document.createElement('option');
+opt.value = cat.name;
+opt.textContent = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
+sel.appendChild(opt);
+});
+if (origVal) sel.value = origVal;
+});
+}
+
+loadCategories();
+
+// Apply category filter from URL query parameter
+function applyCategoryFilterFromURL() {
+const params = new URLSearchParams(window.location.search);
+const categoryFilter = params.get('category');
+if (categoryFilter) {
+const filterSelect = document.getElementById('menu-filter-category');
+if (filterSelect) {
+filterSelect.value = categoryFilter;
+filterMenus();
+console.log('Applied category filter from URL:', categoryFilter);
+}
+}
+}
 
         function filterMenus() {
           const search = document.getElementById('menu-search').value.toLowerCase();
@@ -427,7 +475,10 @@ export const menuPage = new Elysia()
           location.reload();
         }
 
-        document.addEventListener('DOMContentLoaded', function() { renderPagination(); });
+        document.addEventListener('DOMContentLoaded', function() {
+renderPagination();
+applyCategoryFilterFromURL();
+});
       </script>
       ${getCommonScripts()}
     `);

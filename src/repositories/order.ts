@@ -3,21 +3,15 @@ import { db } from '../db/index';
 import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
 
-function todayStart(): Date {
+function todayStart() {
   const now = new Date();
-  const wibString = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
-  const wibDate = new Date(wibString);
-  return new Date(Date.UTC(
-    wibDate.getUTCFullYear(),
-    wibDate.getUTCMonth(),
-    wibDate.getUTCDate(),
-    0, 0, 0, 0
-  ));
+  now.setHours(0, 0, 0, 0);
+  return now;
 }
 
-export async function createOrder(tableId: number | null, userId: number) {
+export async function createOrder(tableId: number, userId: number) {
   const result = await db.insert(orders).values({
-    tableId: tableId ?? 0,
+    tableId,
     userId,
     servedBy: '',
     status: 'active',
@@ -41,12 +35,6 @@ export async function getActiveOrderByTableId(tableId: number) {
   const result = await db.select().from(orders)
     .where(and(eq(orders.tableId, tableId), eq(orders.status, 'active')));
   return result[0] || null;
-}
-
-export async function getOrdersByTableId(tableId: number) {
-  return db.select().from(orders)
-    .where(eq(orders.tableId, tableId))
-    .orderBy(desc(orders.createdAt));
 }
 
 export async function getOrdersToday() {
@@ -106,14 +94,14 @@ export async function calculateTotals(orderId: number) {
 export async function getTodaySales() {
   const result = await db.select({ total: sum(orders.total) })
     .from(orders)
-    .where(eq(orders.status, 'completed'));
+    .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')));
   return Number(result[0]?.total || 0);
 }
 
 export async function getTodayOrders() {
   const result = await db.select({ count: sql<number>`count(*)` })
     .from(orders)
-    .where(eq(orders.status, 'completed'));
+    .where(gte(orders.createdAt, todayStart()));
   return Number(result[0]?.count || 0);
 }
 
@@ -142,7 +130,7 @@ export async function getTopMenus(limit: number = 5) {
   .from(orderItems)
   .leftJoin(menus, eq(orderItems.menuId, menus.id))
   .leftJoin(orders, eq(orderItems.orderId, orders.id))
-  .where(and(gte(orders.createdAt, todayStart()), eq(orders.status, 'completed')))
+  .where(gte(orders.createdAt, todayStart()))
   .groupBy(menus.name)
   .orderBy(desc(sum(orderItems.quantity)))
   .limit(limit);
