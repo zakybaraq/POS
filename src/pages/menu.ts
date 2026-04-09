@@ -260,6 +260,37 @@ export const menuPage = new Elysia()
         let sortField = 'name';
         let sortDir = 'asc';
         let pendingDeleteId = null;
+        let cachedCategories = [];
+
+        async function loadCategories() {
+          try {
+            const res = await fetch('/categories');
+            cachedCategories = await res.json();
+            renderCategoryOptions();
+          } catch (e) {
+            console.error('Failed to load categories:', e);
+          }
+        }
+
+        function renderCategoryOptions() {
+          const selects = ['menu-filter-category', 'menu-category', 'edit-menu-category'];
+          selects.forEach(id => {
+            const sel = document.getElementById(id);
+            if (!sel) return;
+            const origVal = sel.value;
+            const isFilter = id === 'menu-filter-category';
+            sel.innerHTML = isFilter ? '<option value="all">Semua Kategori</option>' : '';
+            cachedCategories.forEach(cat => {
+              const opt = document.createElement('option');
+              opt.value = cat.name;
+              opt.textContent = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
+              sel.appendChild(opt);
+            });
+            if (origVal) sel.value = origVal;
+          });
+        }
+
+        loadCategories();
 
         function filterMenus() {
           const search = document.getElementById('menu-search').value.toLowerCase();
