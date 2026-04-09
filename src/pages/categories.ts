@@ -83,6 +83,9 @@ export const categoriesPage = new Elysia()
         </div>
       </div>
 
+      <style>
+        .menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
+      </style>
       <script>
         let currentCategories = [];
         let sortField = 'id';
