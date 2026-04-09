@@ -85,6 +85,10 @@ export const categoriesPage = new Elysia()
 
       <style>
         .menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
+        .menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); color: var(--color-text); }
+        .menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
+        .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+        .menu-toolbar-right { display: flex; gap: 8px; }
       </style>
       <script>
         let currentCategories = [];
