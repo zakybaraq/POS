@@ -1,3 +1,5 @@
+@import './variables.css';
+
 * { margin: 0; padding: 0; box-sizing: border-box; }
 html, body { height: 100%; overflow: hidden; }
 body { 
@@ -364,6 +366,8 @@ body {
   border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
+  color: var(--color-text);
+  font-weight: 600;
 }
 .pos-btn-order-type:hover {
   border-color: var(--color-primary);
