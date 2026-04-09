@@ -366,12 +366,15 @@ export const menuPage = new Elysia()
           try {
             const res = await fetch('/categories');
             const cats = await res.json();
-            list.innerHTML = cats.map(c => `
-              <div class="category-item">
-                <span>${c.emoji || ''} ${c.name}</span>
-                <button onclick="deleteCategory(${c.id})" class="btn-delete">🗑️</button>
-              </div>
-            `).join('');
+            let html = '';
+            for (let i = 0; i < cats.length; i++) {
+              const c = cats[i];
+              html += '<div class="category-item">' +
+                '<span>' + (c.emoji || '') + ' ' + c.name + '</span>' +
+                '<button onclick="deleteCategory(' + c.id + ')" class="btn-delete">🗑️</button>' +
+              '</div>';
+            }
+            list.innerHTML = html;
           } catch (e) {
             list.innerHTML = '<p>Gagal memuat kategori</p>';
           }

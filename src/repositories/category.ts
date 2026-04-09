@@ -27,7 +27,7 @@ export async function createCategory(data: {
     emoji: data.emoji || '',
     color: data.color || '',
     sortOrder: data.sortOrder || 0,
-  }));
+  });
   return result;
 }
 
