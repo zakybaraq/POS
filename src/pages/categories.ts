@@ -166,8 +166,8 @@ export const categoriesPage = new Elysia()
               '<td><strong>' + c.name + '</strong></td>' +
               '<td>' + menuCount + ' menu</td>' +
               '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
-              '<td>' +
-                '<button class="btn btn-secondary" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '" style="padding: 4px 8px; font-size: 11px;">Edit</button> ' +
+              '<td style="white-space: nowrap;">' +
+                '<button class="btn btn-secondary" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '" style="padding: 4px 8px; font-size: 11px; margin-right: 4px;">Edit</button>' +
                 '<button class="btn btn-danger" data-action="delete" data-id="' + c.id + '" style="padding: 4px 8px; font-size: 11px;">Hapus</button>' +
               '</td>' +
             '</tr>';
