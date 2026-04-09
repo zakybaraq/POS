@@ -36,7 +36,7 @@ export const categoriesPage = new Elysia()
                     <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
                   </div>
                   <div class="menu-toolbar-right">
-                    <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Tambah Kategori</button>
+                    <button class="btn btn-primary" id="btn-add-category">+ Tambah Kategori</button>
                   </div>
                 </div>
               </div>
@@ -44,13 +44,14 @@ export const categoriesPage = new Elysia()
                 <table class="table">
                   <thead>
                     <tr>
-                      <th onclick="sortCategories('id')" style="cursor: pointer;"># <span id="sort-id"></span></th>
                       <th onclick="sortCategories('name')" style="cursor: pointer;">Nama Kategori <span id="sort-name"></span></th>
+                      <th style="width: 100px;">Menu</th>
+                      <th style="width: 100px;">Status</th>
                       <th style="width: 120px;">Aksi</th>
                     </tr>
                   </thead>
                   <tbody id="categories-table-body">
-                    <tr><td colspan="3" class="text-center text-secondary" style="padding: 40px;">Memuat...</td></tr>
+                    <tr><td colspan="4" class="text-center text-secondary" style="padding: 40px;">Memuat...</td></tr>
                   </tbody>
                 </table>
               </div>
@@ -62,11 +63,11 @@ export const categoriesPage = new Elysia()
       </div>
 
       <div class="modal" id="category-modal">
-        <div class="modal-backdrop" onclick="closeCategoryModal()"></div>
+        <div class="modal-backdrop" id="category-modal-backdrop"></div>
         <div class="modal-content" style="max-width: 400px;">
           <div class="modal-header">
             <h3 id="category-modal-title">Tambah Kategori</h3>
-            <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+            <button class="modal-close" id="category-modal-close">&times;</button>
           </div>
           <div class="modal-body">
             <form id="category-form">
@@ -75,10 +76,17 @@ export const categoriesPage = new Elysia()
                 <label class="form-label">Nama Kategori *</label>
                 <input type="text" id="category-name" class="input" required>
               </div>
+              <div class="form-group">
+                <label class="form-label">Status</label>
+                <select id="category-available" class="input">
+                  <option value="true">Aktif</option>
+                  <option value="false">Tidak Aktif</option>
+                </select>
+              </div>
             </form>
           </div>
           <div class="modal-footer">
-            <button type="submit" form="category-form" class="btn btn-primary" onclick="saveCategory()">Simpan</button>
+            <button type="submit" form="category-form" class="btn btn-primary" id="btn-save-category">Simpan</button>
           </div>
         </div>
       </div>
@@ -92,16 +100,25 @@ export const categoriesPage = new Elysia()
       </style>
       <script>
         let currentCategories = [];
-        let sortField = 'id';
+        let currentMenus = [];
+        let sortField = 'name';
         let sortDir = 'asc';
 
-        async function loadCategories() {
+        async function loadData() {
           try {
-            const res = await fetch('/categories');
-            currentCategories = await res.json();
+            const [catsRes, menusRes] = await Promise.all([
+              fetch('/categories'),
+              fetch('/api/menus')
+            ]);
+            currentCategories = await catsRes.json();
+            const menus = await menusRes.json();
+            currentMenus = menus.reduce((acc, m) => {
+              acc[m.category] = (acc[m.category] || 0) + 1;
+              return acc;
+            }, {});
             sortCategories(sortField);
           } catch (e) {
-            document.getElementById('categories-table-body').innerHTML = '<tr><td colspan="3" class="text-center text-secondary" style="padding: 40px;">Gagal memuat kategori</td></tr>';
+            document.getElementById('categories-table-body').innerHTML = '<tr><td colspan="4" class="text-center text-secondary" style="padding: 40px;">Gagal memuat data</td></tr>';
           }
         }
 
@@ -141,12 +158,17 @@ export const categoriesPage = new Elysia()
           let html = '';
           for (let i = 0; i < currentCategories.length; i++) {
             const c = currentCategories[i];
-            html += '<tr data-category-id="' + c.id + '" data-name="' + c.name + '">' +
-              '<td><strong>#' + c.id + '</strong></td>' +
-              '<td>' + c.name + '</td>' +
+            const menuCount = currentMenus[c.name] || 0;
+            const statusClass = c.isAvailable ? 'badge-success' : 'badge-error';
+            const statusLabel = c.isAvailable ? 'Aktif' : 'Tidak Aktif';
+            
+            html += '<tr data-category-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '">' +
+              '<td><strong>' + c.name + '</strong></td>' +
+              '<td>' + menuCount + ' menu</td>' +
+              '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
               '<td>' +
-                '<button class="btn btn-sm" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '">Edit</button> ' +
-                '<button class="btn btn-sm btn-danger" data-action="delete" data-id="' + c.id + '">Hapus</button>' +
+                '<button class="btn btn-secondary btn-sm" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '">Edit</button> ' +
+                '<button class="btn btn-sm" data-action="toggle" data-id="' + c.id + '" data-available="' + c.isAvailable + '">' + (c.isAvailable ? 'Nonaktif' : 'Aktifkan') + '</button>' +
               '</td>' +
             '</tr>';
           }
@@ -156,8 +178,11 @@ export const categoriesPage = new Elysia()
             btn.addEventListener('click', function() {
               const action = this.dataset.action;
               const id = parseInt(this.dataset.id);
-              if (action === 'edit') editCategory(id, this.dataset.name);
-              else if (action === 'delete') deleteCategory(id);
+              if (action === 'edit') {
+                editCategory(id, this.dataset.name, this.dataset.available === 'true');
+              } else if (action === 'toggle') {
+                toggleCategory(id, this.dataset.available === 'true');
+              }
             });
           });
         }
@@ -171,18 +196,28 @@ export const categoriesPage = new Elysia()
           });
         }
 
+        document.getElementById('btn-add-category').addEventListener('click', function() {
+          showAddCategoryModal();
+        });
+
+        document.getElementById('category-modal-backdrop').addEventListener('click', closeCategoryModal);
+        document.getElementById('category-modal-close').addEventListener('click', closeCategoryModal);
+        document.getElementById('btn-save-category').addEventListener('click', saveCategory);
+
         function showAddCategoryModal() {
           document.getElementById('category-modal-title').textContent = 'Tambah Kategori';
           document.getElementById('category-id').value = '';
           document.getElementById('category-name').value = '';
+          document.getElementById('category-available').value = 'true';
           document.getElementById('category-modal').classList.add('show');
           document.getElementById('category-name').focus();
         }
 
-        function editCategory(id, name) {
+        function editCategory(id, name, isAvailable) {
           document.getElementById('category-modal-title').textContent = 'Edit Kategori';
           document.getElementById('category-id').value = id;
           document.getElementById('category-name').value = name;
+          document.getElementById('category-available').value = isAvailable ? 'true' : 'false';
           document.getElementById('category-modal').classList.add('show');
           document.getElementById('category-name').focus();
         }
@@ -194,6 +229,8 @@ export const categoriesPage = new Elysia()
         async function saveCategory() {
           const id = document.getElementById('category-id').value;
           const name = document.getElementById('category-name').value.trim();
+          const isAvailable = document.getElementById('category-available').value === 'true';
+          
           if (!name) return alert('Nama kategori wajib diisi');
           
           try {
@@ -202,37 +239,39 @@ export const categoriesPage = new Elysia()
               res = await fetch('/categories/' + id, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name, isAvailable })
               });
             } else {
               res = await fetch('/categories', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ name })
+                body: JSON.stringify({ name, isAvailable })
               });
             }
             const data = await res.json();
             if (data.error) return alert(data.error);
             
             closeCategoryModal();
-            loadCategories();
+            loadData();
           } catch (e) {
             alert('Gagal menyimpan kategori');
           }
         }
 
-        async function deleteCategory(id) {
-          if (!confirm('Yakin hapus kategori ini?')) return;
-          
+        async function toggleCategory(id, currentAvailable) {
           try {
-            await fetch('/categories/' + id, { method: 'DELETE' });
-            loadCategories();
+            await fetch('/categories/' + id, {
+              method: 'PUT',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ isAvailable: !currentAvailable })
+            });
+            loadData();
           } catch (e) {
-            alert('Gagal menghapus kategori');
+            alert('Gagal mengubah status');
           }
         }
 
-        loadCategories();
+        loadData();
       </script>
       ${getCommonScripts()}
     `);

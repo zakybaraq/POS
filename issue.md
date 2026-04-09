@@ -2,7 +2,7 @@
 
 ## Masalah
 
-Halaman `/kategori` tidakmatch dengan UI halaman lain khususnya `/pesanan` dan `/menu`. Perlu buat table dan UI benar-benar seragam.
+Halaman `/kategori` tidak match dengan UI halaman lain khususnya `/pesanan` dan `/menu`. Perlu buat table dan UI benar-benar seragam.
 
 ---
 

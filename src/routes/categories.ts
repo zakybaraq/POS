@@ -11,7 +11,7 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
     return category;
   })
   .post('/', async ({ body }) => {
-    const { name, sortOrder } = body as Record<string, unknown>;
+    const { name, isAvailable, sortOrder } = body as Record<string, unknown>;
     if (!name) return { error: 'Name is required' };
     
     const existing = await categoryRepo.getCategoryByName(name as string);
@@ -19,15 +19,17 @@ export const categoryRoutes = new Elysia({ prefix: '/categories' })
     
     await categoryRepo.createCategory({
       name: name as string,
+      isAvailable: isAvailable as boolean | undefined,
       sortOrder: sortOrder as number | undefined,
     });
     return { success: true };
   })
   .put('/:id', async ({ params: { id }, body }) => {
-    const { name, sortOrder } = body as Record<string, unknown>;
+    const { name, isAvailable, sortOrder } = body as Record<string, unknown>;
     
     await categoryRepo.updateCategory(Number(id), {
       name: name as string | undefined,
+      isAvailable: isAvailable as boolean | undefined,
       sortOrder: sortOrder as number | undefined,
     });
     return { success: true };
