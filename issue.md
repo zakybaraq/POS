@@ -1,129 +1,165 @@
-# Issue: Simplifikasi Kategori - Hapus Emoji & Warna, Buat Dedicated Page
+# Issue: Improve UI Halaman Kategori - Samakan dengan Pesanan/Menu
 
 ## Masalah
 
-1. Field `emoji` dan `color` di kategori tidak diperlukan
-2. Belum ada halaman Kategori yang khusus
-3. Tombol di Menu page perlu diarahkan ke halaman baru
+Halaman `/kategori` tidakmatch dengan UI halaman lain khususnya `/pesanan` dan `/menu`. Perlu buat table dan UI benar-benar seragam.
 
 ---
 
-## Analisis struktur Data
+## Referensi Pattern Lengkap (Halaman Pesanan)
 
-### DB Saat Ini
-```sql
-categories table:
-- id INT PRIMARY KEY
-- name VARCHAR(100) NOT NULL UNIQUE
-- emoji VARCHAR(10) DEFAULT ''
-- color VARCHAR(20) DEFAULT ''
-- sort_order INT DEFAULT 0
-- created_at DATETIME
+```html
+<div class="card">
+  <div class="card-header">
+    <div class="menu-toolbar">
+      <div class="menu-toolbar-left">
+        <input type="text" id="order-search" class="menu-search-input" placeholder="Cari...">
+      </div>
+      <div class="menu-toolbar-right">
+        <button>Refresh</button>
+      </div>
+    </div>
+  </div>
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th onclick="sortOrders('id')"># <span id="sort-id"></span></th>
+          <th>Meja</th>
+          <th>Kasir</th>
+          <th>Total</th>
+          <th>Status</th>
+          <th>Waktu</th>
+          <th>Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="orders-table-body">
+        <tr data-order-id="" data-table="" ...>
+          <td><strong>#001</strong></td>
+          <td>Meja 1</td>
+          <td>Kasir</td>
+          <td>Rp 50.000</td>
+          <td><span class="badge badge-success">Selesai</span></td>
+          <td>10:30</td>
+          <td><button class="btn btn-secondary btn-sm">Detail</button></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="text-center text-secondary" style="padding: 40px;">Belum ada pesanan</p>
+</div>
+
+<!-- Modal Pattern -->
+<div class="modal" id="order-detail-modal">
+  <div class="modal-backdrop" onclick="closeOrderDetail()"></div>
+  <div class="modal-content" style="max-width: 500px;">
+    <div class="modal-header">
+      <h3>Detail Pesanan #<span id="detail-order-id"></span></h3>
+      <button class="modal-close" onclick="closeOrderDetail()">&times;</button>
+    </div>
+    <div class="modal-body" id="order-detail-body"></div>
+    <div class="modal-footer">
+      <button class="btn btn-secondary">Cetak</button>
+      <button class="btn btn-primary">Tutup</button>
+    </div>
+  </div>
+</div>
 ```
-
----
 
 ## Tahapan Implementasi
 
-### Langkah 1: Modifikasi DB Schema
-
-**File:** `src/db/schema.ts`
-
-Hapus kolom `emoji` dan `color` dari categories table:
-
-```typescript
-// Sebelum
-export const categories = mysqlTable('categories', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull().unique(),
-  emoji: varchar('emoji', { length: 10 }).default(''),
-  color: varchar('color', { length: 20 }).default(''),
-  sortOrder: int('sort_order').default(0),
-  createdAt: datetime('created_at').notNull().default(new Date()),
-});
-
-// Sesudah
-export const categories = mysqlTable('categories', {
-  id: serial('id').primaryKey(),
-  name: varchar('name', { length: 100 }).notNull().unique(),
-  sortOrder: int('sort_order').default(0),
-  createdAt: datetime('created_at').notNull().default(new Date()),
-});
-```
-
-###Langkah 2: Update Repository
-
-**File:** `src/repositories/category.ts`
-
-- Hapus field `emoji` dan `color` dari semua functions
-- Update `createCategory`, `updateCategory`, `seedDefaultCategories`
-
-### Langkah 3: Update Routes
-
-**File:** `src/routes/categories.ts`
-
-- Hapus validation untuk `emoji` dan `color`
-- Update type definitions
-
-###Langkah 4: Migration DB (Jika Ada Data)
-
-Eksekusi SQL:
-
-```sql
--- Hapus kolom emoji dan color (setelah schema di-update)
-ALTER TABLE categories DROP COLUMN emoji;
-ALTER TABLE categories DROP COLUMN color;
-```
-
-### Langkah 5: Buat Halaman Kategori Baru
+### Langkah 1: Update HTML Structure
 
 **File:** `src/pages/categories.ts`
 
-Buat halaman dedicated untuk Kelola Kategori:
-- List semua kategori
-- Form tambah/edit kategori (hanya nama)
-- Tombol hapus
-- Pagination jika banyak
+1. Wrap dalam `<div class="card">` + `<div class="card-header">`
+2. Toolbar dengan `.menu-toolbar`, `.menu-toolbar-left`, `.menu-toolbar-right`
+3. Search input dengan `.menu-search-input`
+4. Table dalam `<div class="table-container">` → `<table class="table">`
+5. Thead dengan sorting spans
+6. Tbody dengan data attributes
+7. Empty state message
 
-**UI Mockup:**
+### Langkah 2: Update Modal Structure
+
+- `.modal-backdrop` 
+- `.modal-content` with max-width
+- `.modal-header` with title + close button
+- `.modal-body` with form
+- `.modal-footer` with buttons
+
+### Langkah 3: Update JavaScript Functions
+
+- `filterCategories()` - untuk search
+- `sortCategories()` - untuk sorting (optional)
+- `renderCategories()` - untuk render table
+
+### Langkah 4: CSS Classes yang Sudah Ada
+
+- `.card`, `.card-header`
+- `.menu-toolbar`, `.menu-toolbar-left`, `.menu-toolbar-right`
+- `.menu-search-input`
+- `.table`, `.table th`, `.table td`
+- `.badge`, `.badge-success`, `.badge-warning`, `.badge-error`
+- `.modal`, `.modal-backdrop`, `.modal-content`, `.modal-header`, `.modal-body`, `.modal-footer`, `.modal-close`
+- `.btn`, `.btn-sm`, `.btn-primary`, `.btn-secondary`, `.btn-danger`
+- `.text-center`, `.text-secondary`
+- `.form-group`, `.form-label`, `.input`
+
+---
+
+## Hasil yang Diharapkan
+
+```html
+<div class="card">
+  <div class="card-header">
+    <div class="menu-toolbar">
+      <div class="menu-toolbar-left">
+        <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
+      </div>
+      <div class="menu-toolbar-right">
+        <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Tambah Kategori</button>
+      </div>
+    </div>
+  </div>
+  <div class="table-container">
+    <table class="table">
+      <thead>
+        <tr>
+          <th onclick="sortCategories('id')" style="cursor: pointer;"># <span id="sort-id"></span></th>
+          <th onclick="sortCategories('name')" style="cursor: pointer;">Nama <span id="sort-name"></span></th>
+          <th style="width: 120px;">Aksi</th>
+        </tr>
+      </thead>
+      <tbody id="categories-table-body"></tbody>
+    </table>
+  </div>
+  <p class="text-center text-secondary" style="padding: 40px;" id="empty-state">Belum ada kategori</p>
+</div>
+
+<!-- Modal -->
+<div class="modal" id="category-modal">
+  <div class="modal-backdrop" onclick="closeCategoryModal()"></div>
+  <div class="modal-content" style="max-width: 400px;">
+    <div class="modal-header">
+      <h3 id="category-modal-title">Tambah Kategori</h3>
+      <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
+    </div>
+    <div class="modal-body">
+      <form id="category-form">
+        <input type="hidden" id="category-id">
+        <div class="form-group">
+          <label class="form-label">Nama Kategori *</label>
+          <input type="text" id="category-name" class="input" required>
+        </div>
+      </form>
+    </div>
+    <div class="modal-footer">
+      <button type="submit" form="category-form" class="btn btn-primary">Simpan</button>
+    </div>
+  </div>
+</div>
 ```
-┌─────────────────────────────────────────┐
-│  Home / Pengaturan / Kelola Kategori    │
-├─────────────────────────────────────────┤
-│  🔍 Cari...          [+ Tambah Kategori]│
-├─────────────────────────────────────────┤
-│  #  Nama            Aksi                │
-│  1  Makanan        [Edit] [Hapus]      │
-│  2  Minuman         [Edit] [Hapus]      │
-│  3  Camilan        [Edit] [Hapus]      │
-└─────────────────────────────────────────┘
-```
-
-###Langkah 6: Update Tombol di Menu Page
-
-**File:** `src/pages/menu.ts`
-
-```typescript
-// Sebelum
-<button class="btn btn-secondary" onclick="showCategoryModal()">🏷️ Kelola Kategori</button>
-
-// Sesudah - link ke halaman kategori
-<a href="/categories" class="btn btn-secondary">🏷️ Kelola Kategori</a>
-```
-
-atau cukup:
-
-```typescript
-<button class="btn btn-secondary" onclick="window.location.href='/categories'">🏷️ Kelola Kategori</button>
-```
-
-###Langkah 7: Hapus Modal Category dari Menu Page
-
-Setelah punya halaman khusus:
-- Hapus modal "category-modal" dari menu.ts
-- Hapus fungsi `showCategoryModal`, `closeCategoryModal`, `saveCategory`, `renderCategoriesList`, `deleteCategory`
-- Hapus CSS `.category-item`
-- Hapus button "Kelola Kategori" dari toolbar
 
 ---
 
@@ -131,30 +167,13 @@ Setelah punya halaman khusus:
 
 | File | Perubahan |
 |------|------------|
-| `src/db/schema.ts` | Hapus emoji, color columns |
-| `src/repositories/category.ts` | Update functions |
-| `src/routes/categories.ts` | Update routes |
-| `src/pages/categories.ts` | **BARU** - halaman kategori |
-| `src/index.ts` | Register categories page |
-| `src/pages/menu.ts` | Hapus modal, ubah tombol ke link |
+| `src/pages/categories.ts` | Full rewrite HTML + JS |
 
 ---
 
 ## Estimasi Effort
 
-- 1-2 jam untuk simplifikasi DB + repo
-- 2-3 jam untuk halaman kategori baru
-- 1 jam untuk cleanup menu page
-
-**Total: ~4-6 jam**
-
----
-
-## Catatan
-
-- Data emoji/color yang sudah ada di DB akan di-drop saat migration
-- Pastikan backup sebelum migration
-- Default kategori (makanan, minuman) tetap ada tapi tanpa emoji/color
+2-3 jam
 
 ---
 
