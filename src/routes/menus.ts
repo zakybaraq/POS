@@ -12,9 +12,6 @@ export const menuRoutes = new Elysia({ prefix: '/api/menus' })
         return menuRepo.getAvailableMenus();
       })
       .get('/category/:category', async ({ params: { category } }) => {
-        if (category !== 'makanan' && category !== 'minuman') {
-          return { error: 'Invalid category' };
-        }
         return menuRepo.getMenusByCategory(category);
       })
       .get('/:id', async ({ params: { id } }) => {
@@ -34,15 +31,12 @@ export const menuRoutes = new Elysia({ prefix: '/api/menus' })
         if (price <= 0) {
           return { error: 'Price must be greater than 0' };
         }
-        if (category !== 'makanan' && category !== 'minuman') {
-          return { error: 'Invalid category' };
-        }
         return menuRepo.createMenu({ name, price, category, description: description || '', isAvailable: true });
       }, {
         body: t.Object({
           name: t.String(),
           price: t.Number(),
-          category: t.Union([t.Literal('makanan'), t.Literal('minuman')]),
+          category: t.String(),
           description: t.Optional(t.String()),
         }),
       })

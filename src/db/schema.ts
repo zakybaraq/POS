@@ -4,6 +4,15 @@ import { mysqlTable, serial, varchar, int, boolean, datetime, mysqlEnum, index, 
 import { relations } from 'drizzle-orm';
 
 export const categoryEnum = mysqlEnum('category', ['makanan', 'minuman']);
+export const categories = mysqlTable('categories', {
+  id: serial('id').primaryKey(),
+  name: varchar('name', { length: 100 }).notNull().unique(),
+  emoji: varchar('emoji', { length: 10 }).default(''),
+  color: varchar('color', { length: 20 }).default(''),
+  sortOrder: int('sort_order').default(0),
+  createdAt: datetime('created_at').notNull().default(new Date()),
+});
+
 export const tableStatusEnum = mysqlEnum('table_status', ['available', 'occupied']);
 export const orderStatusEnum = mysqlEnum('order_status', ['draft', 'active', 'completed', 'cancelled']);
 export const itemStatusEnum = mysqlEnum('item_status', ['pending', 'cooking', 'ready', 'served']);
@@ -28,7 +37,7 @@ export const menus = mysqlTable('menus', {
   name: varchar('name', { length: 255 }).notNull(),
   price: int('price').notNull(),
   description: varchar('description', { length: 500 }).default(''),
-  category: categoryEnum.notNull(),
+  category: varchar('category', { length: 100 }).notNull().default('makanan'),
   isAvailable: boolean('is_available').notNull().default(true),
   createdAt: datetime('created_at').notNull().default(new Date()),
 }, (table) => ({

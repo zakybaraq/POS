@@ -2,6 +2,38 @@
 
 console.log('POS client loaded');
 
+let cachedCategories = [];
+
+async function loadPOSCategories() {
+  try {
+    const res = await fetch('/categories');
+    cachedCategories = await res.json();
+    renderPOSCategories();
+  } catch (e) {
+    console.error('Failed to load categories:', e);
+  }
+}
+
+function renderPOSCategories() {
+  const container = document.querySelector('.pos-menu-header');
+  if (!container) return;
+  
+  // Keep "Semua" button, replace others
+  const semuaBtn = container.querySelector('button');
+  container.innerHTML = '<button class="pos-category active" onclick="filterCategory(\'all\',this)">Semua</button>';
+  
+  cachedCategories.forEach(cat => {
+    const btn = document.createElement('button');
+    btn.className = 'pos-category';
+    const name = cat.name.charAt(0).toUpperCase() + cat.name.slice(1);
+    btn.textContent = cat.emoji ? `${cat.emoji} ${name}` : name;
+    btn.onclick = () => filterCategory(cat.name, btn);
+    container.appendChild(btn);
+  });
+}
+
+loadPOSCategories();
+
 const MENU_EMOJI = {
   makanan: ['🍛', '🍜', '🍗', '🍚', '🥘', '🍲', '🥩', '🍖', '🌮', '🍔'],
   minuman: ['🥤', '🧃', '☕', '🍵', '🥛', '🧊', '🍹', '🥝', '🍋', '🫖'],
