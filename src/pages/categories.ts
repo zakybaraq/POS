@@ -29,6 +29,24 @@ export const categoriesPage = new Elysia()
         <div class="app-content">
           ${getNavbarHtml('Kelola Kategori', 'kategori', user)}
           <main class="app-main">
+            <div class="stats-grid" id="stats-grid">
+              <div class="stats-card">
+                <div class="stats-label">Total Kategori</div>
+                <div class="stats-value" id="stat-total">0</div>
+                <div class="stats-change">Semua kategori</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Aktif</div>
+                <div class="stats-value" style="color: var(--color-success);" id="stat-active">0</div>
+                <div class="stats-change">Bisa digunakan</div>
+              </div>
+              <div class="stats-card">
+                <div class="stats-label">Tidak Aktif</div>
+                <div class="stats-value" style="color: var(--color-error);" id="stat-inactive">0</div>
+                <div class="stats-change">Tidak bisa digunakan</div>
+              </div>
+            </div>
+
             <div class="card">
               <div class="card-header">
                 <div class="menu-toolbar">
@@ -147,6 +165,12 @@ export const categoriesPage = new Elysia()
         function renderCategories() {
           const tbody = document.getElementById('categories-table-body');
           const emptyState = document.getElementById('empty-state');
+          
+          const activeCount = currentCategories.filter(c => c.isAvailable).length;
+          const inactiveCount = currentCategories.length - activeCount;
+          document.getElementById('stat-total').textContent = currentCategories.length;
+          document.getElementById('stat-active').textContent = activeCount;
+          document.getElementById('stat-inactive').textContent = inactiveCount;
           
           if (currentCategories.length === 0) {
             tbody.innerHTML = '';
