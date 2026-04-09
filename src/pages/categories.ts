@@ -167,8 +167,8 @@ export const categoriesPage = new Elysia()
               '<td>' + menuCount + ' menu</td>' +
               '<td><span class="badge ' + statusClass + '">' + statusLabel + '</span></td>' +
               '<td>' +
-                '<button class="btn btn-secondary btn-sm" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '">Edit</button> ' +
-                '<button class="btn btn-sm" data-action="toggle" data-id="' + c.id + '" data-available="' + c.isAvailable + '">' + (c.isAvailable ? 'Nonaktif' : 'Aktifkan') + '</button>' +
+                '<button class="btn btn-secondary" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '" style="padding: 4px 8px; font-size: 11px;">Edit</button> ' +
+                '<button class="btn btn-danger" data-action="delete" data-id="' + c.id + '" style="padding: 4px 8px; font-size: 11px;">Hapus</button>' +
               '</td>' +
             '</tr>';
           }
@@ -180,8 +180,8 @@ export const categoriesPage = new Elysia()
               const id = parseInt(this.dataset.id);
               if (action === 'edit') {
                 editCategory(id, this.dataset.name, this.dataset.available === 'true');
-              } else if (action === 'toggle') {
-                toggleCategory(id, this.dataset.available === 'true');
+              } else if (action === 'delete') {
+                deleteCategory(id);
               }
             });
           });
@@ -268,6 +268,16 @@ export const categoriesPage = new Elysia()
             loadData();
           } catch (e) {
             alert('Gagal mengubah status');
+          }
+        }
+
+        async function deleteCategory(id) {
+          if (!confirm('Yakin hapus kategori ini?')) return;
+          try {
+            await fetch('/categories/' + id, { method: 'DELETE' });
+            loadData();
+          } catch (e) {
+            alert('Gagal menghapus kategori');
           }
         }
 
