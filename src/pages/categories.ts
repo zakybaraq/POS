@@ -25,124 +25,125 @@ export const categoriesPage = new Elysia()
 
     return htmlResponse(`
       <div class="app-layout">
-        ${getSidebarHtml('categories', user)}
+        ${getSidebarHtml('kategori', user)}
         <div class="app-content">
           ${getNavbarHtml('Kelola Kategori', 'kategori', user)}
           <main class="app-main">
-            <div class="categories-toolbar">
-              <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
-              <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Tambah Kategori</button>
-            </div>
-            <div class="table-container">
-              <table class="table">
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Nama Kategori</th>
-                    <th>Aksi</th>
-                  </tr>
-                </thead>
-                <tbody id="categories-table-body">
-                  <tr><td colspan="3">Memuat...</td></tr>
-                </tbody>
-              </table>
+            <div class="card">
+              <div class="card-header">
+                <div class="menu-toolbar">
+                  <div class="menu-toolbar-left">
+                    <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
+                  </div>
+                  <div class="menu-toolbar-right">
+                    <button class="btn btn-primary" onclick="showAddCategoryModal()">+ Tambah Kategori</button>
+                  </div>
+                </div>
+              </div>
+              <div class="table-container">
+                <table class="table">
+                  <thead>
+                    <tr>
+                      <th onclick="sortCategories('id')" style="cursor: pointer;"># <span id="sort-id"></span></th>
+                      <th onclick="sortCategories('name')" style="cursor: pointer;">Nama Kategori <span id="sort-name"></span></th>
+                      <th style="width: 120px;">Aksi</th>
+                    </tr>
+                  </thead>
+                  <tbody id="categories-table-body">
+                    <tr><td colspan="3" class="text-center text-secondary" style="padding: 40px;">Memuat...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+              <p class="text-center text-secondary" style="padding: 40px; display: none;" id="empty-state">Belum ada kategori</p>
             </div>
           </main>
           ${getFooterHtml()}
         </div>
       </div>
 
-      <div class="modal" id="add-category-modal">
-        <div class="modal-backdrop" onclick="closeAddCategoryModal()"></div>
-        <div class="modal-content">
+      <div class="modal" id="category-modal">
+        <div class="modal-backdrop" onclick="closeCategoryModal()"></div>
+        <div class="modal-content" style="max-width: 400px;">
           <div class="modal-header">
-            <h3>Tambah Kategori</h3>
-            <button class="modal-close" onclick="closeAddCategoryModal()">&times;</button>
+            <h3 id="category-modal-title">Tambah Kategori</h3>
+            <button class="modal-close" onclick="closeCategoryModal()">&times;</button>
           </div>
           <div class="modal-body">
-            <div class="form-group">
-              <label>Nama Kategori</label>
-              <input type="text" id="category-name" class="input" placeholder="cth: makanan, jalanan, premium">
-            </div>
+            <form id="category-form">
+              <input type="hidden" id="category-id">
+              <div class="form-group">
+                <label class="form-label">Nama Kategori *</label>
+                <input type="text" id="category-name" class="input" required>
+              </div>
+            </form>
           </div>
           <div class="modal-footer">
-            <button onclick="closeAddCategoryModal()" class="btn btn-secondary">Batal</button>
-            <button onclick="saveCategory()" class="btn btn-primary">Simpan</button>
+            <button type="submit" form="category-form" class="btn btn-primary" onclick="saveCategory()">Simpan</button>
           </div>
         </div>
       </div>
 
-      <div class="modal" id="edit-category-modal">
-        <div class="modal-backdrop" onclick="closeEditCategoryModal()"></div>
-        <div class="modal-content">
-          <div class="modal-header">
-            <h3>Edit Kategori</h3>
-            <button class="modal-close" onclick="closeEditCategoryModal()">&times;</button>
-          </div>
-          <div class="modal-body">
-            <input type="hidden" id="edit-category-id">
-            <div class="form-group">
-              <label>Nama Kategori</label>
-              <input type="text" id="edit-category-name" class="input">
-            </div>
-          </div>
-          <div class="modal-footer">
-            <button onclick="closeEditCategoryModal()" class="btn btn-secondary">Batal</button>
-            <button onclick="saveEditCategory()" class="btn btn-primary">Simpan</button>
-          </div>
-        </div>
-      </div>
-
-      <style>
-        .categories-toolbar { display: flex; justify-content: space-between; margin-bottom: 16px; }
-        .menu-search-input { padding: 8px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); width: 250px; }
-      </style>
       <script>
+        let currentCategories = [];
+        let sortField = 'id';
+        let sortDir = 'asc';
+
         async function loadCategories() {
           try {
-            console.log('Loading categories...');
             const res = await fetch('/categories');
-            const categories = await res.json();
-            console.log('Loaded:', categories);
-            renderCategories(categories);
+            currentCategories = await res.json();
+            sortCategories(sortField);
           } catch (e) {
-            console.error('Error loading:', e);
-            document.getElementById('categories-table-body').innerHTML = '<tr><td colspan="3">Gagal memuat kategori: ' + e.message + '</td></tr>';
+            document.getElementById('categories-table-body').innerHTML = '<tr><td colspan="3" class="text-center text-secondary" style="padding: 40px;">Gagal memuat kategori</td></tr>';
           }
         }
 
-        function renderCategories(categories) {
+        function sortCategories(field) {
+          if (sortField === field) {
+            sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+          } else {
+            sortField = field;
+            sortDir = 'asc';
+          }
+          document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
+          const el = document.getElementById('sort-' + field);
+          if (el) el.textContent = sortDir === 'asc' ? '↑' : '↓';
+          
+          currentCategories.sort((a, b) => {
+            let aVal = a[field];
+            let bVal = b[field];
+            if (typeof aVal === 'string') aVal = aVal.toLowerCase();
+            if (typeof bVal === 'string') bVal = bVal.toLowerCase();
+            if (sortDir === 'asc') return aVal > bVal ? 1 : -1;
+            return aVal < bVal ? 1 : -1;
+          });
+          renderCategories();
+        }
+
+        function renderCategories() {
           const tbody = document.getElementById('categories-table-body');
-          if (categories.length === 0) {
-            tbody.innerHTML = '<tr><td colspan="3">Belum ada kategori</td></tr>';
+          const emptyState = document.getElementById('empty-state');
+          
+          if (currentCategories.length === 0) {
+            tbody.innerHTML = '';
+            emptyState.style.display = 'block';
             return;
           }
+          
+          emptyState.style.display = 'none';
           let html = '';
-          for (let i = 0; i < categories.length; i++) {
-            const c = categories[i];
-            html += '<tr data-name="' + c.name + '">' +
-              '<td>' + (i + 1) + '</td>' +
-              '<td><strong>' + c.name + '</strong></td>' +
+          for (let i = 0; i < currentCategories.length; i++) {
+            const c = currentCategories[i];
+            html += '<tr data-category-id="' + c.id + '" data-name="' + c.name + '">' +
+              '<td><strong>#' + c.id + '</strong></td>' +
+              '<td>' + c.name + '</td>' +
               '<td>' +
-                '<button class="btn btn-sm" data-action="edit" data-id="' + c.id + '" data-name="' + c.name + '">Edit</button> ' +
-                '<button class="btn btn-sm btn-danger" data-action="delete" data-id="' + c.id + '">Hapus</button>' +
+                '<button class="btn btn-sm" onclick="editCategory(' + c.id + ', \'' + c.name + '\')">Edit</button> ' +
+                '<button class="btn btn-sm btn-danger" onclick="deleteCategory(' + c.id + ')">Hapus</button>' +
               '</td>' +
             '</tr>';
           }
           tbody.innerHTML = html;
-          
-          // Attach event listeners
-          tbody.querySelectorAll('button[data-action]').forEach(btn => {
-            btn.addEventListener('click', function() {
-              const action = this.dataset.action;
-              const id = parseInt(this.dataset.id);
-              if (action === 'edit') {
-                editCategory(id, this.dataset.name);
-              } else if (action === 'delete') {
-                deleteCategory(id);
-              }
-            });
-          });
         }
 
         function filterCategories() {
@@ -155,64 +156,49 @@ export const categoriesPage = new Elysia()
         }
 
         function showAddCategoryModal() {
-          document.getElementById('add-category-modal').classList.add('show');
+          document.getElementById('category-modal-title').textContent = 'Tambah Kategori';
+          document.getElementById('category-id').value = '';
           document.getElementById('category-name').value = '';
+          document.getElementById('category-modal').classList.add('show');
           document.getElementById('category-name').focus();
         }
 
-        function closeAddCategoryModal() {
-          document.getElementById('add-category-modal').classList.remove('show');
+        function editCategory(id, name) {
+          document.getElementById('category-modal-title').textContent = 'Edit Kategori';
+          document.getElementById('category-id').value = id;
+          document.getElementById('category-name').value = name;
+          document.getElementById('category-modal').classList.add('show');
+          document.getElementById('category-name').focus();
         }
 
-        function showEditCategoryModal() {
-          document.getElementById('edit-category-modal').classList.add('show');
-        }
-
-        function closeEditCategoryModal() {
-          document.getElementById('edit-category-modal').classList.remove('show');
+        function closeCategoryModal() {
+          document.getElementById('category-modal').classList.remove('show');
         }
 
         async function saveCategory() {
+          const id = document.getElementById('category-id').value;
           const name = document.getElementById('category-name').value.trim();
           if (!name) return alert('Nama kategori wajib diisi');
           
           try {
-            const res = await fetch('/categories', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name })
-            });
+            let res;
+            if (id) {
+              res = await fetch('/categories/' + id, {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+              });
+            } else {
+              res = await fetch('/categories', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name })
+              });
+            }
             const data = await res.json();
             if (data.error) return alert(data.error);
             
-            closeAddCategoryModal();
-            loadCategories();
-          } catch (e) {
-            alert('Gagal menyimpan kategori');
-          }
-        }
-
-        async function editCategory(id, name) {
-          document.getElementById('edit-category-id').value = id;
-          document.getElementById('edit-category-name').value = name;
-          showEditCategoryModal();
-        }
-
-        async function saveEditCategory() {
-          const id = document.getElementById('edit-category-id').value;
-          const name = document.getElementById('edit-category-name').value.trim();
-          if (!name) return alert('Nama kategori wajib diisi');
-          
-          try {
-            const res = await fetch('/categories/' + id, {
-              method: 'PUT',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ name })
-            });
-            const data = await res.json();
-            if (data.error) return alert(data.error);
-            
-            closeEditCategoryModal();
+            closeCategoryModal();
             loadCategories();
           } catch (e) {
             alert('Gagal menyimpan kategori');
