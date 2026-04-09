@@ -9,6 +9,7 @@ import { dashboardPage } from './pages/dashboard';
 import { posPage } from './pages/pos';
 import { adminPage } from './pages/admin';
 import { menuPage } from './pages/menu';
+import { categoriesPage } from './pages/categories';
 import { tablesPage } from './pages/tables';
 import { ordersPage } from './pages/orders';
 import { productsPage } from './pages/products';
@@ -56,8 +57,9 @@ const app = new Elysia()
   .use(dashboardPage)
   .use(posPage)
   .use(adminPage)
-  .use(menuPage)
-  .use(tablesPage)
+.use(menuPage)
+.use(categoriesPage)
+.use(tablesPage)
   .use(ordersPage)
   .use(productsPage)
   .use(inventoryPage)

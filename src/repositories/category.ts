@@ -18,14 +18,10 @@ export async function getCategoryByName(name: string) {
 
 export async function createCategory(data: {
   name: string;
-  emoji?: string;
-  color?: string;
   sortOrder?: number;
 }) {
   const result = await db.insert(categories).values({
     name: data.name.toLowerCase(),
-    emoji: data.emoji || '',
-    color: data.color || '',
     sortOrder: data.sortOrder || 0,
   });
   return result;
@@ -33,14 +29,10 @@ export async function createCategory(data: {
 
 export async function updateCategory(id: number, data: {
   name?: string;
-  emoji?: string;
-  color?: string;
   sortOrder?: number;
 }) {
   const updateData: Record<string, unknown> = {};
   if (data.name !== undefined) updateData.name = data.name.toLowerCase();
-  if (data.emoji !== undefined) updateData.emoji = data.emoji;
-  if (data.color !== undefined) updateData.color = data.color;
   if (data.sortOrder !== undefined) updateData.sortOrder = data.sortOrder;
 
   await db.update(categories).set(updateData).where(eq(categories.id, id));
@@ -55,8 +47,8 @@ export async function seedDefaultCategories() {
   if (existing.length > 0) return;
   
   const defaultCategories = [
-    { name: 'makanan', emoji: '🍛', color: '#fff3cd', sortOrder: 1 },
-    { name: 'minuman', emoji: '🥤', color: '#cce5ff', sortOrder: 2 },
+    { name: 'makanan', sortOrder: 1 },
+    { name: 'minuman', sortOrder: 2 },
   ];
   
   for (const cat of defaultCategories) {
