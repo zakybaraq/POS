@@ -75,10 +75,19 @@ export const inventoryPage = new Elysia()
                       <thead><tr><th>Nama</th><th>Satuan</th><th>Stok</th><th>Min Stok</th><th>Harga/Satuan</th><th>Status</th><th>Aksi</th></tr></thead>
                       <tbody id="ingredients-body">
                         ${ingredients.map((i: any) => {
-                          const stock = Number(i.currentStock);
-                          const min = Number(i.minStock);
-                          const statusClass = stock === 0 ? 'badge-error' : stock < min ? 'badge-warning' : 'badge-success';
-                          const statusLabel = stock === 0 ? 'Habis' : stock < min ? 'Rendah' : 'OK';
+                         const stock = Number(i.currentStock);
+                         const min = Number(i.minStock);
+                         let statusClass, statusLabel;
+                         if (stock <= 0) {
+                           statusClass = 'badge-error';
+                           statusLabel = 'Habis';
+                         } else if (stock < min) {
+                           statusClass = 'badge-warning';
+                           statusLabel = 'Rendah';
+                         } else {
+                           statusClass = 'badge-success';
+                           statusLabel = 'OK';
+                         }
                           return `<tr data-name="${i.name.toLowerCase()}" data-stock="${stock}" data-min="${min}">
                             <td><strong>${i.name}</strong></td>
                             <td>${i.unit}</td>
