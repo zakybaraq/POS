@@ -143,7 +143,7 @@ export const inventoryPage = new Elysia()
                   </div>
                    <div class="table-container">
                      <table class="table">
-                       <thead><tr><th onclick="sortMovements('date')" style="cursor:pointer;">Tanggal <span id="sort-date"></span></th><th>Bahan</th><th onclick="sortMovements('type')" style="cursor:pointer;">Tipe <span id="sort-type"></span></th><th onclick="sortMovements('quantity')" style="cursor:pointer;">Jumlah <span id="sort-quantity"></span></th><th>ID Pesanan</th></tr></thead>
+                        <thead><tr><th onclick="sortMovements('date')" style="cursor:pointer;">Tanggal <span id="sort-date"></span></th><th>Bahan</th><th onclick="sortMovements('type')" style="cursor:pointer;">Tipe <span id="sort-type"></span></th><th onclick="sortMovements('quantity')" style="cursor:pointer;">Jumlah <span id="sort-quantity"></span></th><th onclick="sortMovements('reference_id')" style="cursor:pointer;">ID Pesanan <span id="sort-reference_id"></span></th></tr></thead>
                        <tbody id="movements-body">
                         ${movements.map((m: any) => {
                           const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
@@ -158,17 +158,29 @@ export const inventoryPage = new Elysia()
                           </tr>`;
                         }).join('')}
                     </tbody>
-                  </table>
-                </div>
-                ${movements.length === 0 ? '<p class="text-muted text-center" style="padding: 40px;">Belum ada riwayat stok</p>' : ''}
-              </div>
-            </div>
-          </main>
-          ${getFooterHtml()}
-        </div>
-      </div>
+                   </table>
+                 </div>
+                 ${movements.length === 0 ? '<p class="text-muted text-center" style="padding: 40px;">Belum ada riwayat stok</p>' : ''}
+                 <div class="pagination" id="movements-pagination"></div>
+               </div>
+             </div>
+           </main>
+           ${getFooterHtml()}
+         </div>
+       </div>
 
-      <div class="modal" id="add-ingredient-modal">
+       <div class="modal" id="order-detail-modal">
+         <div class="modal-backdrop" onclick="closeOrderDetail()"></div>
+         <div class="modal-content" style="max-width: 500px;">
+           <div class="modal-header"><h3>Detail Pesanan #<span id="detail-order-id"></span></h3><button class="modal-close" onclick="closeOrderDetail()">&times;</button></div>
+           <div class="modal-body" id="order-detail-body"></div>
+           <div class="modal-footer">
+             <button onclick="closeOrderDetail()" class="btn btn-primary">Tutup</button>
+           </div>
+         </div>
+       </div>
+
+       <div class="modal" id="add-ingredient-modal">
         <div class="modal-backdrop" onclick="closeAddIngredientModal()"></div>
         <div class="modal-content">
           <div class="modal-header"><h3>Tambah Bahan Baku</h3><button class="modal-close" onclick="closeAddIngredientModal()">&times;</button></div>
@@ -243,15 +255,28 @@ export const inventoryPage = new Elysia()
         .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
         .menu-toolbar-right { display: flex; gap: 8px; }
         .menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
-        .menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
-        .btn-sm { padding: 4px 8px; font-size: 11px; }
-        .btn-warning { background: var(--color-warning); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; font-weight: 500; }
-        .text-muted { color: var(--color-text-secondary); }
-        .text-center { text-align: center; }
+         .menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
+         .btn-sm { padding: 4px 8px; font-size: 11px; }
+         .btn-warning { background: var(--color-warning); color: white; border: none; border-radius: var(--radius-md); cursor: pointer; font-weight: 500; }
+         .text-muted { color: var(--color-text-secondary); }
+         .text-center { text-align: center; }
+         .pagination { display: flex; justify-content: space-between; align-items: center; padding: 12px 16px; border-top: 1px solid var(--color-border); }
+         .pagination-info { font-size: 13px; color: var(--color-text-secondary); }
+         .pagination-buttons { display: flex; gap: 4px; }
+         .pagination-btn { padding: 4px 10px; border: 1px solid var(--color-border); border-radius: var(--radius-md); background: var(--color-bg); cursor: pointer; font-size: 12px; }
+         .pagination-btn:hover { background: var(--color-bg-hover); }
+         .pagination-btn.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+         .pagination-btn:disabled { opacity: 0.5; cursor: not-allowed; }
+         .detail-items-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
+         .detail-items-table th, .detail-items-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--color-border); font-size: 13px; }
+         .detail-items-table th { font-weight: 600; background: var(--color-bg-alt); }
       </style>
        <script>
          let sortField = 'name';
          let sortDir = 'asc';
+
+         let movementCurrentPage = 1;
+         const movementItemsPerPage = 15;
 
          function showInvTab(tab, btn) {
            document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
@@ -284,25 +309,28 @@ export const inventoryPage = new Elysia()
           let movementSortField = 'date';
           let movementSortDir = 'desc';
 
-          function sortMovements(field) {
-            if (movementSortField === field) movementSortDir = movementSortDir === 'asc' ? 'desc' : 'asc';
-            else { movementSortField = field; movementSortDir = field === 'date' ? 'desc' : 'asc'; }
-            document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
-            const el = document.getElementById('sort-' + field);
-            if (el) el.textContent = movementSortDir === 'asc' ? '↑' : '↓';
-            const tbody = document.getElementById('movements-body');
-            const rows = Array.from(tbody.querySelectorAll('tr'));
-            rows.sort((a, b) => {
-              let aVal, bVal;
-              if (field === 'date') { aVal = new Date(a.dataset.date).getTime(); bVal = new Date(b.dataset.date).getTime(); }
-              else if (field === 'type') { aVal = a.dataset.type; bVal = b.dataset.type; }
-              else if (field === 'quantity') { aVal = parseFloat(a.dataset.quantity); bVal = parseFloat(b.dataset.quantity); }
-              else return 0;
-              if (typeof aVal === 'string') return movementSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-              return movementSortDir === 'asc' ? aVal - bVal : bVal - aVal;
-            });
-            rows.forEach(r => tbody.appendChild(r));
-          }
+           function sortMovements(field) {
+             if (movementSortField === field) movementSortDir = movementSortDir === 'asc' ? 'desc' : 'asc';
+             else { movementSortField = field; movementSortDir = field === 'date' ? 'desc' : 'asc'; }
+             document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
+             const el = document.getElementById('sort-' + field);
+             if (el) el.textContent = movementSortDir === 'asc' ? '↑' : '↓';
+             const tbody = document.getElementById('movements-body');
+             const rows = Array.from(tbody.querySelectorAll('tr'));
+             rows.sort((a, b) => {
+               let aVal, bVal;
+               if (field === 'date') { aVal = new Date(a.dataset.date).getTime(); bVal = new Date(b.dataset.date).getTime(); }
+               else if (field === 'type') { aVal = a.dataset.type; bVal = b.dataset.type; }
+               else if (field === 'quantity') { aVal = parseFloat(a.dataset.quantity); bVal = parseFloat(b.dataset.quantity); }
+               else if (field === 'reference_id') { aVal = parseInt(a.dataset.referenceId) || 0; bVal = parseInt(b.dataset.referenceId) || 0; }
+               else return 0;
+               if (typeof aVal === 'string') return movementSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+               return movementSortDir === 'asc' ? aVal - bVal : bVal - aVal;
+             });
+             rows.forEach(r => tbody.appendChild(r));
+             movementCurrentPage = 1;
+             renderMovementPagination();
+           }
 
          function filterIngredients() {
           const search = document.getElementById('inv-search').value.toLowerCase();
@@ -319,17 +347,19 @@ export const inventoryPage = new Elysia()
           });
         }
 
-        function filterMovements() {
-          const search = document.getElementById('mov-search').value.toLowerCase();
-          const typeFilter = document.getElementById('mov-filter-type').value;
-          document.querySelectorAll('#movements-body tr').forEach(row => {
-            const type = row.dataset.type || '';
-            const reason = row.dataset.reason || '';
-            const matchesSearch = !search || reason.includes(search);
-            const matchesType = typeFilter === 'all' || type === typeFilter;
-            row.style.display = (matchesSearch && matchesType) ? '' : 'none';
-          });
-        }
+         function filterMovements() {
+           const search = document.getElementById('mov-search').value.toLowerCase();
+           const typeFilter = document.getElementById('mov-filter-type').value;
+           document.querySelectorAll('#movements-body tr').forEach(row => {
+             const type = row.dataset.type || '';
+             const reason = row.dataset.reason || '';
+             const matchesSearch = !search || reason.includes(search);
+             const matchesType = typeFilter === 'all' || type === typeFilter;
+             row.style.display = (matchesSearch && matchesType) ? '' : 'none';
+           });
+           movementCurrentPage = 1;
+           renderMovementPagination();
+         }
 
         function showAddIngredientModal() {
           document.getElementById('ing-name').value = '';
@@ -442,12 +472,65 @@ export const inventoryPage = new Elysia()
           closeAddRecipeModal(); showToast('Bahan berhasil ditambahkan ke resep'); loadRecipe();
         }
 
-        async function deleteRecipeItem(id) {
-          if (!confirm('Hapus bahan dari resep?')) return;
-          await fetch('/api/inventory/recipes/' + id, { method: 'DELETE' });
-          showToast('Bahan dihapus dari resep'); loadRecipe();
-        }
-      </script>
-      ${getCommonScripts()}
+         async function deleteRecipeItem(id) {
+           if (!confirm('Hapus bahan dari resep?')) return;
+           await fetch('/api/inventory/recipes/' + id, { method: 'DELETE' });
+           showToast('Bahan dihapus dari resep'); loadRecipe();
+         }
+
+         async function showOrderDetail(orderId) {
+           const res = await fetch('/api/orders/' + orderId);
+           const data = await res.json();
+           if (data.error) { showToast('Gagal memuat detail pesanan', 'error'); return; }
+           const order = data.order;
+           const items = data.items || [];
+           document.getElementById('detail-order-id').textContent = order.id;
+           let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">';
+           html += '<div><strong>Meja:</strong> ' + (data.table?.tableNumber || '-') + '</div>';
+           html += '<div><strong>Tanggal:</strong> ' + new Date(order.createdAt).toLocaleString('id-ID') + '</div>';
+           html += '<div><strong>Status:</strong> ' + (order.status === 'active' ? 'Aktif' : order.status === 'completed' ? 'Selesai' : 'Dibatal') + '</div>';
+           html += '<div><strong>Total:</strong> Rp ' + (order.total || 0).toLocaleString('id-ID') + '</div>';
+           html += '</div>';
+           if (items.length > 0) {
+             html += '<table class="detail-items-table"><thead><tr><th>Item</th><th>Qty</th><th>Harga</th><th>Total</th></tr></thead><tbody>';
+             items.forEach(item => {
+               html += '<tr><td>' + (item.menuName || 'Item') + '</td><td>' + item.quantity + '</td><td>Rp ' + (item.priceAtOrder || 0).toLocaleString('id-ID') + '</td><td>Rp ' + ((item.priceAtOrder || 0) * item.quantity).toLocaleString('id-ID') + '</td></tr>';
+             });
+             html += '</tbody></table>';
+           }
+           document.getElementById('order-detail-body').innerHTML = html;
+           document.getElementById('order-detail-modal').classList.add('show');
+         }
+
+         function closeOrderDetail() { document.getElementById('order-detail-modal').classList.remove('show'); }
+
+         function renderMovementPagination() {
+           const rows = Array.from(document.querySelectorAll('#movements-body tr'));
+           const visibleRows = rows.filter(r => r.style.display !== 'none');
+           const totalPages = Math.ceil(visibleRows.length / movementItemsPerPage) || 1;
+           if (movementCurrentPage > totalPages) movementCurrentPage = totalPages;
+           rows.forEach(r => {
+             const idx = visibleRows.indexOf(r);
+             const page = Math.floor(idx / movementItemsPerPage) + 1;
+             r.style.display = (r.style.display !== 'none' && page === movementCurrentPage) ? '' : 'none';
+           });
+           const pagDiv = document.getElementById('movements-pagination');
+           if (!pagDiv || totalPages <= 1) { if (pagDiv) pagDiv.innerHTML = ''; return; }
+           const start = (movementCurrentPage - 1) * movementItemsPerPage + 1;
+           const end = Math.min(movementCurrentPage * movementItemsPerPage, visibleRows.length);
+           let html = '<div class="pagination-info">Menampilkan ' + start + '-' + end + ' dari ' + visibleRows.length + '</div>';
+           html += '<div class="pagination-buttons">';
+           html += '<button class="pagination-btn" onclick="goToMovementPage(' + (movementCurrentPage - 1) + ')" ' + (movementCurrentPage <= 1 ? 'disabled' : '') + '>← Prev</button>';
+           for (let p = 1; p <= totalPages; p++) html += '<button class="pagination-btn ' + (p === movementCurrentPage ? 'active' : '') + '" onclick="goToMovementPage(' + p + ')">' + p + '</button>';
+           html += '<button class="pagination-btn" onclick="goToMovementPage(' + (movementCurrentPage + 1) + ')" ' + (movementCurrentPage >= totalPages ? 'disabled' : '') + '>Next →</button>';
+           html += '</div>';
+           pagDiv.innerHTML = html;
+         }
+
+          function goToMovementPage(page) { movementCurrentPage = page; renderMovementPagination(); }
+
+          document.addEventListener('DOMContentLoaded', function() { renderMovementPagination(); });
+       </script>
+       ${getCommonScripts()}
     `);
   });
