@@ -37,115 +37,102 @@ export const inventoryPage = new Elysia()
         <div class="app-content">
           ${getNavbarHtml('Inventory', 'inventory', user)}
           <main class="app-main">
-            <div class="stats-grid">
-              <div class="stats-card">
-                <div class="stats-label">Total Bahan</div>
-                <div class="stats-value">${total}</div>
-                <div class="stats-change">Semua bahan baku</div>
-              </div>
-              <div class="stats-card">
-                <div class="stats-label">Stok Aman</div>
-                <div class="stats-value" style="color: var(--color-success);">${inStock}</div>
-                <div class="stats-change">Stok cukup</div>
-              </div>
-              <div class="stats-card">
-                <div class="stats-label">Stok Rendah</div>
-                <div class="stats-value" style="color: var(--color-warning);">${lowStockCount}</div>
-                <div class="stats-change">Perlu restock</div>
-              </div>
-              <div class="stats-card">
-                <div class="stats-label">Stok Habis</div>
-                <div class="stats-value" style="color: var(--color-error);">${outOfStock}</div>
-                <div class="stats-change">Tidak tersedia</div>
-              </div>
-            </div>
-
-            <div class="card">
-              <div class="card-header">
-                <div class="inv-tabs">
-                  <button class="inv-tab active" onclick="showInvTab('ingredients', this)">📦 Bahan Baku${lowStockCount + outOfStock > 0 ? ' <span class="badge badge-error" style="font-size:10px;">' + (lowStockCount + outOfStock) + '</span>' : ''}</button>
-                  <button class="inv-tab" onclick="showInvTab('recipes', this)">📋 Resep</button>
-                  <button class="inv-tab" onclick="showInvTab('movements', this)">📊 Riwayat Stok</button>
-                </div>
+            <div class="inv-container">
+              <div class="tab-nav">
+                <button class="tab-btn active" data-tab="ingredients" onclick="showInvTab('ingredients', this)">Bahan Baku${lowStockCount + outOfStock > 0 ? ' <span class="badge badge-error" style="font-size:10px;">' + (lowStockCount + outOfStock) + '</span>' : ''}</button>
+                <button class="tab-btn" data-tab="recipes" onclick="showInvTab('recipes', this)">Resep</button>
+                <button class="tab-btn" data-tab="movements" onclick="showInvTab('movements', this)">Riwayat Stok</button>
               </div>
 
-              <div class="inv-tab-content" id="tab-ingredients">
-                <div class="menu-toolbar">
-                  <div class="menu-toolbar-left">
-                    <input type="text" id="inv-search" class="menu-search-input" placeholder="🔍 Cari bahan..." oninput="filterIngredients()">
-                    <select id="inv-filter-stock" class="menu-filter-select" onchange="filterIngredients()">
-                      <option value="all">Semua</option>
-                      <option value="low">Stok Rendah</option>
-                      <option value="out">Stok Habis</option>
-                    </select>
-                  </div>
-                  <div class="menu-toolbar-right">
-                    <button class="btn btn-primary" onclick="showAddIngredientModal()">+ Tambah Bahan</button>
-                  </div>
+              <div class="tab-content active" id="tab-ingredients">
+                <div class="stats-grid">
+                  <div class="stats-card"><div class="stats-label">Total Bahan</div><div class="stats-value">${total}</div><div class="stats-change">Semua bahan baku</div></div>
+                  <div class="stats-card"><div class="stats-label">Stok Aman</div><div class="stats-value" style="color: var(--color-success);">${inStock}</div><div class="stats-change">Stok cukup</div></div>
+                  <div class="stats-card"><div class="stats-label">Stok Rendah</div><div class="stats-value" style="color: var(--color-warning);">${lowStockCount}</div><div class="stats-change">Perlu restock</div></div>
+                  <div class="stats-card"><div class="stats-label">Stok Habis</div><div class="stats-value" style="color: var(--color-error);">${outOfStock}</div><div class="stats-change">Tidak tersedia</div></div>
                 </div>
-                <div class="table-container">
-                  <table class="table">
-                    <thead><tr><th>Nama</th><th>Satuan</th><th>Stok</th><th>Min Stok</th><th>Harga/Satuan</th><th>Status</th><th>Aksi</th></tr></thead>
-                    <tbody id="ingredients-body">
-                      ${ingredients.map((i: any) => {
-                        const stock = Number(i.currentStock);
-                        const min = Number(i.minStock);
-                        const statusClass = stock === 0 ? 'badge-error' : stock < min ? 'badge-warning' : 'badge-success';
-                        const statusLabel = stock === 0 ? 'Habis' : stock < min ? 'Rendah' : 'OK';
-                        return `<tr data-name="${i.name.toLowerCase()}" data-stock="${stock}" data-min="${min}">
-                          <td><strong>${i.name}</strong></td>
-                          <td>${i.unit}</td>
-                          <td>${stock.toFixed(2)}</td>
-                          <td>${min.toFixed(2)}</td>
-                          <td>Rp ${(i.costPerUnit || 0).toLocaleString('id-ID')}</td>
-                          <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-                          <td>
-                            <button onclick="showEditIngredientModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', '${i.unit}', ${stock}, ${min}, ${i.costPerUnit || 0})" class="btn btn-secondary btn-sm">Edit</button>
-                            <button onclick="showStockAdjustModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', ${stock})" class="btn btn-warning btn-sm">Stok</button>
-                          </td>
-                        </tr>`;
-                      }).join('')}
-                    </tbody>
-                  </table>
+
+                <div class="card">
+                  <div class="menu-toolbar">
+                    <div class="menu-toolbar-left">
+                      <input type="text" id="inv-search" class="menu-search-input" placeholder="Cari bahan..." oninput="filterIngredients()">
+                      <select id="inv-filter-stock" class="menu-filter-select" onchange="filterIngredients()">
+                        <option value="all">Semua</option>
+                        <option value="low">Stok Rendah</option>
+                        <option value="out">Stok Habis</option>
+                      </select>
+                    </div>
+                    <div class="menu-toolbar-right">
+                      <button class="btn btn-primary" onclick="showAddIngredientModal()">+ Tambah Bahan</button>
+                    </div>
+                  </div>
+                  <div class="table-container">
+                    <table class="table">
+                      <thead><tr><th>Nama</th><th>Satuan</th><th>Stok</th><th>Min Stok</th><th>Harga/Satuan</th><th>Status</th><th>Aksi</th></tr></thead>
+                      <tbody id="ingredients-body">
+                        ${ingredients.map((i: any) => {
+                          const stock = Number(i.currentStock);
+                          const min = Number(i.minStock);
+                          const statusClass = stock === 0 ? 'badge-error' : stock < min ? 'badge-warning' : 'badge-success';
+                          const statusLabel = stock === 0 ? 'Habis' : stock < min ? 'Rendah' : 'OK';
+                          return `<tr data-name="${i.name.toLowerCase()}" data-stock="${stock}" data-min="${min}">
+                            <td><strong>${i.name}</strong></td>
+                            <td>${i.unit}</td>
+                            <td>${stock.toFixed(2)}</td>
+                            <td>${min.toFixed(2)}</td>
+                            <td>Rp ${(i.costPerUnit || 0).toLocaleString('id-ID')}</td>
+                            <td><span class="badge ${statusClass}">${statusLabel}</span></td>
+                            <td>
+                              <button onclick="showEditIngredientModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', '${i.unit}', ${stock}, ${min}, ${i.costPerUnit || 0})" class="btn btn-secondary btn-sm">Edit</button>
+                              <button onclick="showStockAdjustModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', ${stock})" class="btn btn-warning btn-sm">Stok</button>
+                            </td>
+                          </tr>`;
+                        }).join('')}
+                      </tbody>
+                    </table>
+                  </div>
                 </div>
               </div>
 
-              <div class="inv-tab-content" id="tab-recipes" style="display: none;">
-                <div class="menu-toolbar">
-                  <div class="menu-toolbar-left">
-                    <select id="recipe-menu-select" class="menu-filter-select" onchange="loadRecipe()">
-                      <option value="">— Pilih Menu —</option>
-                      ${menus.map((m: any) => `<option value="${m.id}">${m.name}</option>`).join('')}
-                    </select>
+              <div class="tab-content" id="tab-recipes">
+                <div class="card">
+                  <div class="menu-toolbar">
+                    <div class="menu-toolbar-left">
+                      <select id="recipe-menu-select" class="menu-filter-select" onchange="loadRecipe()">
+                        <option value="">— Pilih Menu —</option>
+                        ${menus.map((m: any) => `<option value="${m.id}">${m.name}</option>`).join('')}
+                      </select>
+                    </div>
+                    <div class="menu-toolbar-right">
+                      <button class="btn btn-primary" onclick="showAddRecipeModal()" id="btn-add-recipe" style="display: none;">+ Tambah Bahan</button>
+                    </div>
                   </div>
-                  <div class="menu-toolbar-right">
-                    <button class="btn btn-primary" onclick="showAddRecipeModal()" id="btn-add-recipe" style="display: none;">+ Tambah Bahan</button>
+                  <div id="recipe-content">
+                    <p class="text-muted text-center" style="padding: 40px;">Pilih menu untuk melihat resep</p>
                   </div>
-                </div>
-                <div id="recipe-content">
-                  <p class="text-muted text-center" style="padding: 40px;">Pilih menu untuk melihat resep</p>
                 </div>
               </div>
 
-              <div class="inv-tab-content" id="tab-movements" style="display: none;">
-                <div class="menu-toolbar">
-                  <div class="menu-toolbar-left">
-                    <input type="text" id="mov-search" class="menu-search-input" placeholder="🔍 Cari..." oninput="filterMovements()">
-                    <select id="mov-filter-type" class="menu-filter-select" onchange="filterMovements()">
-                      <option value="all">Semua Tipe</option>
-                      <option value="in">📥 Masuk</option>
-                      <option value="out">📤 Keluar</option>
-                      <option value="adjustment">🔄 Adjustment</option>
-                      <option value="waste">🗑️ Waste</option>
-                    </select>
+              <div class="tab-content" id="tab-movements">
+                <div class="card">
+                  <div class="menu-toolbar">
+                    <div class="menu-toolbar-left">
+                      <input type="text" id="mov-search" class="menu-search-input" placeholder="Cari..." oninput="filterMovements()">
+                      <select id="mov-filter-type" class="menu-filter-select" onchange="filterMovements()">
+                        <option value="all">Semua Tipe</option>
+                        <option value="in">📥 Masuk</option>
+                        <option value="out">📤 Keluar</option>
+                        <option value="adjustment">🔄 Adjustment</option>
+                        <option value="waste">🗑️ Waste</option>
+                      </select>
+                    </div>
+                    <div class="menu-toolbar-right"></div>
                   </div>
-                  <div class="menu-toolbar-right"></div>
-                </div>
-                <div class="table-container">
-                  <table class="table">
-                    <thead><tr><th>Tanggal</th><th>Bahan</th><th>Tipe</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
-                    <tbody id="movements-body">
-                      ${movements.map((m: any) => {
+                  <div class="table-container">
+                    <table class="table">
+                      <thead><tr><th>Tanggal</th><th>Bahan</th><th>Tipe</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
+                      <tbody id="movements-body">
+                        ${movements.map((m: any) => {
                         const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
                         const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
                         return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}">
@@ -227,13 +214,17 @@ export const inventoryPage = new Elysia()
       </div>
 
       <style>
-        .inv-tab-content { padding: 0; }
-        .inv-tab-content .menu-toolbar { margin-bottom: 16px; padding: 0 16px; }
-        .inv-tab-content .table-container { padding: 0 16px 16px; }
-        .inv-tabs { display: flex; gap: 4px; }
-        .inv-tab { padding: 8px 16px; border: 1px solid var(--color-border); border-radius: var(--radius-md) var(--radius-md) 0 0; background: var(--color-bg); cursor: pointer; font-size: 13px; font-weight: 500; transition: var(--transition); }
-        .inv-tab:hover { background: var(--color-bg-hover); }
-        .inv-tab.active { background: var(--color-primary); color: white; border-color: var(--color-primary); }
+        .tab-content { padding: 0; }
+        .tab-content .menu-toolbar { margin-bottom: 16px; padding: 0 16px; }
+        .tab-content .table-container { padding: 0 16px 16px; }
+        .tab-nav { display: flex; gap: 4px; margin-bottom: 24px; background: var(--color-bg); border-radius: var(--radius-md); padding: 4px; border: 1px solid var(--color-border); }
+        .tab-btn { flex: 1; padding: 12px 24px; border: none; background: transparent; cursor: pointer; border-radius: var(--radius-sm); font-size: 14px; font-weight: 500; color: var(--color-text-secondary); transition: var(--transition); }
+        .tab-btn:hover { background: var(--color-bg-alt); color: var(--color-text); }
+        .tab-btn.active { background: var(--color-primary); color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .inv-container { max-width: 1400px; }
+        .reports-container { max-width: 1400px; }
         .menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
         .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
         .menu-toolbar-right { display: flex; gap: 8px; }
@@ -246,9 +237,9 @@ export const inventoryPage = new Elysia()
       </style>
       <script>
         function showInvTab(tab, btn) {
-          document.querySelectorAll('.inv-tab-content').forEach(c => c.style.display = 'none');
-          document.querySelectorAll('.inv-tab').forEach(t => t.classList.remove('active'));
-          document.getElementById('tab-' + tab).style.display = 'block';
+          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+          document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+          document.getElementById('tab-' + tab).classList.add('active');
           btn.classList.add('active');
         }
 
