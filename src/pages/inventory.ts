@@ -70,9 +70,9 @@ export const inventoryPage = new Elysia()
                       <button class="btn btn-primary" onclick="showAddIngredientModal()">+ Tambah Bahan</button>
                     </div>
                   </div>
-                  <div class="table-container">
-                    <table class="table">
-                      <thead><tr><th>Nama</th><th>Satuan</th><th>Stok</th><th>Min Stok</th><th>Harga/Satuan</th><th>Status</th><th>Aksi</th></tr></thead>
+                   <div class="table-container">
+                     <table class="table">
+                       <thead><tr><th onclick="sortIngredients('name')" style="cursor:pointer;">Nama <span id="sort-name"></span></th><th>Satuan</th><th onclick="sortIngredients('stock')" style="cursor:pointer;">Stok <span id="sort-stock"></span></th><th onclick="sortIngredients('min')" style="cursor:pointer;">Min Stok <span id="sort-min"></span></th><th onclick="sortIngredients('cost')" style="cursor:pointer;">Harga/Satuan <span id="sort-cost"></span></th><th>Status</th><th>Aksi</th></tr></thead>
                       <tbody id="ingredients-body">
                         ${ingredients.map((i: any) => {
                          const stock = Number(i.currentStock);
@@ -88,7 +88,7 @@ export const inventoryPage = new Elysia()
                            statusClass = 'badge-success';
                            statusLabel = 'OK';
                          }
-                          return `<tr data-name="${i.name.toLowerCase()}" data-stock="${stock}" data-min="${min}">
+                           return `<tr data-name="${i.name.toLowerCase()}" data-stock="${stock}" data-min="${min}" data-cost="${i.costPerUnit || 0}">
                             <td><strong>${i.name}</strong></td>
                             <td>${i.unit}</td>
                             <td>${stock.toFixed(2)}</td>
@@ -141,21 +141,22 @@ export const inventoryPage = new Elysia()
                     </div>
                     <div class="menu-toolbar-right"></div>
                   </div>
-                  <div class="table-container">
-                    <table class="table">
-                      <thead><tr><th>Tanggal</th><th>Bahan</th><th>Tipe</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
+                   <div class="table-container">
+                     <table class="table">
+                       <thead><tr><th>Tanggal</th><th>Bahan</th><th>Tipe</th><th>Jumlah</th><th>ID Pesanan</th></tr></thead>
                        <tbody id="movements-body">
-                         ${movements.map((m: any) => {
-                         const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
-                         const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
-                         return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}">
-                             <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                           <td>${m.ingredientName || '-'}</td>
-                           <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
-                           <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
-                           <td style="color: var(--color-text-secondary); font-size: 13px;">${m.reason || '-'}</td>
-                         </tr>`;
-                       }).join('')}
+                        ${movements.map((m: any) => {
+                          const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
+                          const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
+                          const orderId = m.reference_id ? `#${m.reference_id}` : '-';
+                          return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}" data-reference-id="${m.reference_id || ''}">
+                              <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                            <td>${m.ingredientName || '-'}</td>
+                            <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
+                            <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
+                            <td>${m.reference_id ? `<button onclick="showOrderDetail(${m.reference_id})" class="btn btn-secondary btn-sm" style="cursor:pointer;">${orderId}</button>` : '<span style="color: var(--color-text-secondary);">-</span>'}</td>
+                          </tr>`;
+                        }).join('')}
                     </tbody>
                   </table>
                 </div>
@@ -248,15 +249,39 @@ export const inventoryPage = new Elysia()
         .text-muted { color: var(--color-text-secondary); }
         .text-center { text-align: center; }
       </style>
-      <script>
-        function showInvTab(tab, btn) {
-          document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-          document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
-          document.getElementById('tab-' + tab).classList.add('active');
-          btn.classList.add('active');
-        }
+       <script>
+         let sortField = 'name';
+         let sortDir = 'asc';
 
-        function filterIngredients() {
+         function showInvTab(tab, btn) {
+           document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+           document.querySelectorAll('.tab-btn').forEach(t => t.classList.remove('active'));
+           document.getElementById('tab-' + tab).classList.add('active');
+           btn.classList.add('active');
+         }
+
+         function sortIngredients(field) {
+           if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+           else { sortField = field; sortDir = 'asc'; }
+           document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
+           const el = document.getElementById('sort-' + field);
+           if (el) el.textContent = sortDir === 'asc' ? '↑' : '↓';
+           const tbody = document.getElementById('ingredients-body');
+           const rows = Array.from(tbody.querySelectorAll('tr'));
+           rows.sort((a, b) => {
+             let aVal, bVal;
+             if (field === 'name') { aVal = a.dataset.name; bVal = b.dataset.name; }
+             else if (field === 'stock') { aVal = parseFloat(a.dataset.stock); bVal = parseFloat(b.dataset.stock); }
+             else if (field === 'min') { aVal = parseFloat(a.dataset.min); bVal = parseFloat(b.dataset.min); }
+             else if (field === 'cost') { aVal = parseFloat(a.dataset.cost); bVal = parseFloat(b.dataset.cost); }
+             else return 0;
+             if (typeof aVal === 'string') return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+             return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+           });
+           rows.forEach(r => tbody.appendChild(r));
+         }
+
+         function filterIngredients() {
           const search = document.getElementById('inv-search').value.toLowerCase();
           const stockFilter = document.getElementById('inv-filter-stock').value;
           document.querySelectorAll('#ingredients-body tr').forEach(row => {

@@ -1,8 +1,8 @@
 ---
-status: verifying
+status: resolved
 trigger: "Investigate two critical bugs in inventory stock movement tracking: timezone display differences and missing stock movement records for completed orders"
 created: 2026-04-11T00:00:00Z
-updated: 2026-04-11T00:15:00Z
+updated: 2026-04-11T00:16:00Z
 ---
 
 ## Current Focus
