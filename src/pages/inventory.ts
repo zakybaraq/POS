@@ -149,7 +149,7 @@ export const inventoryPage = new Elysia()
                         const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
                         const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
                         return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}">
-                          <td>${m.createdAt ? new Date(m.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                           <td>${m.createdAt ? new Date(m.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) : '-'}</td>
                           <td>${m.ingredientName || '-'}</td>
                           <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
                           <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
