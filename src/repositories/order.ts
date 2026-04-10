@@ -5,17 +5,13 @@ import type { Order, NewOrder } from '../db/schema';
 
 function todayStart(): Date {
   const now = new Date();
-  const wibString = now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
-  const wibDate = new Date(wibString);
-  return new Date(Date.UTC(
-    wibDate.getUTCFullYear(),
-    wibDate.getUTCMonth(),
-    wibDate.getUTCDate(),
-    0, 0, 0, 0
-  ));
+  const wibDate = new Date(now.toLocaleString('en-US', { timeZone: 'Asia/Jakarta' }));
+  wibDate.setHours(0, 0, 0, 0);
+  return wibDate;
 }
 
 export async function createOrder(tableId: number | null, userId: number) {
+  const now = new Date();
   const result = await db.insert(orders).values({
     tableId: tableId ?? 0,
     userId,
@@ -24,6 +20,7 @@ export async function createOrder(tableId: number | null, userId: number) {
     subtotal: 0,
     tax: 0,
     total: 0,
+    createdAt: now,
   });
   const insertId = result[0]?.insertId;
   if (insertId) {
@@ -64,7 +61,6 @@ export async function getOrdersToday() {
 export async function getOrdersTodayWithTables() {
   return db.select().from(orders)
     .leftJoin(tables, eq(orders.tableId, tables.id))
-    .where(gte(orders.createdAt, todayStart()))
     .orderBy(desc(orders.createdAt));
 }
 

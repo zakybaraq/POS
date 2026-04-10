@@ -31,14 +31,24 @@ export const ordersPage = new Elysia()
       <div class="app-layout">
         ${getSidebarHtml('orders', user)}
         <div class="app-content">
-          ${getNavbarHtml('Pesanan Hari Ini', 'orders', user)}
+          ${getNavbarHtml('Pesanan', 'orders', user)}
           <main class="app-main">
+            <div class="orders-filter-bar" style="display: flex; align-items: center; gap: 8px; margin-bottom: 16px; flex-wrap: wrap;">
+              <button class="btn btn-sm" onclick="setDateFilter('today')" id="btn-today" style="background: var(--color-primary); color: white;">Hari Ini</button>
+              <button class="btn btn-sm" onclick="setDateFilter('yesterday')" id="btn-yesterday" style="background: var(--color-bg-secondary);">Kemarin</button>
+              <button class="btn btn-sm" onclick="setDateFilter('7days')" id="btn-7days" style="background: var(--color-bg-secondary);">7 Hari</button>
+              <button class="btn btn-sm" onclick="setDateFilter('30days')" id="btn-30days" style="background: var(--color-bg-secondary);">30 Hari</button>
+              <button class="btn btn-sm" onclick="setDateFilter('all')" id="btn-all" style="background: var(--color-bg-secondary);">Semua</button>
+              <input type="date" id="order-filter-date" class="input" style="padding: 6px 10px; font-size: 13px; width: 140px;" onchange="filterOrders()">
+              <input type="date" id="order-filter-end-date" class="input" style="padding: 6px 10px; font-size: 13px; width: 140px; display: none;" onchange="filterOrders()">
+            </div>
+
             <div class="stats-grid">
-              <div class="stats-card"><div class="stats-label">Total Pesanan</div><div class="stats-value">${total}</div><div class="stats-change">Hari ini</div></div>
-              <div class="stats-card"><div class="stats-label">Aktif</div><div class="stats-value" style="color: var(--color-warning);">${active}</div><div class="stats-change">Sedang berjalan</div></div>
-              <div class="stats-card"><div class="stats-label">Selesai</div><div class="stats-value" style="color: var(--color-success);">${completed}</div><div class="stats-change">Sudah dibayar</div></div>
-              <div class="stats-card"><div class="stats-label">Dibatalkan</div><div class="stats-value" style="color: var(--color-error);">${cancelled}</div><div class="stats-change">Dibatalkan</div></div>
-              <div class="stats-card"><div class="stats-label">Penjualan</div><div class="stats-value" style="font-size: 18px;">Rp ${todaySales.toLocaleString('id-ID')}</div><div class="stats-change">Hari ini</div></div>
+              <div class="stats-card"><div class="stats-label">Total Pesanan</div><div class="stats-value" id="stat-total">${total}</div><div class="stats-change" id="stat-date-label">Hari ini</div></div>
+              <div class="stats-card"><div class="stats-label">Aktif</div><div class="stats-value" style="color: var(--color-warning);" id="stat-active">${active}</div><div class="stats-change">Sedang berjalan</div></div>
+              <div class="stats-card"><div class="stats-label">Selesai</div><div class="stats-value" style="color: var(--color-success);" id="stat-completed">${completed}</div><div class="stats-change">Sudah dibayar</div></div>
+              <div class="stats-card"><div class="stats-label">Dibatalkan</div><div class="stats-value" style="color: var(--color-error);" id="stat-cancelled">${cancelled}</div><div class="stats-change">Dibatalkan</div></div>
+              <div class="stats-card"><div class="stats-label">Penjualan</div><div class="stats-value" style="font-size: 18px;" id="stat-sales">Rp ${todaySales.toLocaleString('id-ID')}</div><div class="stats-change" id="stat-sales-label">Hari ini</div></div>
             </div>
 
             <div class="card">
@@ -129,6 +139,9 @@ export const ordersPage = new Elysia()
         .detail-items-table { width: 100%; border-collapse: collapse; margin: 12px 0; }
         .detail-items-table th, .detail-items-table td { padding: 6px 8px; text-align: left; border-bottom: 1px solid var(--color-border); font-size: 13px; }
         .detail-items-table th { font-weight: 600; background: var(--color-bg-alt); }
+        .order-date-shortcuts { display: flex; gap: 8px; }
+        .btn-outline { background: transparent; border: 1px solid var(--color-border); color: var(--color-text); }
+        .btn-outline:hover { background: var(--color-bg-hover); }
       </style>
       <script>
         let currentPage = 1;
@@ -136,20 +149,135 @@ export const ordersPage = new Elysia()
         let sortField = 'time';
         let sortDir = 'desc';
         let lastOrderDetail = null;
+        let currentDateRange = 'today';
+
+        function setDateFilter(range) {
+          currentDateRange = range;
+          const today = new Date();
+          let startDate = '';
+          let dateLabel = '';
+          
+          if (range === 'today') {
+            const y = today.getFullYear();
+            const m = today.getMonth() + 1;
+            const d = today.getDate();
+            startDate = y + '-' + (m < 10 ? '0' + m : m) + '-' + (d < 10 ? '0' + d : d);
+            dateLabel = 'Hari Ini';
+          } else if (range === 'yesterday') {
+            const yesterday = new Date(today);
+            yesterday.setDate(yesterday.getDate() - 1);
+            const y = yesterday.getFullYear();
+            const m = yesterday.getMonth() + 1;
+            const d = yesterday.getDate();
+            startDate = y + '-' + (m < 10 ? '0' + m : m) + '-' + (d < 10 ? '0' + d : d);
+            dateLabel = 'Kemarin';
+          } else if (range === '7days') {
+            const weekAgo = new Date(today);
+            weekAgo.setDate(weekAgo.getDate() - 7);
+            const y = weekAgo.getFullYear();
+            const m = weekAgo.getMonth() + 1;
+            const d = weekAgo.getDate();
+            startDate = y + '-' + (m < 10 ? '0' + m : m) + '-' + (d < 10 ? '0' + d : d);
+            dateLabel = '7 Hari Terakhir';
+          } else if (range === '30days') {
+            const monthAgo = new Date(today);
+            monthAgo.setDate(monthAgo.getDate() - 30);
+            const y = monthAgo.getFullYear();
+            const m = monthAgo.getMonth() + 1;
+            const d = monthAgo.getDate();
+            startDate = y + '-' + (m < 10 ? '0' + m : m) + '-' + (d < 10 ? '0' + d : d);
+            dateLabel = '30 Hari Terakhir';
+          } else if (range === 'all') {
+            startDate = '';
+            dateLabel = 'Semua';
+          }
+          
+          // Set end date to today for date range filters
+          let endDate = '';
+          if (range === 'today') {
+            endDate = startDate; // Exact match for today
+          } else if (range === 'yesterday') {
+            endDate = startDate; // Exact match for yesterday
+          } else if (range === '7days' || range === '30days') {
+            const ty = today.getFullYear();
+            const tm = today.getMonth() + 1;
+            const td = today.getDate();
+            endDate = ty + '-' + (tm < 10 ? '0' + tm : tm) + '-' + (td < 10 ? '0' + td : td);
+          }
+          
+          document.getElementById('order-filter-date').value = startDate;
+          document.getElementById('order-filter-end-date').value = endDate;
+          document.getElementById('stat-date-label').textContent = dateLabel;
+          document.getElementById('stat-sales-label').textContent = dateLabel;
+          
+          document.querySelectorAll('.orders-filter-bar .btn').forEach(btn => { btn.style.background = 'var(--color-bg-secondary)'; btn.style.color = 'var(--color-text)'; });
+          document.getElementById('btn-' + range).style.background = 'var(--color-primary)';
+          document.getElementById('btn-' + range).style.color = 'white';
+          
+          filterOrders();
+          updateStatsByFilter();
+        }
+
+        function updateStatsByFilter() {
+          const dateFilter = document.getElementById('order-filter-date').value;
+          const allRows = document.querySelectorAll('#orders-table-body tr');
+          let visibleCount = 0;
+          let activeCount = 0;
+          let completedCount = 0;
+          let cancelledCount = 0;
+          let salesTotal = 0;
+          
+          allRows.forEach(row => {
+            if (row.style.display !== 'none') {
+              visibleCount++;
+              const status = row.dataset.status || '';
+              const total = parseInt(row.dataset.total) || 0;
+              if (status === 'active') activeCount++;
+              if (status === 'completed') { completedCount++; salesTotal += total; }
+              if (status === 'cancelled') cancelledCount++;
+            }
+          });
+          
+          document.getElementById('stat-total').textContent = visibleCount;
+          document.getElementById('stat-active').textContent = activeCount;
+          document.getElementById('stat-completed').textContent = completedCount;
+          document.getElementById('stat-cancelled').textContent = cancelledCount;
+          document.getElementById('stat-sales').textContent = 'Rp ' + salesTotal.toLocaleString('id-ID');
+        }
 
         function filterOrders() {
           const search = document.getElementById('order-search').value.toLowerCase();
           const statusFilter = document.getElementById('order-filter-status').value;
+          const startDateFilter = document.getElementById('order-filter-date').value;
+          const endDateFilter = document.getElementById('order-filter-end-date').value;
           document.querySelectorAll('#orders-table-body tr').forEach(row => {
             const table = row.dataset.table || '';
             const cashier = row.dataset.cashier || '';
             const status = row.dataset.status || '';
+            const orderDate = row.dataset.time || '';
+            let orderDateStr = '';
+            if (orderDate) {
+              const d = new Date(orderDate);
+              if (!isNaN(d.getTime())) {
+                const y = d.getFullYear();
+                const m = d.getMonth() + 1;
+                const day = d.getDate();
+                orderDateStr = y + '-' + (m < 10 ? '0' + m : m) + '-' + (day < 10 ? '0' + day : day);
+              }
+            }
             const matchesSearch = !search || table.includes(search) || cashier.toLowerCase().includes(search);
             const matchesStatus = statusFilter === 'all' || status === statusFilter;
-            row.style.display = (matchesSearch && matchesStatus) ? '' : 'none';
+            let matchesDate = true;
+            if (startDateFilter && endDateFilter) {
+              matchesDate = orderDateStr >= startDateFilter && orderDateStr <= endDateFilter;
+            } else if (startDateFilter) {
+              matchesDate = orderDateStr === startDateFilter;
+            }
+            row.style.display = (matchesSearch && matchesStatus && matchesDate) ? '' : 'none';
           });
           currentPage = 1;
           renderPagination();
+          updateStatsByFilter();
         }
 
         function sortOrders(field) {
@@ -300,7 +428,7 @@ export const ordersPage = new Elysia()
           } catch (e) {}
         }, 30000);
 
-        document.addEventListener('DOMContentLoaded', function() { renderPagination(); sortOrders('time'); });
+        document.addEventListener('DOMContentLoaded', function() { renderPagination(); sortOrders('time'); setDateFilter('today'); });
       </script>
       ${getCommonScripts()}
     `);
