@@ -22,14 +22,18 @@ export const inventoryPage = new Elysia()
       return new Response('Akses ditolak', { status: 403 });
     }
 
-    const ingredients = await inv.getAllIngredients();
-    const menus = await menuRepo.getAllMenus();
-    const movements = await inv.getStockMovements(undefined, 50);
+     const ingredients = await inv.getAllIngredients();
+     const menus = await menuRepo.getAllMenus();
+     const movements = await inv.getStockMovements(undefined, 50);
 
-    const total = ingredients.length;
-    const lowStockCount = ingredients.filter((i: any) => Number(i.currentStock) < Number(i.minStock) && Number(i.currentStock) > 0).length;
-    const outOfStock = ingredients.filter((i: any) => Number(i.currentStock) === 0).length;
-    const inStock = total - lowStockCount - outOfStock;
+     const total = ingredients.length;
+     const lowStockCount = ingredients.filter((i: any) => {
+         const stock = Number(i.currentStock);
+         const min = Number(i.minStock);
+         return stock > 0 && stock < min;
+     }).length;
+     const outOfStock = ingredients.filter((i: any) => Number(i.currentStock) <= 0).length;
+     const inStock = ingredients.filter((i: any) => Number(i.currentStock) >= Number(i.minStock)).length;
 
     return htmlResponse(`
       <div class="app-layout">
