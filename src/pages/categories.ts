@@ -56,7 +56,7 @@ export const categoriesPage = new Elysia()
               <div class="card-header">
                 <div class="menu-toolbar">
                   <div class="menu-toolbar-left">
-                    <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
+                    <input type="text" id="category-search" class="menu-search-input" placeholder="🔍 Cari kategori..." oninput="filterCategories()">
                   </div>
                   <div class="menu-toolbar-right">
                     <button class="btn btn-primary" id="btn-add-category">+ Tambah Kategori</button>
