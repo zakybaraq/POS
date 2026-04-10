@@ -143,18 +143,18 @@ export const inventoryPage = new Elysia()
                   </div>
                    <div class="table-container">
                      <table class="table">
-                       <thead><tr><th>Tanggal</th><th>Bahan</th><th>Tipe</th><th>Jumlah</th><th>ID Pesanan</th></tr></thead>
+                       <thead><tr><th onclick="sortMovements('date')" style="cursor:pointer;">Tanggal <span id="sort-date"></span></th><th>Bahan</th><th onclick="sortMovements('type')" style="cursor:pointer;">Tipe <span id="sort-type"></span></th><th onclick="sortMovements('quantity')" style="cursor:pointer;">Jumlah <span id="sort-quantity"></span></th><th>ID Pesanan</th></tr></thead>
                        <tbody id="movements-body">
                         ${movements.map((m: any) => {
                           const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
                           const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
-                          const orderId = m.reference_id ? `#${m.reference_id}` : '-';
-                          return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}" data-reference-id="${m.reference_id || ''}">
-                              <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                          const orderId = m.referenceId ? `#${m.referenceId}` : '-';
+                           return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}" data-reference-id="${m.referenceId || ''}" data-date="${m.createdAt || ''}" data-quantity="${Number(m.quantity)}">
+                               <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                             <td>${m.ingredientName || '-'}</td>
                             <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
                             <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
-                            <td>${m.reference_id ? `<button onclick="showOrderDetail(${m.reference_id})" class="btn btn-secondary btn-sm" style="cursor:pointer;">${orderId}</button>` : '<span style="color: var(--color-text-secondary);">-</span>'}</td>
+                            <td>${m.referenceId ? `<button onclick="showOrderDetail(${m.referenceId})" class="btn btn-secondary btn-sm" style="cursor:pointer;">${orderId}</button>` : '<span style="color: var(--color-text-secondary);">-</span>'}</td>
                           </tr>`;
                         }).join('')}
                     </tbody>
@@ -260,26 +260,49 @@ export const inventoryPage = new Elysia()
            btn.classList.add('active');
          }
 
-         function sortIngredients(field) {
-           if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
-           else { sortField = field; sortDir = 'asc'; }
-           document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
-           const el = document.getElementById('sort-' + field);
-           if (el) el.textContent = sortDir === 'asc' ? '↑' : '↓';
-           const tbody = document.getElementById('ingredients-body');
-           const rows = Array.from(tbody.querySelectorAll('tr'));
-           rows.sort((a, b) => {
-             let aVal, bVal;
-             if (field === 'name') { aVal = a.dataset.name; bVal = b.dataset.name; }
-             else if (field === 'stock') { aVal = parseFloat(a.dataset.stock); bVal = parseFloat(b.dataset.stock); }
-             else if (field === 'min') { aVal = parseFloat(a.dataset.min); bVal = parseFloat(b.dataset.min); }
-             else if (field === 'cost') { aVal = parseFloat(a.dataset.cost); bVal = parseFloat(b.dataset.cost); }
-             else return 0;
-             if (typeof aVal === 'string') return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
-             return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
-           });
-           rows.forEach(r => tbody.appendChild(r));
-         }
+          function sortIngredients(field) {
+            if (sortField === field) sortDir = sortDir === 'asc' ? 'desc' : 'asc';
+            else { sortField = field; sortDir = 'asc'; }
+            document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
+            const el = document.getElementById('sort-' + field);
+            if (el) el.textContent = sortDir === 'asc' ? '↑' : '↓';
+            const tbody = document.getElementById('ingredients-body');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+              let aVal, bVal;
+              if (field === 'name') { aVal = a.dataset.name; bVal = b.dataset.name; }
+              else if (field === 'stock') { aVal = parseFloat(a.dataset.stock); bVal = parseFloat(b.dataset.stock); }
+              else if (field === 'min') { aVal = parseFloat(a.dataset.min); bVal = parseFloat(b.dataset.min); }
+              else if (field === 'cost') { aVal = parseFloat(a.dataset.cost); bVal = parseFloat(b.dataset.cost); }
+              else return 0;
+              if (typeof aVal === 'string') return sortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+              return sortDir === 'asc' ? aVal - bVal : bVal - aVal;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+          }
+
+          let movementSortField = 'date';
+          let movementSortDir = 'desc';
+
+          function sortMovements(field) {
+            if (movementSortField === field) movementSortDir = movementSortDir === 'asc' ? 'desc' : 'asc';
+            else { movementSortField = field; movementSortDir = field === 'date' ? 'desc' : 'asc'; }
+            document.querySelectorAll('[id^="sort-"]').forEach(el => el.textContent = '');
+            const el = document.getElementById('sort-' + field);
+            if (el) el.textContent = movementSortDir === 'asc' ? '↑' : '↓';
+            const tbody = document.getElementById('movements-body');
+            const rows = Array.from(tbody.querySelectorAll('tr'));
+            rows.sort((a, b) => {
+              let aVal, bVal;
+              if (field === 'date') { aVal = new Date(a.dataset.date).getTime(); bVal = new Date(b.dataset.date).getTime(); }
+              else if (field === 'type') { aVal = a.dataset.type; bVal = b.dataset.type; }
+              else if (field === 'quantity') { aVal = parseFloat(a.dataset.quantity); bVal = parseFloat(b.dataset.quantity); }
+              else return 0;
+              if (typeof aVal === 'string') return movementSortDir === 'asc' ? aVal.localeCompare(bVal) : bVal.localeCompare(aVal);
+              return movementSortDir === 'asc' ? aVal - bVal : bVal - aVal;
+            });
+            rows.forEach(r => tbody.appendChild(r));
+          }
 
          function filterIngredients() {
           const search = document.getElementById('inv-search').value.toLowerCase();
