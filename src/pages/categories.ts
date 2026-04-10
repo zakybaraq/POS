@@ -56,7 +56,7 @@ export const categoriesPage = new Elysia()
               <div class="card-header">
                 <div class="menu-toolbar">
                   <div class="menu-toolbar-left">
-                    <input type="text" id="category-search" class="menu-search-input" placeholder="Cari kategori..." oninput="filterCategories()">
+                    <input type="text" id="category-search" class="menu-search-input" placeholder="🔍 Cari kategori..." oninput="filterCategories()">
                   </div>
                   <div class="menu-toolbar-right">
                     <button class="btn btn-primary" id="btn-add-category">+ Tambah Kategori</button>
@@ -110,6 +110,23 @@ export const categoriesPage = new Elysia()
           </div>
           <div class="modal-footer">
             <button type="submit" form="category-form" class="btn btn-primary" id="btn-save-category">Simpan</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal" id="delete-confirm-modal">
+        <div class="modal-backdrop" onclick="closeDeleteConfirmModal()"></div>
+        <div class="modal-content" style="max-width: 400px;">
+          <div class="modal-header">
+            <h3>Konfirmasi Hapus</h3>
+            <button class="modal-close" onclick="closeDeleteConfirmModal()">&times;</button>
+          </div>
+          <div class="modal-body">
+            <p style="color: var(--color-text-secondary);">Apakah Anda yakin ingin menghapus kategori <strong id="delete-category-name"></strong>? Tindakan ini tidak dapat dibatalkan.</p>
+          </div>
+          <div class="modal-footer">
+            <button onclick="closeDeleteConfirmModal()" class="btn btn-secondary">Batal</button>
+            <button onclick="confirmDeleteCategory()" class="btn btn-danger">Hapus</button>
           </div>
         </div>
       </div>
@@ -196,12 +213,13 @@ export const categoriesPage = new Elysia()
           for (let i = 0; i < currentCategories.length; i++) {
             const c = currentCategories[i];
             const menuCount = currentMenus[c.name] || 0;
+            const categoryBadge = c.name.toLowerCase() === 'makanan' ? 'badge-warning' : c.name.toLowerCase() === 'minuman' ? 'badge-primary' : 'badge-secondary';
             const statusClass = c.isAvailable ? 'badge-success' : 'badge-error';
             const statusLabel = c.isAvailable ? 'Aktif' : 'Tidak Aktif';
             
             html += '<tr data-category-id="' + c.id + '" data-name="' + c.name + '" data-available="' + c.isAvailable + '">' +
               '<td><strong>' + c.name + '</strong></td>' +
-              '<td>' + menuCount + ' menu</td>' +
+              '<td><span class="badge ' + categoryBadge + '">' + menuCount + ' menu</span></td>' +
               '<td><label class="toggle-switch" onclick="event.stopPropagation(); toggleCategory(' + c.id + ', ' + c.isAvailable + ')">' +
                 '<input type="checkbox" ' + (c.isAvailable ? 'checked' : '') + '>' +
                 '<span class="toggle-slider"></span>' +
@@ -307,11 +325,27 @@ export const categoriesPage = new Elysia()
           }
         }
 
+        let pendingDeleteId = null;
+
         async function deleteCategory(id) {
-          if (!confirm('Yakin hapus kategori ini?')) return;
+          const cat = currentCategories.find(c => c.id === id);
+          document.getElementById('delete-category-name').textContent = cat ? cat.name : '';
+          document.getElementById('delete-confirm-modal').classList.add('show');
+          pendingDeleteId = id;
+        }
+
+        function closeDeleteConfirmModal() {
+          document.getElementById('delete-confirm-modal').classList.remove('show');
+          pendingDeleteId = null;
+        }
+
+        async function confirmDeleteCategory() {
+          if (!pendingDeleteId) return;
           try {
-            await fetch('/categories/' + id, { method: 'DELETE' });
+            await fetch('/categories/' + pendingDeleteId, { method: 'DELETE' });
+            closeDeleteConfirmModal();
             loadData();
+            showToast('Kategori berhasil dihapus');
           } catch (e) {
             alert('Gagal menghapus kategori');
           }
