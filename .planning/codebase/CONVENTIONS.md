@@ -1,233 +1,245 @@
 # Coding Conventions
 
-**Analysis Date:** 2026-04-10
+**Analysis Date:** 2026-04-11
+
+## Language & Runtime
+
+**Primary:** TypeScript (ESNext)
+- **Runtime:** Bun (not Node.js)
+- **Module System:** ES Modules (`"type": "module"`)
+- **Target:** ESNext
+- **Strict Mode:** Enabled with comprehensive strict flags
 
 ## Naming Patterns
 
 ### Files
-- **Routes:** kebab-case with `.ts` extension
-  - Example: `src/routes/orders.ts`, `src/routes/menus.ts`
-- **Repositories:** kebab-case matching route names
-  - Example: `src/repositories/order.ts`, `src/repositories/order-item.ts`
-- **Pages:** kebab-case with `.ts` extension
-  - Example: `src/pages/pos.ts`, `src/pages/dashboard.ts`
-- **Services:** kebab-case with `.ts` extension
-  - Example: `src/services/auth.ts`, `src/services/payment.ts`
+- **CamelCase** for all TypeScript files
+  - Examples: `order.ts`, `inventory.ts`, `menu.ts`, `auth.ts`
+  - No dashes or underscores in filenames
+  - Repository files: `[entity].ts` in `src/repositories/`
+  - Route files: `[entity].ts` in `src/routes/`
 
 ### Functions
-- **All functions:** camelCase
-  - Example: `createOrder`, `getOrderById`, `getUserFromRequest`, `processPayment`
-- **Async repository functions:** Start with action verb
-  - Example: `getOrderById`, `createOrder`, `updateOrderStatus`, `calculateTotals`
+- **camelCase** for all function names
+  - Async functions: `getOrderById`, `createOrder`, `calculateTotals`
+  - Utility functions: `redirectToLogin`, `getTokenFromCookies`
+  - Service functions: `processPayment`, `calculateChange`
+  - Pattern: `verbNoun` or `actionEntity`
 
 ### Variables
-- **All variables:** camelCase
-  - Example: `tableId`, `userId`, `orderType`, `amountPaid`, `currentTotal`
-- **Database columns in code:** Map to camelCase
-  - Example: `tableNumber`, `isAvailable`, `createdAt`, `updatedAt`
+- **camelCase** for all variables
+  - Examples: `tableId`, `userId`, `orderId`, `amountPaid`
+  - Boolean flags: `isAvailable`, `isActive`, `markCompleted`
+  - Constants: Standard camelCase (not UPPER_SNAKE_CASE)
 
-### Types
-- **TypeScript types:** PascalCase
-  - Example: `Menu`, `Order`, `OrderItem`, `TokenPayload`, `User`
-- **Database types from Drizzle:** Use `$inferSelect` and `$inferInsert`
-  - Example: `type Menu = typeof menus.$inferSelect`
-  - Example: `type NewMenu = typeof menus.$inferInsert`
+### Types & Interfaces
+- **PascalCase** for type definitions
+  - Entity types: `Order`, `Menu`, `Table`, `User`
+  - New entity types: `NewOrder`, `NewMenu`, `NewUser`
+  - Payload types: `TokenPayload`
+  - Enum types derived from tables: `Order`, `NewOrder`
+
+### Database Columns
+- **snake_case** in database schema
+  - Examples: `table_number`, `user_id`, `created_at`, `price_at_order`
+  - TypeScript mapping: camelCase in code (`tableNumber`, `userId`)
 
 ## Code Style
 
 ### Formatting
-- No explicit formatter configured
-- Standard TypeScript formatting (2-space indent)
+- **Indentation:** 2 spaces
+- **Quotes:** Single quotes preferred
+- **Semicolons:** Required
+- **Line endings:** Unix style
 
-### Linting
-- No explicit linter configured
-- TypeScript strict mode via `tsconfig.json`
+### TypeScript Strictness
+From `tsconfig.json`:
+```json
+{
+  "strict": true,
+  "noFallthroughCasesInSwitch": true,
+  "noUncheckedIndexedAccess": true,
+  "noImplicitOverride": true
+}
+```
 
-## Import Organization
+### Import Organization
+Order observed in codebase:
+1. Third-party packages (Elysia, Drizzle, JWT)
+2. Local absolute imports (`../db/schema`)
+3. Type imports (`import type { Order }`)
+4. Dynamic imports (for circular dependencies)
 
-### Order
-1. External packages
-   ```typescript
-   import { Elysia, t } from 'elysia';
-   import jwt from 'jsonwebtoken';
-   ```
-2. Internal modules (relative paths)
-   ```typescript
-   import * as orderRepo from '../repositories/order';
-   import * as orderItemRepo from '../repositories/order-item';
-   ```
-3. Local utilities
-   ```typescript
-   import { requireRole, getUserFromRequest } from '../middleware/authorization';
-   import { getTokenFromCookies, verifyToken } from '../utils/auth';
-   ```
-
-### Path Aliases
-- No path aliases configured
-- Use relative paths: `../repositories/`, `../services/`, `../middleware/`
+Example from `src/repositories/order.ts`:
+```typescript
+import { eq, and, gte, desc, sql, sum } from 'drizzle-orm';
+import { db } from '../db/index';
+import { orders, orderItems, tables, menus } from '../db/schema';
+import type { Order, NewOrder } from '../db/schema';
+```
 
 ## Error Handling
 
-### API Routes
-- Return error object format:
-  ```typescript
-  return { error: 'Table not found' };
-  return { error: 'Invalid amount paid' };
-  return { error: 'Unauthorized' };
-  ```
-- HTTP status codes only used for redirects (e.g., login redirect)
+### Pattern
+- Throw `Error` with descriptive messages in services
+- Return error objects in routes: `{ error: 'message' }`
+- Use try-catch for async operations
 
-### Services/Repositories
-- Throw exceptions with messages:
-  ```typescript
-  throw new Error('Email already registered');
-  throw new Error('Invalid email or password');
-  ```
-- Use try/catch in route handlers:
-  ```typescript
+Example:
+```typescript
+// Service layer
+export async function processPayment(orderId: number, amountPaid: number) {
+  const order = await orderRepo.getOrderById(orderId);
+  if (!order) {
+    throw new Error('Order not found');
+  }
+  if (order.status !== 'active') {
+    throw new Error('Order is not active');
+  }
+}
+
+// Route layer
+.post('/:id/pay', async ({ params: { id }, body }) => {
   try {
     const completedOrder = await paymentService.processPayment(Number(id), amountPaid);
+    return { order: completedOrder };
   } catch (e: any) {
     return { error: e.message };
   }
-  ```
-
-### Authentication Errors
-- Redirect to login:
-  ```typescript
-  return redirectToLogin();
-  ```
-- Return 403 for role violations:
-  ```typescript
-  return new Response('Akses ditolak', { status: 403 });
-  ```
-
-## Response Format Conventions
-
-### Successful Responses
-- Return data directly (no wrapper):
-  ```typescript
-  return orderRepo.getOrdersToday();
-  return orderRepo.getOrderById(id);
-  ```
-- Return object with nested data:
-  ```typescript
-  return { order, items, table };
-  return { table, order, items };
-  ```
-
-### Error Responses
-- Always use `error` key:
-  ```typescript
-  return { error: 'message' };
-  ```
-- Success confirmation (rare):
-  ```typescript
-  return { success: true };
-  ```
-
-### Mixed Responses
-- Combine data and error in one response:
-  ```typescript
-  return { table, order: null };
-  return { order: completedOrder, items, receipt };
-  ```
-
-## Database Schema Patterns (Drizzle)
-
-### Table Definition
-```typescript
-export const orders = mysqlTable('orders', {
-  id: serial('id').primaryKey(),
-  tableId: int('table_id').notNull(),
-  userId: int('user_id').notNull(),
-  status: orderStatusEnum.notNull().default('draft'),
-  createdAt: datetime('created_at').notNull().default(new Date()),
-}, (table) => ({
-  tableIdIdx: index('idx_orders_table_id').on(table.tableId),
-}));
+})
 ```
-
-### Column Types
-- Primary key: `serial('column_name')`
-- String: `varchar('column_name', { length: 100 })`
-- Integer: `int('column_name')`
-- Boolean: `boolean('column_name')`
-- DateTime: `datetime('column_name')`
-- Enum: `mysqlEnum('column_name', ['value1', 'value2'])`
-- Decimal: `decimal('column_name', { precision: 10, scale: 2 })`
-
-### Indexes
-- Defined in third parameter to `mysqlTable`
-- Example: `(table) => ({ emailIdx: index('idx_users_email').on(table.email) })`
-
-### Relations
-```typescript
-export const ordersRelations = relations(orders, ({ one, many }) => ({
-  table: one(tables, {
-    fields: [orders.tableId],
-    references: [tables.id],
-  }),
-  user: one(users, {
-    fields: [orders.userId],
-    references: [users.id],
-  }),
-  orderItems: many(orderItems),
-}));
-```
-
-### Enum Definitions
-- Defined before tables using `mysqlEnum`:
-  ```typescript
-  export const orderStatusEnum = mysqlEnum('order_status', ['draft', 'active', 'completed', 'cancelled']);
-  export const roleEnum = mysqlEnum('role', ['super_admin', 'admin_restoran', 'kasir', 'waitress', 'chef']);
-  ```
-
-## Middleware & Authorization
-
-### Role-Based Access
-- Define role requirements as factory functions:
-  ```typescript
-  const requireOrderCreate = () => requireRole(['super_admin', 'admin_restoran', 'kasir', 'waitress']);
-  const requirePayment = () => requireRole(['super_admin', 'admin_restoran', 'kasir']);
-  ```
-- Convenience exports:
-  ```typescript
-  export const requireAdmin = () => requireRole(['super_admin', 'admin_restoran']);
-  export const requirePosAccess = () => requireRole(['super_admin', 'admin_restoran', 'kasir']);
-  ```
-
-## Module Design
-
-### Exports
-- Named exports only
-  ```typescript
-  export const orderRoutes = new Elysia({ prefix: '/api/orders' });
-  export async function createOrder(tableId: number | null, userId: number) { ... }
-  ```
-
-### Barrel Files
-- Use `index.ts` files for re-exports
-  - Example: `src/routes/index.ts` aggregates all route modules
-
-### Dynamic Imports
-- Used for conditional/lazy loading:
-  ```typescript
-  const { getAvailableMenus } = await import('../repositories/menu');
-  ```
 
 ## Function Design
 
-### Repository Functions
-- **Size:** Typically single-purpose, focused queries
-- **Parameters:** Simple types (id, data objects)
-- **Return:** Single record, array, or null
+### Async Functions
+- All database operations are async
+- Return `Promise<T>` or `Promise<T | null>`
+- Handle null cases explicitly
 
-### Route Handlers
-- **Size:** Medium - contain validation and orchestration
-- **Parameters:** Extract from `body`, `params`, `cookie`, `headers`
-- **Return:** Direct data or error object
+Example:
+```typescript
+export async function getOrderById(id: number): Promise<Order | null> {
+  const result = await db.select().from(orders).where(eq(orders.id, id));
+  return result[0] || null;
+}
+```
+
+### Parameters
+- Use object destructuring in route handlers
+- Type validation via Elysia's `t.Object()` schema
+- Optional parameters use `t.Optional()`
+
+## Module Exports
+
+### Named Exports
+- Always use named exports, never default exports
+- Group related functions in a single file
+- Export types when used externally
+
+Example:
+```typescript
+// Export functions
+export async function getOrderById(id: number) { /* ... */ }
+export async function createOrder(tableId: number, userId: number) { /* ... */ }
+
+// Export types for external use
+export type { TokenPayload };
+```
+
+### Repository Pattern
+Files in `src/repositories/` follow CRUD pattern:
+- `getAll[Entity]s()` - List all
+- `get[Entity]ById(id)` - Get single by ID
+- `create[Entity](data)` - Create new
+- `update[Entity](id, data)` - Update existing
+- `delete[Entity](id)` - Delete
+- `get[Entity]By[Field](value)` - Query by specific field
+
+## Database Patterns
+
+### Drizzle ORM Usage
+```typescript
+// Selecting with conditions
+const result = await db.select().from(orders).where(eq(orders.id, id));
+
+// Joins
+return db.select().from(orders)
+  .leftJoin(tables, eq(orders.tableId, tables.id))
+  .orderBy(desc(orders.createdAt));
+
+// Aggregations
+const result = await db.select({ total: sum(orders.total) })
+  .from(orders)
+  .where(and(gte(orders.completedAt, todayStart()), eq(orders.status, 'completed')));
+```
+
+### Type Inference
+- Use `typeof table.$inferSelect` for entity types
+- Use `typeof table.$inferInsert` for new entity types
+
+## Authentication Pattern
+
+### JWT Handling
+- Token stored in cookie named `pos_session`
+- Verify token on protected routes
+- Role-based access control via middleware
+
+Example:
+```typescript
+const requirePayment = () => requireRole(['super_admin', 'admin_restoran', 'kasir']);
+
+.post('/:id/pay', async ({ cookie, headers, params: { id }, body }) => {
+  const user = getUserFromRequest(cookie, headers);
+  if (!user) return { error: 'Unauthorized' };
+  if (!['super_admin', 'admin_restoran', 'kasir'].includes(user.role)) {
+    return { error: 'Akses ditolak' };
+  }
+  // ... handler logic
+})
+```
+
+## Comments & Documentation
+
+### When to Comment
+- Complex business logic (e.g., stock decrement timing)
+- Workarounds or temporary fixes
+- API endpoint purposes
+
+Example:
+```typescript
+// After order is completed, decrement stock
+if (markCompleted) {
+  const { decrementStockForOrder } = await import('./inventory');
+  await decrementStockForOrder(id);
+}
+```
+
+### Inline Comments
+- Use for explaining WHY, not WHAT
+- Keep comments updated when code changes
+
+## Architecture Patterns
+
+### Elysia Routes
+```typescript
+export const orderRoutes = new Elysia({ prefix: '/api/orders' })
+  .get('/', async () => { /* ... */ })
+  .post('/', async ({ body }) => { /* ... */ }, {
+    body: t.Object({ /* validation schema */ })
+  });
+```
+
+### Service Layer
+- Business logic extracted to `src/services/`
+- Pure functions for calculations
+- Async functions for data operations
+
+### Repository Layer
+- All database access in `src/repositories/`
+- No direct DB calls in routes or pages
+- Re-export from barrel files if needed
 
 ---
 
-*Convention analysis: 2026-04-10*
+*Convention analysis: 2026-04-11*
+

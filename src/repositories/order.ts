@@ -89,27 +89,37 @@ export async function updateOrderTotals(id: number, subtotal: number, tax: numbe
 }
 
 export async function completeOrder(id: number, amountPaid: number, markCompleted: boolean = true) {
-   const order = await getOrderById(id);
-   if (!order) return null;
-   const changeDue = amountPaid - order.total;
-   const updateData: Record<string, unknown> = {
-     amountPaid,
-     changeDue,
-     completedAt: new Date(),
-   };
-   if (markCompleted) {
-     updateData.status = 'completed';
-   }
-   await db.update(orders).set(updateData).where(eq(orders.id, id));
-   
-   // After order is completed, decrement stock
-   if (markCompleted) {
-     const { decrementStockForOrder } = await import('./inventory');
-     await decrementStockForOrder(id);
-   }
-   
-   return getOrderById(id);
- }
+  const order = await getOrderById(id);
+  if (!order) return null;
+  
+  const changeDue = amountPaid - order.total;
+  
+  return await db.transaction(async (tx) => {
+    try {
+      const updateData: Record<string, unknown> = {
+        amountPaid,
+        changeDue,
+        completedAt: new Date(),
+      };
+      if (markCompleted) {
+        updateData.status = 'completed';
+      }
+      
+      await tx.update(orders).set(updateData).where(eq(orders.id, id));
+      
+      if (markCompleted) {
+        const { decrementStockForOrderTx } = await import('./inventory');
+        await decrementStockForOrderTx(tx, id);
+      }
+      
+      const [completedOrder] = await tx.select().from(orders).where(eq(orders.id, id));
+      return completedOrder || null;
+    } catch (error) {
+      console.error(`Failed to complete order #${id}:`, error);
+      throw error;
+    }
+  });
+}
 
 export async function calculateTotals(orderId: number) {
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));

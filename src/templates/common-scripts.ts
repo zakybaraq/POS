@@ -73,11 +73,37 @@ document.addEventListener('DOMContentLoaded', function() {
 });
 
 function logout() {
-  fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
+    fetch('/api/auth/logout', { method: 'POST', credentials: 'include' })
     .then(() => window.location.href = '/login');
-}
+  }
 
-function showHelpModal() { 
+  function showToast(message, type) {
+    type = type || 'success';
+    const toast = document.createElement('div');
+    toast.style.cssText = 'position: fixed; top: 20px; right: 20px; padding: 12px 24px; border-radius: 8px; color: white; font-weight: 500; z-index: 9999; animation: slideInToast 0.3s ease; max-width: 400px; word-wrap: break-word;';
+    
+    if (type === 'error') {
+      toast.style.background = '#ef4444';
+    } else if (type === 'warning') {
+      toast.style.background = '#f59e0b';
+    } else {
+      toast.style.background = '#22c55e';
+    }
+    
+    toast.textContent = message;
+    document.body.appendChild(toast);
+    
+    setTimeout(function() {
+      toast.style.animation = 'slideOutToast 0.3s ease';
+      setTimeout(function() { toast.remove(); }, 300);
+    }, 3000);
+  }
+
+  const toastStyle = document.createElement('style');
+  toastStyle.textContent = '@keyframes slideInToast { from { transform: translateX(100%); opacity: 0; } to { transform: translateX(0); opacity: 1; } } @keyframes slideOutToast { from { transform: translateX(0); opacity: 1; } to { transform: translateX(100%); opacity: 0; } }';
+  document.head.appendChild(toastStyle);
+
+  function showHelpModal() {
   const modal = document.getElementById('help-modal');
   if (modal) modal.classList.add('show'); 
 }

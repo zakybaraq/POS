@@ -418,17 +418,20 @@ export const inventoryPage = new Elysia()
         }
         function closeStockAdjustModal() { document.getElementById('stock-adjust-modal').classList.remove('show'); }
 
-        async function submitStockAdjust() {
-          const ingredientId = document.getElementById('adj-ing-id').value;
-          const type = document.getElementById('adj-type').value;
-          const quantity = parseFloat(document.getElementById('adj-quantity').value) || 0;
-          const reason = document.getElementById('adj-reason').value.trim();
-          if (quantity <= 0) { showToast('Jumlah harus lebih dari 0', 'warning'); return; }
-          const res = await fetch('/api/inventory/stock-movements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredientId, type, quantity, reason }) });
-          const data = await res.json();
-          if (data.error) { showToast(data.error, 'error'); return; }
-          closeStockAdjustModal(); showToast('Stok berhasil diadjust'); location.reload();
-        }
+async function submitStockAdjust() {
+  const ingredientId = parseInt(document.getElementById('adj-ing-id').value);
+  const type = document.getElementById('adj-type').value;
+  const quantity = parseFloat(document.getElementById('adj-quantity').value) || 0;
+  const reason = document.getElementById('adj-reason').value.trim();
+  if (quantity <= 0) { showToast('Jumlah harus lebih dari 0', 'warning'); return; }
+  if (!ingredientId) { showToast('Bahan tidak valid', 'error'); return; }
+  const res = await fetch('/api/inventory/stock-movements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ingredientId, type, quantity, reason }) });
+  const data = await res.json();
+  if (data.error) { showToast(data.error, 'error'); return; }
+  closeStockAdjustModal();
+  showToast('Stok berhasil diadjust');
+  setTimeout(function() { location.reload(); }, 2000);
+}
 
         async function loadRecipe() {
           const menuId = document.getElementById('recipe-menu-select').value;
