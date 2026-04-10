@@ -155,14 +155,15 @@ export async function receivePO(id: number, receivedBy: number, receivedItems?: 
         updatedAt: new Date(),
       }).where(eq(ingredients.id, item.ingredientId));
 
-      await db.insert(stockMovements).values({
-        ingredientId: item.ingredientId,
-        type: 'in',
-        quantity: qtyReceived.toString(),
-        reason: `PO ${po.poNumber} received`,
-        referenceId: id,
-        userId: receivedBy,
-      });
+       await db.insert(stockMovements).values({
+         ingredientId: item.ingredientId,
+         type: 'in',
+         quantity: qtyReceived.toString(),
+         reason: `PO ${po.poNumber} received`,
+         referenceId: id,
+         userId: receivedBy,
+         createdAt: new Date(),
+       });
     }
 
     await db.insert(supplierPrices).values({

@@ -1,0 +1,3 @@
+- Issue: dine-in orders were not triggering stock decrement because shouldComplete was false for orders with a tableId.
+- Impact: Stock counts could be inaccurate for dine-in orders; potential overstock or understock issues.
+- Resolution plan: modify payment processing to always complete orders on payment and trigger stock decrement.

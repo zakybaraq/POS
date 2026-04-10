@@ -131,9 +131,6 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     
     await orderRepo.updateOrderStatus(Number(order.id), 'active');
 
-    const { decrementStockForOrder } = await import('../repositories/inventory');
-    await decrementStockForOrder(Number(order.id));
-
     const finalOrder = await orderRepo.getOrderById(Number(order.id));
     const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
     return { order: finalOrder, items: orderItems };
@@ -254,25 +251,25 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     return { success: true };
   })
-  .post('/:id/finish', async ({ cookie, headers, params: { id } }) => {
-    const user = getUserFromRequest(cookie, headers);
-    if (!user) return { error: 'Unauthorized' };
-    if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
-      return { error: 'Akses ditolak' };
-    }
-    const order = await orderRepo.getOrderById(Number(id));
-    if (!order) {
-      return { error: 'Order not found' };
-    }
-    if (order.status !== 'active') {
-      return { error: 'Order already completed or cancelled' };
-    }
-    await orderRepo.updateOrderStatus(Number(id), 'completed');
-    if (order.tableId) {
-      await tableRepo.updateTableStatus(order.tableId, 'available');
-    }
-    return { success: true };
-  })
+.post('/:id/finish', async ({ cookie, headers, params: { id } }) => {
+     const user = getUserFromRequest(cookie, headers);
+     if (!user) return { error: 'Unauthorized' };
+     if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
+       return { error: 'Akses ditolak' };
+     }
+     const order = await orderRepo.getOrderById(Number(id));
+     if (!order) {
+       return { error: 'Order not found' };
+     }
+     if (order.status !== 'active') {
+       return { error: 'Order already completed or cancelled' };
+     }
+     const completedOrder = await orderRepo.completeOrder(Number(id), 0, true);
+     if (order.tableId) {
+       await tableRepo.updateTableStatus(order.tableId, 'available');
+     }
+     return { success: true };
+   })
   .put('/:id/transfer', async ({ cookie, headers, params: { id }, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };

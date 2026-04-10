@@ -1,0 +1,3 @@
+- Learned: Always align stock decrement with order completion to avoid partial stock updates.
+- Action: When payment is processed, complete the order unconditionally and decrement stock (for both dine-in and takeaway).
+- Next: Add tests and ensure package.json includes a test script to verify behavior end-to-end.

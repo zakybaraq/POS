@@ -129,19 +129,30 @@ export async function adjustStock(
     .set({ currentStock: String(newStock), updatedAt: new Date() })
     .where(eq(ingredients.id, ingredientId));
 
-  await db.insert(stockMovements).values({
-    ingredientId,
-    type,
-    quantity: String(Math.abs(quantity)),
-    reason,
-    userId: userId || null,
-    referenceId: referenceId || null,
-  });
+    await db.insert(stockMovements).values({
+      ingredientId,
+      type,
+      quantity: String(Math.abs(quantity)),
+      reason,
+      userId: userId || null,
+      referenceId: referenceId || null,
+      createdAt: new Date(),
+    });
 
   return getIngredientById(ingredientId);
 }
 
 export async function decrementStockForOrder(orderId: number) {
+  // Check if order exists and is completed before proceeding
+  const { getOrderById } = await import('./order');
+  const order = await getOrderById(orderId);
+  
+  // Only proceed if order exists and is completed
+  if (!order || order.status !== 'completed') {
+    console.log(`Stock decrement skipped for order #${orderId} - order not completed`);
+    return;
+  }
+  
   const { getItemsWithMenuByOrderId } = await import('./order-item');
   const items = await getItemsWithMenuByOrderId(orderId);
 

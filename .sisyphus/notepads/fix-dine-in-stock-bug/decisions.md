@@ -1,0 +1,3 @@
+- Change summary: Set shouldComplete to true in src/services/payment.ts so that dine-in orders (with tableId) are marked as completed upon payment, enabling stock decrement as part of completion.
+- Rationale: Ensure stock decrementation occurs for both dine-in and takeaway orders on payment processing.
+- Impact: Simplifies completion logic; risk of altering flow for dine-in orders previously left open until a separate fulfillment step. Tests should cover both dine-in and takeaway scenarios.

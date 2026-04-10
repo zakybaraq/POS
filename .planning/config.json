@@ -1,0 +1,8 @@
+{
+  "projectType": "full-stack",
+  "teamSize": "solo",
+  "verification": "safety-first",
+  "phaseModel": "iterative",
+  "commitStrategy": "atomic",
+  "autoVerify": true
+}

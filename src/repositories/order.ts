@@ -11,23 +11,24 @@ function todayStart(): Date {
 }
 
 export async function createOrder(tableId: number | null, userId: number) {
-  const now = new Date();
-  const result = await db.insert(orders).values({
-    tableId: tableId ?? 0,
-    userId,
-    servedBy: '',
-    status: 'active',
-    subtotal: 0,
-    tax: 0,
-    total: 0,
-    createdAt: now,
-  });
-  const insertId = result[0]?.insertId;
-  if (insertId) {
-    return getOrderById(Number(insertId));
-  }
-  return null;
-}
+   const wibTime = new Date().toLocaleString('en-US', { timeZone: 'Asia/Jakarta' });
+   const now = new Date(wibTime);
+   const result = await db.insert(orders).values({
+     tableId: tableId ?? 0,
+     userId,
+     servedBy: '',
+     status: 'active',
+     subtotal: 0,
+     tax: 0,
+     total: 0,
+     createdAt: now,
+   });
+   const insertId = result[0]?.insertId;
+   if (insertId) {
+     return getOrderById(Number(insertId));
+   }
+   return null;
+ }
 
 export async function getOrderById(id: number) {
   const result = await db.select().from(orders).where(eq(orders.id, id));
@@ -87,21 +88,28 @@ export async function updateOrderTotals(id: number, subtotal: number, tax: numbe
   return getOrderById(id);
 }
 
-export async function completeOrder(id: number, amountPaid: number, markCompleted: boolean = false) {
-  const order = await getOrderById(id);
-  if (!order) return null;
-  const changeDue = amountPaid - order.total;
-  const updateData: Record<string, unknown> = {
-    amountPaid,
-    changeDue,
-    completedAt: new Date(),
-  };
-  if (markCompleted) {
-    updateData.status = 'completed';
-  }
-  await db.update(orders).set(updateData).where(eq(orders.id, id));
-  return getOrderById(id);
-}
+export async function completeOrder(id: number, amountPaid: number, markCompleted: boolean = true) {
+   const order = await getOrderById(id);
+   if (!order) return null;
+   const changeDue = amountPaid - order.total;
+   const updateData: Record<string, unknown> = {
+     amountPaid,
+     changeDue,
+     completedAt: new Date(),
+   };
+   if (markCompleted) {
+     updateData.status = 'completed';
+   }
+   await db.update(orders).set(updateData).where(eq(orders.id, id));
+   
+   // After order is completed, decrement stock
+   if (markCompleted) {
+     const { decrementStockForOrder } = await import('./inventory');
+     await decrementStockForOrder(id);
+   }
+   
+   return getOrderById(id);
+ }
 
 export async function calculateTotals(orderId: number) {
   const items = await db.select().from(orderItems).where(eq(orderItems.orderId, orderId));

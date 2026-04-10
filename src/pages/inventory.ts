@@ -144,18 +144,18 @@ export const inventoryPage = new Elysia()
                   <div class="table-container">
                     <table class="table">
                       <thead><tr><th>Tanggal</th><th>Bahan</th><th>Tipe</th><th>Jumlah</th><th>Keterangan</th></tr></thead>
-                      <tbody id="movements-body">
-                        ${movements.map((m: any) => {
-                        const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
-                        const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
-                        return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}">
-                           <td>${m.createdAt ? new Date(m.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Jakarta' }) : '-'}</td>
-                          <td>${m.ingredientName || '-'}</td>
-                          <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
-                          <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
-                          <td style="color: var(--color-text-secondary); font-size: 13px;">${m.reason || '-'}</td>
-                        </tr>`;
-                      }).join('')}
+                       <tbody id="movements-body">
+                         ${movements.map((m: any) => {
+                         const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
+                         const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
+                         return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}">
+                             <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                           <td>${m.ingredientName || '-'}</td>
+                           <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
+                           <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
+                           <td style="color: var(--color-text-secondary); font-size: 13px;">${m.reason || '-'}</td>
+                         </tr>`;
+                       }).join('')}
                     </tbody>
                   </table>
                 </div>
