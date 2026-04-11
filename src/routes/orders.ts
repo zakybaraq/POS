@@ -91,24 +91,24 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const order = await orderRepo.createOrder(Number(tableId), userId);
     return { order };
   })
-  .post('/with-items', async ({ cookie, headers, body }) => {
+.post('/with-items', async ({ cookie, headers, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { tableId, userId, items, orderType } = body as any;
-    
+    const { tableId, userId, items, orderType, customerId } = body as any;
+
     // Validation based on order type
     if (orderType === 'dine-in') {
       if (!tableId) return { error: 'Meja wajib untuk order dine-in' };
       const table = await tableRepo.getTableById(tableId);
       if (!table) return { error: 'Table not found' };
     }
-    
+
     if (!userId || !items || items.length === 0) {
       return { error: 'userId, and items are required' };
     }
 
     // Create order - for takeaway, tableId is null
-    const order = await orderRepo.createOrder(tableId, userId);
+    const order = await orderRepo.createOrder(tableId, userId, customerId);
     if (!order) return { error: 'Failed to create order' };
 
     for (const item of items) {
@@ -123,12 +123,12 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
 
     await orderRepo.calculateTotals(Number(order.id));
-    
+
     // Only update table status for dine-in
     if (orderType === 'dine-in' && tableId) {
       await tableRepo.updateTableStatus(tableId, 'occupied');
     }
-    
+
     await orderRepo.updateOrderStatus(Number(order.id), 'active');
 
     const finalOrder = await orderRepo.getOrderById(Number(order.id));
@@ -138,6 +138,7 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     body: t.Object({
       tableId: t.Optional(t.Number()),
       userId: t.Number(),
+      customerId: t.Optional(t.Number()),
       orderType: t.Optional(t.Union([t.Literal('dine-in'), t.Literal('takeaway')])),
       items: t.Array(t.Object({
         menuId: t.Number(),

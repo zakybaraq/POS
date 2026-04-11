@@ -56,6 +56,7 @@ export const orders = mysqlTable('orders', {
   id: serial('id').primaryKey(),
   tableId: int('table_id').notNull(),
   userId: int('user_id').notNull(),
+  customerId: int('customer_id'),
   servedBy: varchar('served_by', { length: 100 }).notNull().default(''),
   status: orderStatusEnum.notNull().default('draft'),
   kitchenStatus: mysqlEnum('kitchen_status', ['pending', 'cooking', 'ready', 'served']).notNull().default('pending'),
@@ -74,6 +75,7 @@ export const orders = mysqlTable('orders', {
 }, (table) => ({
   tableIdIdx: index('idx_orders_table_id').on(table.tableId),
   userIdIdx: index('idx_orders_user_id').on(table.userId),
+  customerIdIdx: index('idx_orders_customer_id').on(table.customerId),
   statusIdx: index('idx_orders_status').on(table.status),
   kitchenStatusIdx: index('idx_orders_kitchen_status').on(table.kitchenStatus),
   createdAtIdx: index('idx_orders_created_at').on(table.createdAt),
