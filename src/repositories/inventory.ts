@@ -245,6 +245,8 @@ export async function decrementStockForOrderTx(
         ingredientId: recipe.ingredientId,
         type: 'out',
         quantity: String(totalQuantity),
+        stockBefore: String(currentStock),
+        stockAfter: String(newStock),
         reason: `Pesanan #${orderId}`,
         referenceId: orderId,
         createdAt: new Date(),
