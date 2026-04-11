@@ -143,20 +143,30 @@ export const inventoryPage = new Elysia()
                   </div>
                    <div class="table-container">
                      <table class="table">
-                        <thead><tr><th onclick="sortMovements('date')" style="cursor:pointer;">Tanggal <span id="sort-date"></span></th><th>Bahan</th><th onclick="sortMovements('type')" style="cursor:pointer;">Tipe <span id="sort-type"></span></th><th onclick="sortMovements('quantity')" style="cursor:pointer;">Jumlah <span id="sort-quantity"></span></th><th onclick="sortMovements('reference_id')" style="cursor:pointer;">ID Pesanan <span id="sort-reference_id"></span></th></tr></thead>
+                        <thead><tr><th onclick="sortMovements('date')" style="cursor:pointer;">Tanggal <span id="sort-date"></span></th><th>Bahan</th><th onclick="sortMovements('type')" style="cursor:pointer;">Tipe <span id="sort-type"></span></th><th onclick="sortMovements('quantity')" style="cursor:pointer;">Jumlah <span id="sort-quantity"></span></th><th>Sebelum</th><th>Sesudah</th><th>Perubahan</th><th onclick="sortMovements('reference_id')" style="cursor:pointer;">ID Pesanan <span id="sort-reference_id"></span></th></tr></thead>
                        <tbody id="movements-body">
-                        ${movements.map((m: any) => {
-                          const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
-                          const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
-                          const orderId = m.referenceId ? `#${m.referenceId}` : '-';
-                           return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}" data-reference-id="${m.referenceId || ''}" data-date="${m.createdAt || ''}" data-quantity="${Number(m.quantity)}">
-                               <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
-                            <td>${m.ingredientName || '-'}</td>
-                            <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
-                            <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'};">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
-                            <td>${m.referenceId ? `<button onclick="showOrderDetail(${m.referenceId})" class="btn btn-secondary btn-sm" style="cursor:pointer;">${orderId}</button>` : '<span style="color: var(--color-text-secondary);">-</span>'}</td>
-                          </tr>`;
-                        }).join('')}
+          ${movements.map((m: any) => {
+            const typeIcons: Record<string, string> = { in: '📥', out: '📤', adjustment: '🔄', waste: '🗑️' };
+            const typeColors: Record<string, string> = { in: 'badge-success', out: 'badge-primary', adjustment: 'badge-warning', waste: 'badge-error' };
+            const orderId = m.referenceId ? `#${m.referenceId}` : '-';
+            const stockBefore = m.stockBefore !== null && m.stockBefore !== undefined ? Number(m.stockBefore).toFixed(2) : '-';
+            const stockAfter = m.stockAfter !== null && m.stockAfter !== undefined ? Number(m.stockAfter).toFixed(2) : '-';
+            const stockBeforeNum = Number(m.stockBefore) || 0;
+            const stockAfterNum = Number(m.stockAfter) || 0;
+            const diff = stockAfterNum - stockBeforeNum;
+            const diffText = diff > 0 ? `+${diff.toFixed(2)}` : diff.toFixed(2);
+            const diffColor = diff > 0 ? 'var(--color-success)' : diff < 0 ? 'var(--color-error)' : 'var(--color-text-secondary)';
+            return `<tr data-type="${m.type}" data-reason="${(m.reason || '').toLowerCase()}" data-reference-id="${m.referenceId || ''}" data-date="${m.createdAt || ''}" data-quantity="${Number(m.quantity)}">
+              <td>${m.createdAt ? (m.createdAt instanceof Date ? m.createdAt : new Date(m.createdAt)).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+              <td>${m.ingredientName || '-'}</td>
+              <td><span class="badge ${typeColors[m.type] || ''}">${typeIcons[m.type] || ''} ${m.type}</span></td>
+              <td style="color: ${m.type === 'in' ? 'var(--color-success)' : 'var(--color-error)'}">${m.type === 'in' ? '+' : '-'}${Number(m.quantity).toFixed(2)} ${m.ingredientUnit || ''}</td>
+              <td style="color: var(--color-text-secondary)">${stockBefore} ${m.ingredientUnit || ''}</td>
+              <td style="color: var(--color-text-secondary)">${stockAfter} ${m.ingredientUnit || ''}</td>
+              <td style="color: ${diffColor}; font-weight: 500;">${diffText} ${m.ingredientUnit || ''}</td>
+              <td>${m.referenceId ? `<button onclick="showOrderDetail(${m.referenceId})" class="btn btn-secondary btn-sm" style="cursor:pointer">${orderId}</button>` : '<span style="color: var(--color-text-secondary)">-</span>'}</td>
+            </tr>`;
+          }).join('')}
                     </tbody>
                    </table>
                  </div>
@@ -507,28 +517,27 @@ async function submitStockAdjust() {
 
          function closeOrderDetail() { document.getElementById('order-detail-modal').classList.remove('show'); }
 
-         function renderMovementPagination() {
-           const rows = Array.from(document.querySelectorAll('#movements-body tr'));
-           const visibleRows = rows.filter(r => r.style.display !== 'none');
-           const totalPages = Math.ceil(visibleRows.length / movementItemsPerPage) || 1;
-           if (movementCurrentPage > totalPages) movementCurrentPage = totalPages;
-           rows.forEach(r => {
-             const idx = visibleRows.indexOf(r);
-             const page = Math.floor(idx / movementItemsPerPage) + 1;
-             r.style.display = (r.style.display !== 'none' && page === movementCurrentPage) ? '' : 'none';
-           });
-           const pagDiv = document.getElementById('movements-pagination');
-           if (!pagDiv || totalPages <= 1) { if (pagDiv) pagDiv.innerHTML = ''; return; }
-           const start = (movementCurrentPage - 1) * movementItemsPerPage + 1;
-           const end = Math.min(movementCurrentPage * movementItemsPerPage, visibleRows.length);
-           let html = '<div class="pagination-info">Menampilkan ' + start + '-' + end + ' dari ' + visibleRows.length + '</div>';
-           html += '<div class="pagination-buttons">';
-           html += '<button class="pagination-btn" onclick="goToMovementPage(' + (movementCurrentPage - 1) + ')" ' + (movementCurrentPage <= 1 ? 'disabled' : '') + '>← Prev</button>';
-           for (let p = 1; p <= totalPages; p++) html += '<button class="pagination-btn ' + (p === movementCurrentPage ? 'active' : '') + '" onclick="goToMovementPage(' + p + ')">' + p + '</button>';
-           html += '<button class="pagination-btn" onclick="goToMovementPage(' + (movementCurrentPage + 1) + ')" ' + (movementCurrentPage >= totalPages ? 'disabled' : '') + '>Next →</button>';
-           html += '</div>';
-           pagDiv.innerHTML = html;
-         }
+function renderMovementPagination() {
+  const rows = Array.from(document.querySelectorAll('#movements-body tr'));
+  const totalRows = rows.length;
+  const totalPages = Math.ceil(totalRows / movementItemsPerPage) || 1;
+  if (movementCurrentPage > totalPages) movementCurrentPage = totalPages;
+  rows.forEach(function(r, idx) {
+    const page = Math.floor(idx / movementItemsPerPage) + 1;
+    r.style.display = (page === movementCurrentPage) ? '' : 'none';
+  });
+  const pagDiv = document.getElementById('movements-pagination');
+  if (!pagDiv || totalPages <= 1) { if (pagDiv) pagDiv.innerHTML = ''; return; }
+  const start = (movementCurrentPage - 1) * movementItemsPerPage + 1;
+  const end = Math.min(movementCurrentPage * movementItemsPerPage, totalRows);
+  let html = '<div class="pagination-info">Menampilkan ' + start + '-' + end + ' dari ' + totalRows + '</div>';
+  html += '<div class="pagination-buttons">';
+  html += '<button class="pagination-btn" onclick="goToMovementPage(' + (movementCurrentPage - 1) + ')" ' + (movementCurrentPage <= 1 ? 'disabled' : '') + '>← Prev</button>';
+  for (let p = 1; p <= totalPages; p++) html += '<button class="pagination-btn ' + (p === movementCurrentPage ? 'active' : '') + '" onclick="goToMovementPage(' + p + ')">' + p + '</button>';
+  html += '<button class="pagination-btn" onclick="goToMovementPage(' + (movementCurrentPage + 1) + ')" ' + (movementCurrentPage >= totalPages ? 'disabled' : '') + '>Next →</button>';
+  html += '</div>';
+  pagDiv.innerHTML = html;
+}
 
           function goToMovementPage(page) { movementCurrentPage = page; renderMovementPagination(); }
 

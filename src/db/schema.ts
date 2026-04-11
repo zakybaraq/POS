@@ -168,6 +168,8 @@ export const stockMovements = mysqlTable('stock_movements', {
   ingredientId: int('ingredient_id').notNull(),
   type: mysqlEnum('type', ['in', 'out', 'adjustment', 'waste']).notNull(),
   quantity: decimal('quantity', { precision: 10, scale: 2 }).notNull(),
+  stockBefore: decimal('stock_before', { precision: 10, scale: 2 }),
+  stockAfter: decimal('stock_after', { precision: 10, scale: 2 }),
   reason: varchar('reason', { length: 255 }),
   referenceId: int('reference_id'),
   userId: int('user_id'),
