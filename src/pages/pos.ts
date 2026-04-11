@@ -218,14 +218,21 @@ export const posPage = new Elysia()
                   <span style="color:var(--color-text-secondary);font-size:12px;">Uang Diterima</span>
                   <span style="font-weight:600;" id="confirm-paid">0</span>
                 </div>
-                <div style="display:flex;justify-content:space-between;">
-                  <span style="color:var(--color-text-secondary);font-size:12px;">Kembali</span>
-                  <span style="font-weight:600;color:var(--color-primary);" id="confirm-change">0</span>
-                </div>
-              </div>
-              <p style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:16px;">
-                ⚠️ Pembayaran tidak dapat dibatalkan setelah konfirmasi!
-              </p>
+      <div style="display:flex;justify-content:space-between;">
+          <span style="color:var(--color-text-secondary);font-size:12px;">Kembali</span>
+          <span style="font-weight:600;color:var(--color-primary);" id="confirm-change">0</span>
+        </div>
+      </div>
+      <div style="margin-bottom:16px;">
+        <label style="display:block;font-size:12px;color:var(--color-text-secondary);margin-bottom:4px;">Pelanggan (Opsional)</label>
+        <select id="payment-customer-select" class="pos-input" style="width:100%;padding:8px;border-radius:6px;border:1px solid var(--color-border);background:var(--color-bg);" onchange="onCustomerSelectChange()">
+          <option value="">Umum / Non-member</option>
+          <!-- Options will be loaded dynamically -->
+        </select>
+      </div>
+      <p style="font-size:11px;color:var(--color-text-secondary);text-align:center;margin-bottom:16px;">
+        ⚠️ Pembayaran tidak dapat dibatalkan setelah konfirmasi!
+      </p>
               <div style="display:flex;gap:8px;">
                 <button class="pos-btn" style="flex:1;" onclick="closePaymentConfirm()">Batal</button>
                 <button class="pos-btn pos-btn-success" style="flex:1;" onclick="confirmPayment()">Konfirmasi Bayar</button>

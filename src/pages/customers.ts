@@ -203,47 +203,112 @@ const TIER_LABEL = { regular: '🥉 Regular', silver: '🥈 Silver', gold: '🥇
           closeEditCustomerModal(); showToast('Pelanggan berhasil diupdate'); location.reload();
         }
 
-        async function showCustomerDetail(id) {
-          const res = await fetch('/api/customers/' + id);
-          const c = await res.json();
-          if (c.error) { showToast(c.error, 'error'); return; }
-          const histRes = await fetch('/api/customers/' + id + '/history');
-          const history = await histRes.json();
-          const loyaltyRes = await fetch('/api/customers/' + id + '/loyalty');
-          const loyalty = await loyaltyRes.json();
+let customerHistoryPage = 1;
+let customerLoyaltyPage = 1;
+let currentCustomerId = null;
+let customerHistoryData = [];
+let customerLoyaltyData = [];
+const customerItemsPerPage = 5;
 
-          let html = '<div class="detail-grid">';
-          html += '<div><div class="detail-label">Nama</div><div class="detail-value">' + c.name + '</div></div>';
-          html += '<div><div class="detail-label">Telepon</div><div class="detail-value">' + c.phone + '</div></div>';
-          html += '<div><div class="detail-label">Email</div><div class="detail-value">' + (c.email || '-') + '</div></div>';
-          html += '<div><div class="detail-label">Tier</div><div class="detail-value">' + (TIER_LABEL[c.tier] || c.tier) + '</div></div>';
-          html += '<div><div class="detail-label">Total Belanja</div><div class="detail-value">Rp ' + (c.totalSpent || 0).toLocaleString('id-ID') + '</div></div>';
-          html += '<div><div class="detail-label">Kunjungan</div><div class="detail-value">' + (c.totalVisits || 0) + 'x</div></div>';
-          html += '<div><div class="detail-label">Poin Loyalty</div><div class="detail-value">' + (c.loyaltyPoints || 0) + ' poin (= Rp ' + ((c.loyaltyPoints || 0) * 100).toLocaleString('id-ID') + ')</div></div>';
-          html += '<div><div class="detail-label">Status</div><div class="detail-value">' + (c.isActive ? '✅ Aktif' : '❌ Nonaktif') + '</div></div>';
-          html += '</div>';
+function renderCustomerHistory(history) {
+  customerHistoryData = history;
+  const totalPages = Math.ceil(history.length / customerItemsPerPage) || 1;
+  if (customerHistoryPage > totalPages) customerHistoryPage = totalPages;
+  const start = (customerHistoryPage - 1) * customerItemsPerPage;
+  const end = start + customerItemsPerPage;
+  const pageData = history.slice(start, end);
+  
+  let html = '<h4 style="margin: 16px 0 8px;">Riwayat Belanja (' + history.length + ')</h4>';
+  html += '<table class="table"><thead><tr><th>Tanggal</th><th>Order</th><th>Total</th><th>Status</th></tr></thead><tbody>';
+  if (pageData.length === 0) {
+    html += '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary);">Tidak ada riwayat</td></tr>';
+  } else {
+    pageData.forEach(o => {
+      html += '<tr><td>' + new Date(o.createdAt).toLocaleDateString('id-ID') + '</td><td>#' + o.id + '</td><td>Rp ' + (o.total || 0).toLocaleString('id-ID') + '</td><td>' + (o.status === 'completed' ? 'Selesai' : o.status === 'active' ? 'Aktif' : 'Dibatal') + '</td></tr>';
+    });
+  }
+  html += '</tbody></table>';
+  if (history.length > customerItemsPerPage) {
+    html += '<div class="pagination" style="margin-top: 8px;">';
+    html += '<button onclick="goToCustomerHistoryPage(' + (customerHistoryPage - 1) + ')" ' + (customerHistoryPage <= 1 ? 'disabled' : '') + ' class="btn btn-secondary btn-sm">← Prev</button>';
+    html += '<span style="margin: 0 12px;">Halaman ' + customerHistoryPage + ' dari ' + totalPages + '</span>';
+    html += '<button onclick="goToCustomerHistoryPage(' + (customerHistoryPage + 1) + ')" ' + (customerHistoryPage >= totalPages ? 'disabled' : '') + ' class="btn btn-secondary btn-sm">Next →</button>';
+    html += '</div>';
+  }
+  return html;
+}
 
-          if (history.length > 0) {
-            html += '<h4 style="margin: 16px 0 8px;">Riwayat Belanja</h4>';
-            html += '<table class="table"><thead><tr><th>Tanggal</th><th>Order</th><th>Total</th><th>Status</th></tr></thead><tbody>';
-            history.slice(0, 10).forEach(o => {
-              html += '<tr><td>' + new Date(o.createdAt).toLocaleDateString('id-ID') + '</td><td>#' + o.id + '</td><td>Rp ' + (o.total || 0).toLocaleString('id-ID') + '</td><td>' + (o.status === 'completed' ? 'Selesai' : o.status === 'active' ? 'Aktif' : 'Dibatal') + '</td></tr>';
-            });
-            html += '</tbody></table>';
-          }
+function renderCustomerLoyalty(loyalty) {
+  customerLoyaltyData = loyalty;
+  const totalPages = Math.ceil(loyalty.length / customerItemsPerPage) || 1;
+  if (customerLoyaltyPage > totalPages) customerLoyaltyPage = totalPages;
+  const start = (customerLoyaltyPage - 1) * customerItemsPerPage;
+  const end = start + customerItemsPerPage;
+  const pageData = loyalty.slice(start, end);
+  
+  let html = '<h4 style="margin: 16px 0 8px;">Riwayat Poin (' + loyalty.length + ')</h4>';
+  html += '<table class="table"><thead><tr><th>Tanggal</th><th>Tipe</th><th>Poin</th><th>Keterangan</th></tr></thead><tbody>';
+  if (pageData.length === 0) {
+    html += '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary);">Tidak ada riwayat</td></tr>';
+  } else {
+    pageData.forEach(l => {
+      html += '<tr><td>' + new Date(l.createdAt).toLocaleDateString('id-ID') + '</td><td>' + (l.type === 'earn' ? '📥 Earn' : '📤 Redeem') + '</td><td style="color: ' + (l.type === 'earn' ? 'var(--color-success)' : 'var(--color-error)') + ';">' + (l.type === 'earn' ? '+' : '-') + l.points + '</td><td>' + (l.reason || '-') + '</td></tr>';
+    });
+  }
+  html += '</tbody></table>';
+  if (loyalty.length > customerItemsPerPage) {
+    html += '<div class="pagination" style="margin-top: 8px;">';
+    html += '<button onclick="goToCustomerLoyaltyPage(' + (customerLoyaltyPage - 1) + ')" ' + (customerLoyaltyPage <= 1 ? 'disabled' : '') + ' class="btn btn-secondary btn-sm">← Prev</button>';
+    html += '<span style="margin: 0 12px;">Halaman ' + customerLoyaltyPage + ' dari ' + totalPages + '</span>';
+    html += '<button onclick="goToCustomerLoyaltyPage(' + (customerLoyaltyPage + 1) + ')" ' + (customerLoyaltyPage >= totalPages ? 'disabled' : '') + ' class="btn btn-secondary btn-sm">Next →</button>';
+    html += '</div>';
+  }
+  return html;
+}
 
-          if (loyalty.length > 0) {
-            html += '<h4 style="margin: 16px 0 8px;">Riwayat Poin</h4>';
-            html += '<table class="table"><thead><tr><th>Tanggal</th><th>Tipe</th><th>Poin</th><th>Keterangan</th></tr></thead><tbody>';
-            loyalty.slice(0, 10).forEach(l => {
-              html += '<tr><td>' + new Date(l.createdAt).toLocaleDateString('id-ID') + '</td><td>' + (l.type === 'earn' ? '📥 Earn' : '📤 Redeem') + '</td><td style="color: ' + (l.type === 'earn' ? 'var(--color-success)' : 'var(--color-error)') + ';">' + (l.type === 'earn' ? '+' : '-') + l.points + '</td><td>' + (l.reason || '-') + '</td></tr>';
-            });
-            html += '</tbody></table>';
-          }
+function goToCustomerHistoryPage(page) {
+  customerHistoryPage = page;
+  const historyHtml = renderCustomerHistory(customerHistoryData);
+  const container = document.getElementById('customer-history-container');
+  if (container) container.innerHTML = historyHtml;
+}
 
-          document.getElementById('customer-detail-body').innerHTML = html;
-          document.getElementById('customer-detail-modal').classList.add('show');
-        }
+function goToCustomerLoyaltyPage(page) {
+  customerLoyaltyPage = page;
+  const loyaltyHtml = renderCustomerLoyalty(customerLoyaltyData);
+  const container = document.getElementById('customer-loyalty-container');
+  if (container) container.innerHTML = loyaltyHtml;
+}
+
+async function showCustomerDetail(id) {
+  currentCustomerId = id;
+  customerHistoryPage = 1;
+  customerLoyaltyPage = 1;
+  const res = await fetch('/api/customers/' + id);
+  const c = await res.json();
+  if (c.error) { showToast(c.error, 'error'); return; }
+  const histRes = await fetch('/api/customers/' + id + '/history');
+  const history = await histRes.json();
+  const loyaltyRes = await fetch('/api/customers/' + id + '/loyalty');
+  const loyalty = await loyaltyRes.json();
+
+  let html = '<div class="detail-grid">';
+  html += '<div><div class="detail-label">Nama</div><div class="detail-value">' + c.name + '</div></div>';
+  html += '<div><div class="detail-label">Telepon</div><div class="detail-value">' + c.phone + '</div></div>';
+  html += '<div><div class="detail-label">Email</div><div class="detail-value">' + (c.email || '-') + '</div></div>';
+  html += '<div><div class="detail-label">Tier</div><div class="detail-value">' + (TIER_LABEL[c.tier] || c.tier) + '</div></div>';
+  html += '<div><div class="detail-label">Total Belanja</div><div class="detail-value">Rp ' + (c.totalSpent || 0).toLocaleString('id-ID') + '</div></div>';
+  html += '<div><div class="detail-label">Kunjungan</div><div class="detail-value">' + (c.totalVisits || 0) + 'x</div></div>';
+  html += '<div><div class="detail-label">Poin Loyalty</div><div class="detail-value">' + (c.loyaltyPoints || 0) + ' poin (= Rp ' + ((c.loyaltyPoints || 0) * 100).toLocaleString('id-ID') + ')</div></div>';
+  html += '<div><div class="detail-label">Status</div><div class="detail-value">' + (c.isActive ? '✅ Aktif' : '❌ Nonaktif') + '</div></div>';
+  html += '</div>';
+
+  html += '<div id="customer-history-container">' + renderCustomerHistory(history) + '</div>';
+  html += '<div id="customer-loyalty-container">' + renderCustomerLoyalty(loyalty) + '</div>';
+
+  document.getElementById('customer-detail-body').innerHTML = html;
+  document.getElementById('customer-detail-modal').classList.add('show');
+}
         function closeCustomerDetail() { document.getElementById('customer-detail-modal').classList.remove('show'); }
       </script>
       ${getCommonScripts()}

@@ -64,6 +64,7 @@ const state = {
   currentTotal: 0,
   paymentConfirmed: false,
   isNewOrderOnOccupiedTable: false,
+  selectedCustomerId: null,
 };
 
 function setCurrentUserId(userId) {
@@ -637,10 +638,10 @@ async function processPayment() {
     if (!state.isServerOrder && !state.currentOrderId) {
       if (!cart) cart = { tableId: state.selectedTableId, tableNumber: state.currentTableNumber, items: [], orderType: state.orderType, guestCount: state.guestCount };
       localStorage.setItem('last-receipt', JSON.stringify({ ...cart, orderType: state.orderType }));
-      
+
       const orderData = { userId: state.currentUserId, items: cart.items.map(i => ({ menuId: i.menuId, quantity: i.quantity, notes: i.notes || '' })), orderType: state.orderType };
       if (cart.tableId != null) orderData.tableId = cart.tableId;
-      
+
       const res = await fetch('/api/orders/with-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
       const data = await res.json();
       if (data.error) { toast(data.error, 'error'); return; }
@@ -658,10 +659,18 @@ async function processPayment() {
       localStorage.setItem('last-receipt', JSON.stringify(cart));
     }
 
-    const res = await fetch('/api/orders/' + state.currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
-    const data = await res.json();
-    if (data.error) { toast(data.error, 'error'); }
+    const payRes = await fetch('/api/orders/' + state.currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
+    const payData = await payRes.json();
+    if (payData.error) { toast(payData.error, 'error'); }
     else {
+      if (state.selectedCustomerId) {
+        const points = Math.floor(total * 0.01);
+        await fetch('/api/customers/' + state.selectedCustomerId + '/loyalty/earn', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ points: points, reason: 'Pembelian order #' + state.currentOrderId })
+        });
+      }
       toast('Pembayaran berhasil!');
       printReceipt();
       resetAfterPayment();
@@ -881,21 +890,48 @@ function initPOS(userId) {
     }
   });
 
-  document.addEventListener('DOMContentLoaded', () => {
-    updateHeldCount();
-    const saved = loadCart();
-    if (saved && saved.tableId) {
-      const btn = document.querySelector('[data-id="' + saved.tableId + '"]');
-      if (btn) {
-        state.selectedTableId = saved.tableId;
-        state.currentTableNumber = saved.tableNumber;
-        btn.classList.add('selected');
-        document.getElementById('cart-title').textContent = 'Meja ' + saved.tableNumber;
-        document.getElementById('cart-meta').style.display = 'flex';
-        renderCart();
+async function loadCustomers() {
+  try {
+    const res = await fetch('/api/customers');
+    const customers = await res.json();
+    const select = document.getElementById('payment-customer-select');
+    if (!select) return;
+    
+    select.innerHTML = '<option value="">Umum / Non-member</option>';
+    customers.forEach(c => {
+      if (c.isActive) {
+        const option = document.createElement('option');
+        option.value = c.id;
+        option.textContent = c.name + ' (' + c.phone + ')';
+        select.appendChild(option);
       }
+    });
+  } catch (e) {
+    console.error('Failed to load customers:', e);
+  }
+}
+
+function onCustomerSelectChange() {
+  const select = document.getElementById('payment-customer-select');
+  state.selectedCustomerId = select.value ? parseInt(select.value) : null;
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  updateHeldCount();
+  loadCustomers();
+  const saved = loadCart();
+  if (saved && saved.tableId) {
+    const btn = document.querySelector('[data-id="' + saved.tableId + '"]');
+    if (btn) {
+      state.selectedTableId = saved.tableId;
+      state.currentTableNumber = saved.tableNumber;
+      btn.classList.add('selected');
+      document.getElementById('cart-title').textContent = 'Meja ' + saved.tableNumber;
+      document.getElementById('cart-meta').style.display = 'flex';
+      renderCart();
     }
-  });
+  }
+});
 }
 
 initPOS(null);
