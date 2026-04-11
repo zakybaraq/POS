@@ -125,20 +125,21 @@ export const customersPage = new Elysia()
         </div>
       </div>
 
-      <style>
-        .menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
-        .menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
-        .menu-toolbar-right { display: flex; gap: 8px; }
-        .menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
-        .menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
-        .btn-sm { padding: 4px 8px; font-size: 11px; }
-        .text-muted { color: var(--color-text-secondary); }
-        .text-center { text-align: center; }
-        .detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
-        .detail-label { font-size: 12px; color: var(--color-text-secondary); }
-        .detail-value { font-weight: 600; }
-      </style>
-      <script>
+<style>
+.menu-toolbar { display: flex; justify-content: space-between; align-items: center; width: 100%; flex-wrap: wrap; gap: 8px; }
+.menu-toolbar-left { display: flex; gap: 8px; flex: 1; flex-wrap: wrap; }
+.menu-toolbar-right { display: flex; gap: 8px; }
+.menu-search-input { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; min-width: 200px; }
+.menu-filter-select { padding: 6px 12px; border: 1px solid var(--color-border); border-radius: var(--radius-md); font-size: 13px; background: var(--color-bg); }
+.btn-sm { padding: 4px 8px; font-size: 11px; }
+.text-muted { color: var(--color-text-secondary); }
+.text-center { text-align: center; }
+.detail-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 16px; }
+.detail-label { font-size: 12px; color: var(--color-text-secondary); }
+.detail-value { font-weight: 600; }
+</style>
+<script>
+const TIER_LABEL = { regular: '🥉 Regular', silver: '🥈 Silver', gold: '🥇 Gold' };
         function filterCustomers() {
           const search = document.getElementById('cust-search').value.toLowerCase();
           const tierFilter = document.getElementById('cust-filter-tier').value;
