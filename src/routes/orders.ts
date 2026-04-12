@@ -157,9 +157,9 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
   .post('/:id/items', async ({ cookie, headers, params: { id }, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { menuId, quantity } = body as any;
-    if (!menuId) {
-      return { error: 'menuId is required' };
+    const { menuId, quantity, notes } = body as any;
+    if (!menuId || !quantity || quantity <= 0) {
+      return { error: 'menuId and quantity > 0 are required' };
     }
     const order = await orderRepo.getOrderById(Number(id));
     if (!order) {
@@ -168,40 +168,104 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     if (order.status !== 'active') {
       return { error: 'Order is not active' };
     }
-    const item = await orderItemRepo.addItem(Number(id), menuId, quantity || 1);
-    if (!item) {
-      return { error: 'Failed to add item' };
-    }
-    await orderRepo.calculateTotals(Number(id));
+    
+    const { db } = await import('../db/index');
+    const updatedOrder = await db.transaction(async (tx: any) => {
+      const { orderItems, orders } = await import('../db/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await orderItemRepo.addItemTx(tx, Number(id), menuId, quantity || 1, notes || '');
+      
+      const items = await tx.select().from(orderItems)
+        .where(eq(orderItems.orderId, Number(id)));
+      
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.priceAtOrder) * item.quantity;
+      }
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+      
+      await tx.update(orders)
+        .set({ subtotal, tax, total, updatedAt: new Date() })
+        .where(eq(orders.id, Number(id)));
+      
+      return tx.select().from(orders).where(eq(orders.id, Number(id))).then((r: any) => r[0]);
+    });
+    
     const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
-    const updatedOrder = await orderRepo.getOrderById(Number(id));
     return { order: updatedOrder, items };
   }, {
     body: t.Object({
       menuId: t.Number(),
-      quantity: t.Optional(t.Number()),
+      quantity: t.Number(),
+      notes: t.Optional(t.String()),
     }),
   })
   .delete('/:id/items/:itemId', async ({ cookie, headers, params: { id, itemId } }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    await orderItemRepo.removeItem(Number(itemId));
-    await orderRepo.calculateTotals(Number(id));
+    
+    const { db } = await import('../db/index');
+    const order = await db.transaction(async (tx: any) => {
+      const { orderItems, orders } = await import('../db/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await orderItemRepo.removeItemTx(tx, Number(itemId));
+      
+      const items = await tx.select().from(orderItems)
+        .where(eq(orderItems.orderId, Number(id)));
+      
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.priceAtOrder) * item.quantity;
+      }
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+      
+      await tx.update(orders)
+        .set({ subtotal, tax, total, updatedAt: new Date() })
+        .where(eq(orders.id, Number(id)));
+      
+      return tx.select().from(orders).where(eq(orders.id, Number(id))).then((r: any) => r[0]);
+    });
+    
     const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
-    const order = await orderRepo.getOrderById(Number(id));
     return { order, items };
   })
   .put('/:id/items/:itemId', async ({ cookie, headers, params: { id, itemId }, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
     const { quantity } = body as any;
-    if (quantity === undefined) {
-      return { error: 'quantity is required' };
+    if (quantity === undefined || quantity < 0) {
+      return { error: 'quantity >= 0 required' };
     }
-    await orderItemRepo.updateQuantity(Number(itemId), quantity);
-    await orderRepo.calculateTotals(Number(id));
+    
+    const { db } = await import('../db/index');
+    const order = await db.transaction(async (tx: any) => {
+      const { orderItems, orders } = await import('../db/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await orderItemRepo.updateQuantityTx(tx, Number(itemId), quantity);
+      
+      const items = await tx.select().from(orderItems)
+        .where(eq(orderItems.orderId, Number(id)));
+      
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.priceAtOrder) * item.quantity;
+      }
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+      
+      await tx.update(orders)
+        .set({ subtotal, tax, total, updatedAt: new Date() })
+        .where(eq(orders.id, Number(id)));
+      
+      return tx.select().from(orders).where(eq(orders.id, Number(id))).then((r: any) => r[0]);
+    });
+    
     const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
-    const order = await orderRepo.getOrderById(Number(id));
     return { order, items };
   })
   .post('/:id/pay', async ({ cookie, headers, params: { id }, body }) => {
