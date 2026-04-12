@@ -1,6 +1,8 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import * as inv from '../repositories/inventory';
 import { requireAdmin, getUserFromRequest } from '../middleware/authorization';
+import { createIngredientSchema, updateIngredientSchema, createRecipeSchema, updateRecipeSchema, stockMovementSchema } from '../schemas/inventory';
+import { validateBody } from '../schemas/index';
 
 export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
   .get('/ingredients', async () => inv.getAllIngredients())
@@ -10,36 +12,39 @@ export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
     if (!item) return { error: 'Ingredient not found' };
     return item;
   })
-  .post('/ingredients', async ({ cookie, headers, body }) => {
+  .post('/ingredients', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { name, unit, currentStock, minStock, costPerUnit } = body as any;
-    if (!name || !unit) return { error: 'Name and unit are required' };
+
+    const validation = validateBody(createIngredientSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { name, unit, currentStock, minStock, costPerUnit } = validation.data;
     return inv.createIngredient({
       name, unit,
       currentStock: String(currentStock || 0),
       minStock: String(minStock || 0),
       costPerUnit: costPerUnit || 0,
     });
-  }, {
-    body: t.Object({
-      name: t.String(),
-      unit: t.String(),
-      currentStock: t.Optional(t.Number()),
-      minStock: t.Optional(t.Number()),
-      costPerUnit: t.Optional(t.Number()),
-    }),
   })
-  .put('/ingredients/:id', async ({ cookie, headers, params: { id }, body }) => {
+  .put('/ingredients/:id', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(updateIngredientSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
     const updates: any = {};
-    const { name, unit, currentStock, minStock, costPerUnit } = body as any;
-    if (name) updates.name = name;
-    if (unit) updates.unit = unit;
-    if (currentStock !== undefined) updates.currentStock = String(currentStock);
-    if (minStock !== undefined) updates.minStock = String(minStock);
-    if (costPerUnit !== undefined) updates.costPerUnit = costPerUnit;
+    const data = validation.data;
+    if (data.name) updates.name = data.name;
+    if (data.unit) updates.unit = data.unit;
+    if (data.currentStock !== undefined) updates.currentStock = String(data.currentStock);
+    if (data.minStock !== undefined) updates.minStock = String(data.minStock);
+    if (data.costPerUnit !== undefined) updates.costPerUnit = data.costPerUnit;
     return inv.updateIngredient(Number(id), updates);
   })
   .delete('/ingredients/:id', async ({ cookie, headers, params: { id } }) => {
@@ -50,27 +55,32 @@ export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
   })
 
   .get('/recipes/menu/:menuId', async ({ params: { menuId } }) => inv.getRecipesByMenuId(Number(menuId)))
-  .post('/recipes', async ({ cookie, headers, body }) => {
+  .post('/recipes', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { menuId, ingredientId, quantity } = body as any;
-    if (!menuId || !ingredientId || quantity === undefined) return { error: 'menuId, ingredientId, and quantity are required' };
+
+    const validation = validateBody(createRecipeSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { menuId, ingredientId, quantity } = validation.data;
     return inv.createRecipe({ menuId, ingredientId, quantity: String(quantity) });
-  }, {
-    body: t.Object({
-      menuId: t.Number(),
-      ingredientId: t.Number(),
-      quantity: t.Number(),
-    }),
   })
-  .put('/recipes/:id', async ({ cookie, headers, params: { id }, body }) => {
+  .put('/recipes/:id', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(updateRecipeSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
     const updates: any = {};
-    const { menuId, ingredientId, quantity } = body as any;
-    if (menuId) updates.menuId = menuId;
-    if (ingredientId) updates.ingredientId = ingredientId;
-    if (quantity !== undefined) updates.quantity = String(quantity);
+    const data = validation.data;
+    if (data.menuId) updates.menuId = data.menuId;
+    if (data.ingredientId) updates.ingredientId = data.ingredientId;
+    if (data.quantity !== undefined) updates.quantity = String(data.quantity);
     return inv.updateRecipe(Number(id), updates);
   })
   .delete('/recipes/:id', async ({ cookie, headers, params: { id } }) => {
@@ -80,19 +90,17 @@ export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
     return { success: true };
   })
 
-  .post('/stock-movements', async ({ cookie, headers, body }) => {
+  .post('/stock-movements', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { ingredientId, type, quantity, reason } = body as any;
-    if (!ingredientId || !type || quantity === undefined) return { error: 'ingredientId, type, and quantity are required' };
+
+    const validation = validateBody(stockMovementSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { ingredientId, type, quantity, reason } = validation.data;
     return inv.adjustStock(Number(ingredientId), Number(quantity), type, reason || '', user.userId);
-  }, {
-    body: t.Object({
-      ingredientId: t.Number(),
-      type: t.Union([t.Literal('in'), t.Literal('out'), t.Literal('adjustment'), t.Literal('waste')]),
-      quantity: t.Number(),
-      reason: t.Optional(t.String()),
-    }),
   })
   .get('/stock-movements', async ({ query }) => {
     const ingredientId = query?.ingredientId ? Number(query.ingredientId) : undefined;

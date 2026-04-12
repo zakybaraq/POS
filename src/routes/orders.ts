@@ -1,9 +1,11 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import * as orderRepo from '../repositories/order';
 import * as orderItemRepo from '../repositories/order-item';
 import * as tableRepo from '../repositories/table';
 import * as paymentService from '../services/payment';
 import { requireRole, getUserFromRequest } from '../middleware/authorization';
+import { createOrderSchema, createOrderWithItemsSchema, addItemToOrderSchema, updateOrderItemSchema, transferOrderSchema, paymentSchema, cancelOrderSchema } from '../schemas/order';
+import { validateBody } from '../schemas/index';
 
 const requireOrderCreate = () => requireRole(['super_admin', 'admin_restoran', 'kasir', 'waitress']);
 const requirePayment = () => requireRole(['super_admin', 'admin_restoran', 'kasir']);
@@ -54,13 +56,16 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const table = order.tableId ? await tableRepo.getTableById(order.tableId) : null;
     return { order, items, table };
   })
-  .post('/', async ({ cookie, headers, body }) => {
+  .post('/', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { tableId, userId } = body as any;
-    if (!tableId || !userId) {
-      return { error: 'tableId and userId are required' };
+
+    const validation = validateBody(createOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
+    const { tableId, userId } = validation.data;
     const table = await tableRepo.getTableById(tableId);
     if (!table) {
       return { error: 'Table not found' };
@@ -71,11 +76,6 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const order = await orderRepo.createOrder(tableId, userId);
     await tableRepo.updateTableStatus(tableId, 'occupied');
     return order;
-  }, {
-    body: t.Object({
-      tableId: t.Number(),
-      userId: t.Number(),
-    }),
   })
   .post('/table/:tableId/new', async ({ cookie, headers, params: { tableId }, body }) => {
     const user = getUserFromRequest(cookie, headers);
@@ -91,24 +91,26 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const order = await orderRepo.createOrder(Number(tableId), userId);
     return { order };
   })
-.post('/with-items', async ({ cookie, headers, body }) => {
+.post('/with-items', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { tableId, userId, items, orderType, customerId } = body as any;
 
-    // Validation based on order type
-    if (orderType === 'dine-in') {
-      if (!tableId) return { error: 'Meja wajib untuk order dine-in' };
+    const validation = validateBody(createOrderWithItemsSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { tableId, userId, items, orderType, customerId } = validation.data;
+
+    if (orderType === 'dine-in' && !tableId) {
+      return { error: 'Meja wajib untuk order dine-in' };
+    }
+    if (orderType === 'dine-in' && tableId) {
       const table = await tableRepo.getTableById(tableId);
       if (!table) return { error: 'Table not found' };
     }
 
-    if (!userId || !items || items.length === 0) {
-      return { error: 'userId, and items are required' };
-    }
-
-    // Create order - for takeaway, tableId is null
-    const order = await orderRepo.createOrder(tableId, userId, customerId);
+    const order = await orderRepo.createOrder(tableId || null, userId, customerId);
     if (!order) return { error: 'Failed to create order' };
 
     for (const item of items) {
@@ -124,7 +126,6 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
 
     await orderRepo.calculateTotals(Number(order.id));
 
-    // Only update table status for dine-in
     if (orderType === 'dine-in' && tableId) {
       await tableRepo.updateTableStatus(tableId, 'occupied');
     }
@@ -134,18 +135,6 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const finalOrder = await orderRepo.getOrderById(Number(order.id));
     const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
     return { order: finalOrder, items: orderItems };
-  }, {
-    body: t.Object({
-      tableId: t.Optional(t.Number()),
-      userId: t.Number(),
-      customerId: t.Optional(t.Number()),
-      orderType: t.Optional(t.Union([t.Literal('dine-in'), t.Literal('takeaway')])),
-      items: t.Array(t.Object({
-        menuId: t.Number(),
-        quantity: t.Number(),
-        notes: t.Optional(t.String()),
-      })),
-    }),
   })
   .put('/:id', async ({ params: { id }, body }) => {
     const { status } = body as any;
@@ -154,13 +143,16 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     }
     return orderRepo.updateOrderStatus(Number(id), status);
   })
-  .post('/:id/items', async ({ cookie, headers, params: { id }, body }) => {
+  .post('/:id/items', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { menuId, quantity, notes } = body as any;
-    if (!menuId || !quantity || quantity <= 0) {
-      return { error: 'menuId and quantity > 0 are required' };
+
+    const validation = validateBody(addItemToOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
+    const { menuId, quantity, notes } = validation.data;
     const order = await orderRepo.getOrderById(Number(id));
     if (!order) {
       return { error: 'Order not found' };
@@ -174,7 +166,7 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       const { orderItems, orders } = await import('../db/schema');
       const { eq } = await import('drizzle-orm');
       
-      await orderItemRepo.addItemTx(tx, Number(id), menuId, quantity || 1, notes || '');
+      await orderItemRepo.addItemTx(tx, Number(id), menuId, quantity, notes || '');
       
       const items = await tx.select().from(orderItems)
         .where(eq(orderItems.orderId, Number(id)));
@@ -195,12 +187,6 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     
     const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
     return { order: updatedOrder, items };
-  }, {
-    body: t.Object({
-      menuId: t.Number(),
-      quantity: t.Number(),
-      notes: t.Optional(t.String()),
-    }),
   })
   .delete('/:id/items/:itemId', async ({ cookie, headers, params: { id, itemId } }) => {
     const user = getUserFromRequest(cookie, headers);
@@ -233,11 +219,17 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
     return { order, items };
   })
-  .put('/:id/items/:itemId', async ({ cookie, headers, params: { id, itemId }, body }) => {
+  .put('/:id/items/:itemId', async ({ params: { id, itemId }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { quantity } = body as any;
-    if (quantity === undefined || quantity < 0) {
+
+    const validation = validateBody(updateOrderItemSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { quantity } = validation.data;
+    if (quantity !== undefined && quantity < 0) {
       return { error: 'quantity >= 0 required' };
     }
     
@@ -246,7 +238,7 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       const { orderItems, orders } = await import('../db/schema');
       const { eq } = await import('drizzle-orm');
       
-      await orderItemRepo.updateQuantityTx(tx, Number(itemId), quantity);
+      await orderItemRepo.updateQuantityTx(tx, Number(itemId), quantity || 0);
       
       const items = await tx.select().from(orderItems)
         .where(eq(orderItems.orderId, Number(id)));
@@ -268,18 +260,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
     return { order, items };
   })
-  .post('/:id/pay', async ({ cookie, headers, params: { id }, body }) => {
+  .post('/:id/pay', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
     if (!['super_admin', 'admin_restoran', 'kasir'].includes(user.role)) {
       return { error: 'Akses ditolak: hanya kasir dan admin yang dapat memproses pembayaran' };
     }
-    const { amountPaid } = body as any;
-    if (!amountPaid || amountPaid <= 0) {
-      return { error: 'Invalid amount paid' };
+
+    const validation = validateBody(paymentSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
     try {
-      const completedOrder = await paymentService.processPayment(Number(id), amountPaid);
+      const completedOrder = await paymentService.processPayment(Number(id), validation.data.amountPaid);
       const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
       const table = completedOrder ? await tableRepo.getTableById(completedOrder.tableId) : null;
       const receipt = completedOrder ? paymentService.generateReceipt(completedOrder, items, table?.tableNumber || 0) : '';
@@ -287,19 +281,20 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     } catch (e: any) {
       return { error: e.message };
     }
-  }, {
-    body: t.Object({
-      amountPaid: t.Number(),
-    }),
   })
-  .post('/:id/cancel', async ({ cookie, headers, params: { id }, body }) => {
+  .post('/:id/cancel', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
     if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
       return { error: 'Akses ditolak: hanya kasir, waitress, dan admin yang dapat membatalkan pesanan' };
     }
     
-    const { reason } = body as any;
+    const validation = validateBody(cancelOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+    
+    const { reason } = validation.data;
     
     try {
       const { db } = await import('../db/index');
@@ -375,14 +370,16 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     return { error: error.message, status: 400 };
   }
 })
-  .put('/:id/transfer', async ({ cookie, headers, params: { id }, body }) => {
+  .put('/:id/transfer', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { sourceTableId, targetTableId } = body as any;
-    
-    if (!sourceTableId || !targetTableId) {
-      return { error: 'sourceTableId and targetTableId required', status: 400 };
+
+    const validation = validateBody(transferOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
+    const { sourceTableId, targetTableId } = validation.data;
     
     if (sourceTableId === targetTableId) {
       return { error: 'Source and target must be different', status: 400 };

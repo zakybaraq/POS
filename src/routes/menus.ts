@@ -1,6 +1,8 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import * as menuRepo from '../repositories/menu';
 import { requireAdmin, requireSuperAdmin, getUserFromRequest } from '../middleware/authorization';
+import { createMenuSchema, updateMenuSchema } from '../schemas/menu';
+import { validateBody } from '../schemas/index';
 
 export const menuRoutes = new Elysia({ prefix: '/api/menus' })
   .group('', (app) => 
@@ -21,36 +23,28 @@ export const menuRoutes = new Elysia({ prefix: '/api/menus' })
         }
         return menu;
       })
-      .post('/', async ({ cookie, headers, body }) => {
+      .post('/', async ({ body, cookie, headers }) => {
         const user = getUserFromRequest(cookie, headers);
         if (!user) return { error: 'Unauthorized' };
-        const { name, price, category, description } = body as any;
-        if (!name || !price || !category) {
-          return { error: 'Missing required fields' };
+
+        const validation = validateBody(createMenuSchema)(body);
+        if (!validation.success) {
+          return { error: validation.error };
         }
-        if (price <= 0) {
-          return { error: 'Price must be greater than 0' };
-        }
+
+        const { name, price, category, description } = validation.data;
         return menuRepo.createMenu({ name, price, category, description: description || '', isAvailable: true });
-      }, {
-        body: t.Object({
-          name: t.String(),
-          price: t.Number(),
-          category: t.String(),
-          description: t.Optional(t.String()),
-        }),
       })
-      .put('/:id', async ({ cookie, headers, params: { id }, body }) => {
+      .put('/:id', async ({ params: { id }, body, cookie, headers }) => {
         const user = getUserFromRequest(cookie, headers);
         if (!user) return { error: 'Unauthorized' };
-        const { name, price, category, isAvailable, description } = body as any;
-        const updates: any = {};
-        if (name) updates.name = name;
-        if (price) updates.price = price;
-        if (category) updates.category = category;
-        if (isAvailable !== undefined) updates.isAvailable = isAvailable;
-        if (description !== undefined) updates.description = description;
-        return menuRepo.updateMenu(Number(id), updates);
+
+        const validation = validateBody(updateMenuSchema)(body);
+        if (!validation.success) {
+          return { error: validation.error };
+        }
+
+        return menuRepo.updateMenu(Number(id), validation.data);
       })
       .delete('/:id', async ({ cookie, headers, params: { id } }) => {
         const user = getUserFromRequest(cookie, headers);

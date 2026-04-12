@@ -1,9 +1,9 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import * as userRepo from '../repositories/user';
 import * as auditRepo from '../repositories/audit-log';
 import { requireSuperAdmin, getUserFromRequest } from '../middleware/authorization';
-
-const VALID_ROLES = ['super_admin', 'admin_restoran', 'kasir', 'waitress', 'chef'] as const;
+import { createUserSchema, updateUserSchema, updateRoleSchema, resetPasswordSchema } from '../schemas/user';
+import { validateBody } from '../schemas/index';
 
 function stripPassword(usersList: any[]) {
   return usersList.map(({ password, ...rest }) => rest);
@@ -34,22 +34,21 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     return rest;
   })
 
-  .post('/', async ({ cookie, headers, body }) => {
+  .post('/', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
-    const { email, password, name, role, isActive } = body as any;
-    if (!email || !password || !name) {
-      return { error: 'Email, password, and name are required' };
+
+    const validation = validateBody(createUserSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
-    if (password.length < 6) {
-      return { error: 'Password must be at least 6 characters' };
-    }
+
+    const { email, password, name, role, isActive } = validation.data;
+    
     const existing = await userRepo.getUserByEmail(email);
     if (existing) {
       return { error: 'Email already exists' };
     }
-    if (role && !VALID_ROLES.includes(role as any)) {
-      return { error: 'Invalid role' };
-    }
+    
     const result = await userRepo.createUser({ email, password, name, role, isActive: isActive !== false });
     const newUser = await userRepo.getUserById(Number(result[0]?.insertId));
     if (!newUser) return { error: 'Failed to create user' };
@@ -61,19 +60,16 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     });
     const { password: _, ...rest } = newUser;
     return { success: true, user: rest };
-  }, {
-    body: t.Object({
-      email: t.String({ format: 'email' }),
-      password: t.String({ minLength: 6 }),
-      name: t.String({ minLength: 2 }),
-      role: t.Optional(t.Union([t.Literal('super_admin'), t.Literal('admin_restoran'), t.Literal('kasir'), t.Literal('waitress'), t.Literal('chef')])),
-      isActive: t.Optional(t.Boolean()),
-    }),
   })
 
-  .put('/:id', async ({ cookie, headers, params: { id }, body }) => {
+  .put('/:id', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
-    const { name, email, role, isActive } = body as any;
+
+    const validation = validateBody(updateUserSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
     const targetUser = await userRepo.getUserById(Number(id));
     if (!targetUser) return { error: 'User not found' };
 
@@ -81,18 +77,12 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
       return { error: 'Super Admin tidak dapat diubah' };
     }
 
-    if (email && email !== targetUser.email) {
-      const existing = await userRepo.getUserByEmail(email);
+    if (validation.data.email && validation.data.email !== targetUser.email) {
+      const existing = await userRepo.getUserByEmail(validation.data.email);
       if (existing) return { error: 'Email already exists' };
     }
 
-    const updates: any = {};
-    if (name) updates.name = name;
-    if (email) updates.email = email;
-    if (role && VALID_ROLES.includes(role as any)) updates.role = role;
-    if (isActive !== undefined) updates.isActive = isActive;
-
-    const updated = await userRepo.updateUser(Number(id), updates);
+    const updated = await userRepo.updateUser(Number(id), validation.data);
     if (!updated) return { error: 'Failed to update user' };
 
     await auditRepo.createAuditLog({
@@ -104,44 +94,48 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
 
     const { password: _, ...rest } = updated;
     return { success: true, user: rest };
-  }, {
-    body: t.Object({
-      name: t.Optional(t.String({ minLength: 2 })),
-      email: t.Optional(t.String({ format: 'email' })),
-      role: t.Optional(t.Union([t.Literal('super_admin'), t.Literal('admin_restoran'), t.Literal('kasir'), t.Literal('waitress'), t.Literal('chef')])),
-      isActive: t.Optional(t.Boolean()),
-    }),
   })
 
-  .put('/:id/role', async ({ params: { id }, body }) => {
-    const { role } = body as any;
-    if (!role || !VALID_ROLES.includes(role as any)) {
-      return { error: 'Invalid role' };
+  .put('/:id/role', async ({ params: { id }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+
+    const validation = validateBody(updateRoleSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
     const targetUser = await userRepo.getUserById(Number(id));
     if (!targetUser) return { error: 'User not found' };
     if (targetUser.role === 'super_admin') {
       return { error: 'Role Super Admin tidak dapat diubah' };
     }
-    const updated = await userRepo.updateUser(Number(id), { role: role as any });
+
+    const oldRole = targetUser.role;
+    const updated = await userRepo.updateUser(Number(id), { role: validation.data.role });
     if (!updated) return { error: 'Failed to update role' };
+
+    await auditRepo.createAuditLog({
+      userId: user?.userId || 0,
+      userName: user?.name || 'System',
+      action: 'role_changed',
+      details: `Changed role for ${targetUser.name} from ${oldRole} to ${validation.data.role}`,
+    });
+
     const { password: _, ...rest } = updated;
     return { success: true, user: rest };
-  }, {
-    body: t.Object({
-      role: t.Union([t.Literal('super_admin'), t.Literal('admin_restoran'), t.Literal('kasir'), t.Literal('waitress'), t.Literal('chef')]),
-    }),
   })
 
-  .put('/:id/password', async ({ cookie, headers, params: { id }, body }) => {
+  .put('/:id/password', async ({ params: { id }, body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
-    const { newPassword } = body as any;
-    if (!newPassword || newPassword.length < 6) {
-      return { error: 'Password must be at least 6 characters' };
+
+    const validation = validateBody(resetPasswordSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
     const targetUser = await userRepo.getUserById(Number(id));
     if (!targetUser) return { error: 'User not found' };
-    await userRepo.updatePassword(Number(id), newPassword);
+    await userRepo.updatePassword(Number(id), validation.data.newPassword);
     await auditRepo.createAuditLog({
       userId: user?.userId || 0,
       userName: user?.name || 'System',
@@ -149,10 +143,6 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
       details: `Reset password for ${targetUser.name} (${targetUser.email})`,
     });
     return { success: true };
-  }, {
-    body: t.Object({
-      newPassword: t.String({ minLength: 6 }),
-    }),
   })
 
   .delete('/:id', async ({ cookie, headers, params: { id } }) => {

@@ -1,33 +1,29 @@
-import { Elysia, t } from 'elysia';
+import { Elysia } from 'elysia';
 import * as authService from '../services/auth';
 import { createToken, createSessionCookie } from '../services/session';
 import { getUserFromRequest } from '../middleware/authorization';
 import * as userRepo from '../repositories/user';
 import * as auditRepo from '../repositories/audit-log';
+import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema } from '../schemas/auth';
+import { validateBody } from '../schemas/index';
 
 const COOKIE_NAME = 'pos_session';
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
-  .post('/register', async ({ cookie, headers, body }) => {
-    const { email, password, name, role } = body as any;
-    
-    if (!email || !password || !name) {
-      return { error: 'Email, password, and name are required' };
+  .post('/register', async ({ body, cookie, headers }) => {
+    const validation = validateBody(registerSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
-    
-    if (password.length < 6) {
-      return { error: 'Password must be at least 6 characters' };
-    }
+
+    const { email, password, name } = validation.data;
     
     const requestingUser = getUserFromRequest(cookie, headers);
-    let assignedRole = role || 'kasir';
     
-    if (requestingUser) {
-      if (requestingUser.role !== 'super_admin') {
-        return { error: 'Hanya Super Admin yang dapat mendaftarkan pengguna baru' };
-      }
-    } else {
-      assignedRole = 'kasir';
+    let assignedRole = 'kasir';
+    
+    if (requestingUser && requestingUser.role !== 'super_admin') {
+      return { error: 'Hanya Super Admin yang dapat mendaftarkan pengguna baru' };
     }
     
     try {
@@ -36,21 +32,15 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     } catch (e: any) {
       return { error: e.message };
     }
-  }, {
-    body: t.Object({
-      email: t.String({ format: 'email' }),
-      password: t.String({ minLength: 6 }),
-      name: t.String({ minLength: 2 }),
-      role: t.Optional(t.Union([t.Literal('super_admin'), t.Literal('admin_restoran'), t.Literal('kasir'), t.Literal('waitress'), t.Literal('chef')])),
-    }),
   })
   
    .post('/login', async ({ body, cookie }) => {
-    const { email, password } = body as any;
-    
-    if (!email || !password) {
-      return { error: 'Email and password are required' };
+    const validation = validateBody(loginSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
+
+    const { email, password } = validation.data;
     
     try {
       const result = await authService.login(email, password);
@@ -71,13 +61,8 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
       
       return { success: true, user: result.user };
     } catch (e: any) {
-      return { error: e.message };
+      return { error: 'Invalid credentials' };
     }
-  }, {
-    body: t.Object({
-      email: t.String({ format: 'email' }),
-      password: t.String(),
-    }),
   })
   
   .post('/logout', async ({ cookie }) => {
@@ -89,15 +74,13 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
   })
   
   .post('/reset-password', async ({ body }) => {
+    const validation = validateBody(resetPasswordSchema.shape.email.and(resetPasswordSchema.shape.newPassword))(body);
+    
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
     const { email, newPassword } = body as any;
-    
-    if (!email || !newPassword) {
-      return { error: 'Email and new password are required' };
-    }
-    
-    if (newPassword.length < 6) {
-      return { error: 'Password must be at least 6 characters' };
-    }
     
     try {
       const result = await authService.resetPassword(email, newPassword);
@@ -105,29 +88,21 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     } catch (e: any) {
       return { error: e.message };
     }
-  }, {
-    body: t.Object({
-      email: t.String({ format: 'email' }),
-      newPassword: t.String({ minLength: 6 }),
-    }),
   })
 
-  .put('/change-password', async ({ headers, cookie, body }) => {
+  .put('/change-password', async ({ headers, body }) => {
     const authHeader = headers.authorization;
     
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
       return { error: 'No token provided' };
     }
 
-    const { oldPassword, newPassword } = body as any;
-
-    if (!oldPassword || !newPassword) {
-      return { error: 'Old password and new password are required' };
+    const validation = validateBody(changePasswordSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
     }
 
-    if (newPassword.length < 6) {
-      return { error: 'New password must be at least 6 characters' };
-    }
+    const { oldPassword, newPassword } = validation.data;
 
     try {
       const token = authHeader.slice(7);
@@ -145,11 +120,6 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     } catch (e: any) {
       return { error: e.message };
     }
-  }, {
-    body: t.Object({
-      oldPassword: t.String({ minLength: 6 }),
-      newPassword: t.String({ minLength: 6 }),
-    }),
   })
   
   .get('/me', async ({ headers }) => {
