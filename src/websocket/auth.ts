@@ -1,4 +1,4 @@
-import { verifyToken } from '../utils/jwt';
+import { verifyToken } from '../utils/auth';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
 
 export function authenticateSocket(socket: any, next: any) {
