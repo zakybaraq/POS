@@ -15,6 +15,7 @@ import { categoriesPage } from './pages/categories';
 import { tablesPage } from './pages/tables';
 import { ordersPage } from './pages/orders';
 import { productsPage } from './pages/products';
+import { httpRequestsTotal, httpRequestDurationSeconds } from './metrics';
 
 import { customersPage } from './pages/customers';
 
@@ -39,6 +40,21 @@ seedDefaultCategories().catch(err =>
 );
 
 const app = new Elysia()
+  .onRequest(({ request }) => {
+    (request as any).startTime = Date.now();
+  })
+  .onAfterHandle(({ request, set }) => {
+    const method = request.method;
+    const status = set.status?.toString() || '200';
+    const path = new URL(request.url).pathname;
+    
+    httpRequestsTotal.labels(method, status).inc();
+    
+    const startTime = (request as any).startTime;
+    if (startTime) {
+      httpRequestDurationSeconds.labels(method, path).observe((Date.now() - startTime) / 1000);
+    }
+  })
   .use(routes)
   .use(categoryRoutes)
   .use(healthRoutes)
