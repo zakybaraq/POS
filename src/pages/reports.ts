@@ -50,12 +50,11 @@ export const reportsPage = new Elysia()
           ${getNavbarHtml('Laporan & Analitik', 'reports', user)}
           <main class="app-main">
             <div class="reports-container">
-              <div class="tab-nav">
-                <button class="tab-btn active" data-tab="sales">Penjualan</button>
-                <button class="tab-btn" data-tab="menus">Menu Terlaris</button>
-                <button class="tab-btn" data-tab="cashiers">Performa Kasir</button>
-                <button class="tab-btn" data-tab="occupancy">Okupansi Meja</button>
-              </div>
+<div class="tab-nav">
+          <button class="tab-btn active" data-tab="sales">Penjualan</button>
+          <button class="tab-btn" data-tab="cashiers">Performa Kasir</button>
+          <button class="tab-btn" data-tab="financial">Laporan Keuangan</button>
+        </div>
 
               <div class="tab-content active" id="tab-sales">
                 <div class="report-header">
@@ -122,60 +121,6 @@ export const reportsPage = new Elysia()
                 </div>
               </div>
 
-              <div class="tab-content" id="tab-menus">
-                <div class="report-header">
-                  <div class="report-controls">
-                    <select id="menu-period" class="input" style="width: 160px;">
-                      <option value="today">Hari Ini</option>
-                      <option value="week">Minggu Ini</option>
-                      <option value="month" selected>Bulan Ini</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                    <div id="menu-custom-dates" style="display: none; gap: 8px; align-items: center;">
-                      <input type="date" id="menu-start" class="input" value="${monthStartStr}">
-                      <span>s/d</span>
-                      <input type="date" id="menu-end" class="input" value="${today}">
-                    </div>
-                    <button class="btn btn-primary" onclick="loadMenuReport()">Terapkan</button>
-                  </div>
-                  <button class="btn btn-secondary" onclick="exportMenuCSV()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Export CSV
-                  </button>
-                </div>
-
-                <div class="card">
-                  <div class="card-header">
-                    <h3 class="card-title">Menu Terlaris Berdasarkan Quantity</h3>
-                  </div>
-                  <div class="table-container">
-                    <table class="table">
-                      <thead>
-                        <tr><th>#</th><th>Menu</th><th>Kategori</th><th>Qty Terjual</th><th>Revenue</th><th>% dari Total</th></tr>
-                      </thead>
-                      <tbody id="menu-qty-table-body">
-                        <tr><td colspan="6" class="text-center text-secondary" style="padding: 40px;">Pilih periode dan klik Terapkan</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-
-                <div class="card" style="margin-top: 24px;">
-                  <div class="card-header">
-                    <h3 class="card-title">Menu Terlaris Berdasarkan Revenue</h3>
-                  </div>
-                  <div class="table-container">
-                    <table class="table">
-                      <thead>
-                        <tr><th>#</th><th>Menu</th><th>Kategori</th><th>Qty Terjual</th><th>Revenue</th><th>% dari Total</th></tr>
-                      </thead>
-                      <tbody id="menu-rev-table-body">
-                        <tr><td colspan="6" class="text-center text-secondary" style="padding: 40px;">Pilih periode dan klik Terapkan</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
 
               <div class="tab-content" id="tab-cashiers">
                 <div class="report-header">
@@ -216,65 +161,73 @@ export const reportsPage = new Elysia()
                 </div>
               </div>
 
-              <div class="tab-content" id="tab-occupancy">
-                <div class="report-header">
-                  <div class="report-controls">
-                    <select id="occupancy-period" class="input" style="width: 160px;">
-                      <option value="today">Hari Ini</option>
-                      <option value="week" selected>Minggu Ini</option>
-                      <option value="month">Bulan Ini</option>
-                      <option value="custom">Custom</option>
-                    </select>
-                    <div id="occupancy-custom-dates" style="display: none; gap: 8px; align-items: center;">
-                      <input type="date" id="occupancy-start" class="input" value="${weekAgo}">
-                      <span>s/d</span>
-                      <input type="date" id="occupancy-end" class="input" value="${today}">
-                    </div>
-                    <button class="btn btn-primary" onclick="loadOccupancyReport()">Terapkan</button>
-                  </div>
-                  <button class="btn btn-secondary" onclick="exportOccupancyCSV()">
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
-                    Export CSV
-                  </button>
-                </div>
 
-                <div class="stats-grid" id="occupancy-summary">
-                  <div class="stats-card">
-                    <div class="stats-label">Rata-rata Okupansi</div>
-                    <div class="stats-value" id="occupancy-avg">-</div>
-                  </div>
-                  <div class="stats-card">
-                    <div class="stats-label">Peak Okupansi</div>
-                    <div class="stats-value" id="occupancy-peak">-</div>
-                  </div>
-                  <div class="stats-card">
-                    <div class="stats-label">Total Meja</div>
-                    <div class="stats-value" id="occupancy-total">-</div>
-                  </div>
-                  <div class="stats-card">
-                    <div class="stats-label">Total Orders</div>
-                    <div class="stats-value" id="occupancy-orders">-</div>
-                  </div>
-                </div>
-
-                <div class="card" style="margin-top: 24px;">
-                  <div class="card-header">
-                    <h3 class="card-title">Detail Okupansi Harian</h3>
-                  </div>
-                  <div class="table-container">
-                    <table class="table">
-                      <thead>
-                        <tr><th>Tanggal</th><th>Meja Terpakai</th><th>Total Meja</th><th>% Okupansi</th><th>Total Orders</th></tr>
-                      </thead>
-                      <tbody id="occupancy-table-body">
-                        <tr><td colspan="5" class="text-center text-secondary" style="padding: 40px;">Pilih periode dan klik Terapkan</td></tr>
-                      </tbody>
-                    </table>
-                  </div>
-                </div>
-              </div>
+      <div class="tab-content" id="tab-financial">
+        <div class="report-header">
+          <div class="report-controls">
+            <select id="financial-period" class="input" style="width: 160px;">
+              <option value="today">Hari Ini</option>
+              <option value="week">Minggu Ini</option>
+              <option value="month" selected>Bulan Ini</option>
+              <option value="custom">Custom</option>
+            </select>
+            <div id="financial-custom-dates" style="display: none; gap: 8px; align-items: center;">
+              <input type="date" id="financial-start" class="input" value="${monthStartStr}">
+              <span>s/d</span>
+              <input type="date" id="financial-end" class="input" value="${today}">
             </div>
-          </main>
+            <button class="btn btn-primary" onclick="loadFinancialReport()">Terapkan</button>
+          </div>
+          <button class="btn btn-secondary" onclick="exportFinancialCSV()">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            Export CSV
+          </button>
+        </div>
+
+        <div class="stats-grid" id="financial-summary">
+          <div class="stats-card">
+            <div class="stats-label">Total Pendapatan</div>
+            <div class="stats-value" id="financial-revenue">-</div>
+            <div class="stats-subtitle" id="financial-revenue-change"></div>
+          </div>
+          <div class="stats-card" style="border-left: 4px solid #e74c3c;">
+            <div class="stats-label">Total Pengeluaran</div>
+            <div class="stats-value" id="financial-expenses">-</div>
+            <div class="stats-subtitle" id="financial-expense-detail"></div>
+          </div>
+          <div class="stats-card" style="border-left: 4px solid #27ae60;">
+            <div class="stats-label">Laba Bersih</div>
+            <div class="stats-value" id="financial-profit">-</div>
+            <div class="stats-subtitle" id="financial-margin"></div>
+          </div>
+          <div class="stats-card">
+            <div class="stats-label">Laba Kotor</div>
+            <div class="stats-value" id="financial-gross">-</div>
+          </div>
+        </div>
+
+        <div class="card" style="margin-top: 24px;">
+          <div class="card-header">
+            <h3 class="card-title">Rincian Keuangan</h3>
+          </div>
+          <div class="table-container">
+            <table class="table">
+              <thead>
+                <tr>
+                  <th>Komponen</th>
+                  <th class="text-right">Jumlah</th>
+                  <th class="text-right">Persentase</th>
+                </tr>
+              </thead>
+              <tbody id="financial-detail-table">
+                <tr><td colspan="3" class="text-center text-secondary" style="padding: 40px;">Pilih periode dan klik Terapkan</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+  </main>
           ${getFooterHtml()}
         </div>
       </div>
@@ -297,8 +250,11 @@ export const reportsPage = new Elysia()
         .bar-chart .bar:hover .bar-tooltip { opacity: 1; }
         .bar-chart .bar-label { margin-top: 8px; font-size: 11px; color: var(--color-text-secondary); text-align: center; }
         .bar-chart-axis { display: flex; justify-content: space-between; margin-top: 8px; padding: 0 8px; font-size: 11px; color: var(--color-text-secondary); }
-        .no-data { text-align: center; padding: 40px; color: var(--color-text-secondary); }
-      </style>
+.no-data { text-align: center; padding: 40px; color: var(--color-text-secondary); }
+        .stats-subtitle { font-size: 12px; color: var(--color-text-secondary); margin-top: 4px; }
+        .profit-positive { color: #27ae60 !important; }
+        .profit-negative { color: #e74c3c !important; }
+  </style>
       <script>
         // Tab switching
         document.querySelectorAll('.tab-btn').forEach(btn => {
@@ -310,16 +266,16 @@ export const reportsPage = new Elysia()
           });
         });
 
-        // Period change handlers
-        ['sales', 'menu', 'cashier', 'occupancy'].forEach(prefix => {
-          const sel = document.getElementById(prefix + '-period');
-          const customDiv = document.getElementById(prefix + '-custom-dates');
-          if (sel && customDiv) {
-            sel.addEventListener('change', () => {
-              customDiv.style.display = sel.value === 'custom' ? 'flex' : 'none';
-            });
-          }
-        });
+// Period change handlers
+['sales', 'cashier', 'financial'].forEach(prefix => {
+  const sel = document.getElementById(prefix + '-period');
+  const customDiv = document.getElementById(prefix + '-custom-dates');
+  if (sel && customDiv) {
+    sel.addEventListener('change', () => {
+      customDiv.style.display = sel.value === 'custom' ? 'flex' : 'none';
+    });
+  }
+});
 
         function getDateRange(prefix) {
           const period = document.getElementById(prefix + '-period').value;
@@ -369,25 +325,6 @@ export const reportsPage = new Elysia()
           document.getElementById('sales-chart').innerHTML = chartHtml;
         }
 
-        async function loadMenuReport() {
-          const { startDate, endDate } = getDateRange('menu');
-          const [qtyRes, revRes] = await Promise.all([
-            fetch('/api/reports/menus/top-quantity?startDate=' + startDate + '&endDate=' + endDate),
-            fetch('/api/reports/menus/top-revenue?startDate=' + startDate + '&endDate=' + endDate)
-          ]);
-          const qtyData = await qtyRes.json();
-          const revData = await revRes.json();
-          const totalQty = qtyData.reduce((s, d) => s + (d.totalQty || 0), 0);
-          const totalRev = revData.reduce((s, d) => s + (d.revenue || 0), 0);
-
-          const renderMenuTable = (data, total) => {
-            if (!data.length) return '<tr><td colspan="6" class="no-data">Tidak ada data untuk periode ini</td></tr>';
-            return data.map((d, i) => '<tr><td>' + (i+1) + '</td><td>' + (d.menuName || 'Unknown') + '</td><td><span class="badge ' + (d.category === 'makanan' ? 'badge-warning' : 'badge-primary') + '">' + (d.category || '-') + '</span></td><td>' + (d.totalQty || 0) + '</td><td>' + formatRp(d.revenue) + '</td><td>' + (total > 0 ? Math.round((d.totalQty / total) * 100) : 0) + '%</td></tr>').join('');
-          };
-
-          document.getElementById('menu-qty-table-body').innerHTML = renderMenuTable(qtyData, totalQty);
-          document.getElementById('menu-rev-table-body').innerHTML = renderMenuTable(revData, totalRev > 0 ? revData.reduce((s, d) => s + (d.revenue || 0), 0) : 0);
-        }
 
         async function loadCashierReport() {
           const { startDate, endDate } = getDateRange('cashier');
@@ -401,30 +338,6 @@ export const reportsPage = new Elysia()
           tbody.innerHTML = data.map(d => '<tr><td><strong>' + (d.userName || 'Unknown') + '</strong></td><td>' + d.totalTransactions + '</td><td>' + formatRp(Math.round(d.avgOrderValue || 0)) + '</td><td>' + formatRp(d.totalSales) + '</td><td>' + (d.totalTransactions > 0 ? Math.round((d.completedOrders / d.totalTransactions) * 100) : 0) + '%</td></tr>').join('');
         }
 
-        async function loadOccupancyReport() {
-          const { startDate, endDate } = getDateRange('occupancy');
-          const res = await fetch('/api/reports/tables/occupancy?startDate=' + startDate + '&endDate=' + endDate);
-          const data = await res.json();
-          const tbody = document.getElementById('occupancy-table-body');
-          if (!data.length) {
-            tbody.innerHTML = '<tr><td colspan="5" class="no-data">Tidak ada data untuk periode ini</td></tr>';
-            document.getElementById('occupancy-avg').textContent = '-';
-            document.getElementById('occupancy-peak').textContent = '-';
-            document.getElementById('occupancy-total').textContent = '-';
-            document.getElementById('occupancy-orders').textContent = '-';
-            return;
-          }
-          const avgOcc = Math.round(data.reduce((s, d) => s + d.occupancyRate, 0) / data.length);
-          const peak = data.reduce((m, d) => d.occupancyRate > m.occupancyRate ? d : m, data[0]);
-          const totalOrders = data.reduce((s, d) => s + d.totalOrders, 0);
-
-          document.getElementById('occupancy-avg').textContent = avgOcc + '%';
-          document.getElementById('occupancy-peak').textContent = peak.occupancyRate + '% (' + peak.date + ')';
-          document.getElementById('occupancy-total').textContent = data[0]?.totalTables || 0;
-          document.getElementById('occupancy-orders').textContent = totalOrders;
-
-          tbody.innerHTML = data.map(d => '<tr><td>' + d.date + '</td><td>' + d.uniqueTables + '</td><td>' + d.totalTables + '</td><td><span class="badge ' + (d.occupancyRate > 70 ? 'badge-error' : d.occupancyRate > 40 ? 'badge-warning' : 'badge-success') + '">' + d.occupancyRate + '%</span></td><td>' + d.totalOrders + '</td></tr>').join('');
-        }
 
         function exportSalesCSV() {
           const rows = [['Tanggal', 'Pesanan', 'Selesai', 'Dibatalkan', 'Total Penjualan']];
@@ -435,14 +348,6 @@ export const reportsPage = new Elysia()
           downloadCSV(rows, 'sales-report.csv');
         }
 
-        function exportMenuCSV() {
-          const rows = [['#', 'Menu', 'Kategori', 'Qty Terjual', 'Revenue', '% dari Total']];
-          document.querySelectorAll('#menu-qty-table-body tr').forEach(tr => {
-            const cells = tr.querySelectorAll('td');
-            if (cells.length === 6) rows.push(Array.from(cells).map(c => c.textContent.trim()));
-          });
-          downloadCSV(rows, 'menu-report.csv');
-        }
 
         function exportCashierCSV() {
           const rows = [['Kasir', 'Transaksi', 'Rata-rata/Order', 'Total Penjualan', '% Selesai']];
@@ -453,16 +358,86 @@ export const reportsPage = new Elysia()
           downloadCSV(rows, 'cashier-report.csv');
         }
 
-        function exportOccupancyCSV() {
-          const rows = [['Tanggal', 'Meja Terpakai', 'Total Meja', '% Okupansi', 'Total Orders']];
-          document.querySelectorAll('#occupancy-table-body tr').forEach(tr => {
-            const cells = tr.querySelectorAll('td');
-            if (cells.length === 5) rows.push(Array.from(cells).map(c => c.textContent.trim()));
-          });
-          downloadCSV(rows, 'occupancy-report.csv');
-        }
 
-        function downloadCSV(rows, filename) {
+async function loadFinancialReport() {
+  const { startDate, endDate } = getDateRange('financial');
+  try {
+    const res = await fetch('/api/reports/financial/profit-loss?startDate=' + startDate + '&endDate=' + endDate);
+    const data = await res.json();
+
+    if (data.error) {
+      alert(data.error);
+      return;
+    }
+
+    const isProfit = data.netProfit >= 0;
+
+    document.getElementById('financial-revenue').textContent = formatRp(data.revenue?.totalRevenue);
+    document.getElementById('financial-revenue-change').textContent = data.revenue?.completedOrders + ' order selesai';
+
+    document.getElementById('financial-expenses').textContent = formatRp(data.expenses?.totalExpenses);
+    document.getElementById('financial-expense-detail').textContent = 'Bahan: ' + formatRp(data.expenses?.purchases) + ' | Gaji: ' + formatRp(data.expenses?.salaries);
+
+    document.getElementById('financial-profit').textContent = (isProfit ? '+' : '') + formatRp(data.netProfit);
+    document.getElementById('financial-profit').className = 'stats-value ' + (isProfit ? 'profit-positive' : 'profit-negative');
+    document.getElementById('financial-margin').textContent = 'Margin: ' + data.profitMargin + '%';
+
+    document.getElementById('financial-gross').textContent = formatRp(data.grossProfit);
+
+    const tbody = document.getElementById('financial-detail-table');
+    tbody.innerHTML = \`
+      <tr>
+        <td><strong>Pendapatan</strong></td>
+        <td class="text-right">\${formatRp(data.revenue?.totalRevenue)}</td>
+        <td class="text-right">100%</td>
+      </tr>
+      <tr>
+        <td style="padding-left: 24px;">- Pajak</td>
+        <td class="text-right">\${formatRp(data.revenue?.totalTax)}</td>
+        <td class="text-right">\${((data.revenue?.totalTax / data.revenue?.totalRevenue) * 100).toFixed(1)}%</td>
+      </tr>
+      <tr>
+        <td style="padding-left: 24px;">- HPP (COGS)</td>
+        <td class="text-right">\${formatRp(data.costOfGoodsSold?.totalCOGS)}</td>
+        <td class="text-right">\${((data.costOfGoodsSold?.totalCOGS / data.revenue?.totalRevenue) * 100).toFixed(1)}%</td>
+      </tr>
+      <tr style="background: var(--color-bg-secondary);">
+        <td><strong>Laba Kotor</strong></td>
+        <td class="text-right"><strong>\${formatRp(data.grossProfit)}</strong></td>
+        <td class="text-right"><strong>\${((data.grossProfit / data.revenue?.totalRevenue) * 100).toFixed(1)}%</strong></td>
+      </tr>
+      <tr>
+        <td style="padding-left: 24px;">- Bahan Baku</td>
+        <td class="text-right">\${formatRp(data.expenses?.purchases)}</td>
+        <td class="text-right">\${((data.expenses?.purchases / data.revenue?.totalRevenue) * 100).toFixed(1)}%</td>
+      </tr>
+      <tr>
+        <td style="padding-left: 24px;">- Gaji Karyawan</td>
+        <td class="text-right">\${formatRp(data.expenses?.salaries)}</td>
+        <td class="text-right">\${((data.expenses?.salaries / data.revenue?.totalRevenue) * 100).toFixed(1)}%</td>
+      </tr>
+      <tr style="background: \${isProfit ? '#e8f5e9' : '#ffebee'};">
+        <td><strong>\${isProfit ? 'Laba Bersih' : 'Rugi'}</strong></td>
+        <td class="text-right"><strong class="\${isProfit ? 'profit-positive' : 'profit-negative'}">\${(isProfit ? '+' : '') + formatRp(data.netProfit)}</strong></td>
+        <td class="text-right"><strong>\${data.profitMargin}%</strong></td>
+      </tr>
+    \`;
+  } catch (error) {
+    console.error('Error loading financial report:', error);
+    alert('Gagal memuat laporan keuangan');
+  }
+}
+
+function exportFinancialCSV() {
+  const rows = [['Komponen', 'Jumlah', 'Persentase']];
+  document.querySelectorAll('#financial-detail-table tr').forEach(tr => {
+    const cells = tr.querySelectorAll('td');
+    if (cells.length === 3) rows.push(Array.from(cells).map(c => c.textContent.trim()));
+  });
+  downloadCSV(rows, 'financial-report.csv');
+}
+
+function downloadCSV(rows, filename) {
           const csv = rows.map(r => r.map(c => '"' + (c || '').replace(/"/g, '""') + '"').join(',')).join('\\n');
           const blob = new Blob([csv], { type: 'text/csv' });
           const url = URL.createObjectURL(blob);

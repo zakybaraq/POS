@@ -1,5 +1,6 @@
 import { Elysia } from 'elysia';
 import * as reportRepo from '../repositories/report';
+import * as financialRepo from '../repositories/financial-report';
 
 export const reportRoutes = new Elysia({ prefix: '/api/reports' })
   .get('/sales/daily', async ({ query }) => {
@@ -73,4 +74,35 @@ export const reportRoutes = new Elysia({ prefix: '/api/reports' })
       return { error: 'startDate and endDate are required' };
     }
     return reportRepo.getSalesSummary(startDate, endDate);
+  })
+  .get('/financial/profit-loss', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return financialRepo.getProfitLossReport(startDate, endDate);
+  })
+  .get('/financial/daily', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return financialRepo.getDailyFinancials(startDate, endDate);
+  })
+  .get('/financial/expense-breakdown', async ({ query }) => {
+    const startDate = (query as any)?.startDate;
+    const endDate = (query as any)?.endDate;
+    if (!startDate || !endDate) {
+      return { error: 'startDate and endDate are required' };
+    }
+    return financialRepo.getExpenseBreakdown(startDate, endDate);
+  })
+  .get('/financial/monthly-comparison', async ({ query }) => {
+    const year = (query as any)?.year ? parseInt((query as any).year) : new Date().getFullYear();
+    return financialRepo.getMonthlyComparison(year);
+  })
+  .get('/financial/dashboard', async () => {
+    return financialRepo.getDashboardFinancialSummary();
   });
