@@ -182,3 +182,81 @@ export async function getTopMenus(limit: number = 5) {
   .orderBy(desc(sum(orderItems.quantity)))
   .limit(limit);
 }
+
+/**
+ * Transfer order to a different table within a transaction
+ * @param tx - Database transaction object
+ * @param orderId - Order ID
+ * @param sourceTableId - Current table ID
+ * @param targetTableId - Destination table ID
+ */
+export async function transferOrderToTableTx(
+  tx: any,
+  orderId: number,
+  sourceTableId: number,
+  targetTableId: number
+) {
+  const order = await tx.select().from(orders)
+    .where(eq(orders.id, orderId))
+    .then((r: any) => r[0]);
+
+  if (!order) {
+    throw new Error(`Order #${orderId} not found`);
+  }
+
+  if (order.tableId !== sourceTableId) {
+    throw new Error(`Order #${orderId} not on table #${sourceTableId}`);
+  }
+
+  const sourceTable = await tx.select().from(tables)
+    .where(eq(tables.id, sourceTableId))
+    .then((r: any) => r[0]);
+
+  if (!sourceTable) {
+    throw new Error(`Source table #${sourceTableId} not found`);
+  }
+
+  const targetTable = await tx.select().from(tables)
+    .where(eq(tables.id, targetTableId))
+    .then((r: any) => r[0]);
+
+  if (!targetTable) {
+    throw new Error(`Target table #${targetTableId} not found`);
+  }
+
+  if (targetTable.status === 'occupied') {
+    throw new Error(`Target table #${targetTableId} is occupied`);
+  }
+
+  await tx.update(tables)
+    .set({ status: 'available' })
+    .where(eq(tables.id, sourceTableId));
+
+  await tx.update(tables)
+    .set({ status: 'occupied' })
+    .where(eq(tables.id, targetTableId));
+
+  await tx.update(orders)
+    .set({ tableId: targetTableId })
+    .where(eq(orders.id, orderId));
+
+  return {
+    orderId,
+    sourceTableId,
+    targetTableId,
+    status: 'transferred',
+  };
+}
+
+/**
+ * Transfer order to a different table (non-transactional wrapper)
+ */
+export async function transferOrderToTable(
+  orderId: number,
+  sourceTableId: number,
+  targetTableId: number
+) {
+  return db.transaction(tx => 
+    transferOrderToTableTx(tx, orderId, sourceTableId, targetTableId)
+  );
+}

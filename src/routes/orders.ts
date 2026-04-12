@@ -338,20 +338,28 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
   .put('/:id/transfer', async ({ cookie, headers, params: { id }, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
-    const { newTableId } = body as any;
-    if (!newTableId) return { error: 'newTableId is required' };
-    const order = await orderRepo.getOrderById(Number(id));
-    if (!order) return { error: 'Order not found' };
-    if (order.status !== 'active') return { error: 'Only active orders can be transferred' };
-    if (!order.tableId) return { error: 'Transfer is only available for dine-in orders' };
-    const newTable = await tableRepo.getTableById(newTableId);
-    if (!newTable) return { error: 'Target table not found' };
-    if (newTable.status === 'occupied') return { error: 'Target table is occupied' };
-    await tableRepo.updateTableStatus(order.tableId, 'available');
-    await tableRepo.updateTableStatus(newTableId, 'occupied');
-    await orderRepo.updateOrder(Number(id), { tableId: newTableId });
-    const updatedOrder = await orderRepo.getOrderById(Number(id));
-    return { success: true, order: updatedOrder };
+    const { sourceTableId, targetTableId } = body as any;
+    
+    if (!sourceTableId || !targetTableId) {
+      return { error: 'sourceTableId and targetTableId required', status: 400 };
+    }
+    
+    if (sourceTableId === targetTableId) {
+      return { error: 'Source and target must be different', status: 400 };
+    }
+    
+    try {
+      await orderRepo.transferOrderToTable(
+        Number(id),
+        sourceTableId,
+        targetTableId
+      );
+      
+      const updatedOrder = await orderRepo.getOrderById(Number(id));
+      return { order: updatedOrder, success: true };
+    } catch (error: any) {
+      return { error: error.message, status: 400 };
+    }
   })
   .delete('/:id', async ({ cookie, headers, params: { id } }) => {
     const user = getUserFromRequest(cookie, headers);
