@@ -4,13 +4,31 @@ import { requireAdmin, getUserFromRequest } from '../middleware/authorization';
 import { createIngredientSchema, updateIngredientSchema, createRecipeSchema, updateRecipeSchema, stockMovementSchema } from '../schemas/inventory';
 import { validateBody } from '../schemas/index';
 
+function stripSensitiveData(items: any[], user: any) {
+  const isAdmin = user && ['super_admin', 'admin_restoran'].includes(user.role);
+  return items.map(item => {
+    if (isAdmin) return item;
+    return { ...item, costPerUnit: undefined };
+  });
+}
+
 export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
-  .get('/ingredients', async () => inv.getAllIngredients())
-  .get('/ingredients/low-stock', async () => inv.getLowStockIngredients())
-  .get('/ingredients/:id', async ({ params: { id } }) => {
+  .get('/ingredients', async ({ cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    const items = await inv.getAllIngredients();
+    return stripSensitiveData(items, user);
+  })
+  .get('/ingredients/low-stock', async ({ cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    const items = await inv.getLowStockIngredients();
+    return stripSensitiveData(items, user);
+  })
+  .get('/ingredients/:id', async ({ params: { id }, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
     const item = await inv.getIngredientById(Number(id));
     if (!item) return { error: 'Ingredient not found' };
-    return item;
+    const items = stripSensitiveData([item], user);
+    return items[0];
   })
   .post('/ingredients', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
@@ -54,7 +72,16 @@ export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
     return { success: true };
   })
 
-  .get('/recipes/menu/:menuId', async ({ params: { menuId } }) => inv.getRecipesByMenuId(Number(menuId)))
+  .get('/recipes/menu/:menuId', async ({ params: { menuId }, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    const recipes = await inv.getRecipesByMenuId(Number(menuId));
+    
+    const isAdmin = user && ['super_admin', 'admin_restoran'].includes(user.role);
+    return recipes.map(r => {
+      if (isAdmin) return r;
+      return { ...r, costPerUnit: undefined };
+    });
+  })
   .post('/recipes', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
@@ -102,13 +129,17 @@ export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
     const { ingredientId, type, quantity, reason } = validation.data;
     return inv.adjustStock(Number(ingredientId), Number(quantity), type, reason || '', user.userId);
   })
-  .get('/stock-movements', async ({ query }) => {
+  .get('/stock-movements', async ({ query, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
     const ingredientId = query?.ingredientId ? Number(query.ingredientId) : undefined;
-    return inv.getStockMovements(ingredientId, 100);
-  }, {
-    query: t.Object({
-      ingredientId: t.Optional(t.String()),
-    }),
+    const movements = await inv.getStockMovements(ingredientId, 100);
+    
+    const isAdmin = user && ['super_admin', 'admin_restoran'].includes(user.role);
+    if (!isAdmin) {
+      return { error: 'Access denied. Admin role required.', status: 403 };
+    }
+    
+    return movements;
   })
 
   .onBeforeHandle(requireAdmin());
