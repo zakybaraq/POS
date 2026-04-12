@@ -68,6 +68,62 @@ export async function getOrdersTodayWithTables() {
     .orderBy(desc(orders.createdAt));
 }
 
+export async function getTodayOrdersWithItemsByTableId(tableId: number) {
+  const results = await db
+    .select({
+      order: orders,
+      item: orderItems,
+      menu: menus,
+    })
+    .from(orders)
+    .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+    .leftJoin(menus, eq(orderItems.menuId, menus.id))
+    .where(and(
+      eq(orders.tableId, tableId),
+      eq(orders.status, 'active'),
+      gte(orders.createdAt, todayStart())
+    ))
+    .orderBy(desc(orders.createdAt));
+
+  const ordersMap = new Map<number, typeof results[0]['order'] & { items: (typeof results[0]['item'] & { menu?: typeof results[0]['menu'] })[] }>();
+
+  for (const { order, item, menu } of results) {
+    if (!ordersMap.has(order.id)) {
+      ordersMap.set(order.id, { ...order, items: [] });
+    }
+    const orderData = ordersMap.get(order.id)!;
+    if (item && menu) {
+      orderData.items.push({ ...item, menu });
+    } else if (item) {
+      orderData.items.push(item);
+    }
+  }
+
+  return Array.from(ordersMap.values());
+}
+
+export async function getOrderWithItemsById(id: number) {
+  const results = await db
+    .select({
+      order: orders,
+      item: orderItems,
+      menu: menus,
+    })
+    .from(orders)
+    .leftJoin(orderItems, eq(orders.id, orderItems.orderId))
+    .leftJoin(menus, eq(orderItems.menuId, menus.id))
+    .where(eq(orders.id, id));
+
+  if (results.length === 0) return null;
+
+  const order = results[0].order;
+  const items = results
+    .filter(r => r.item)
+    .map(r => ({ ...r.item!, menu: r.menu || undefined }));
+
+  return { ...order, items };
+}
+
 export async function updateOrderStatus(id: number, status: 'draft' | 'active' | 'completed' | 'cancelled') {
   const logger = getLoggerWithRequestId();
   const currentOrder = await getOrderById(id);

@@ -38,23 +38,16 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
     if (!table) {
       return { error: 'Table not found' };
     }
-    const todayOrders = await orderRepo.getTodayOrdersByTableId(Number(tableId));
-    const ordersWithItems = await Promise.all(
-      todayOrders.map(async (order) => {
-        const items = await orderItemRepo.getItemsWithMenuByOrderId(order.id);
-        return { ...order, items };
-      })
-    );
+    const ordersWithItems = await orderRepo.getTodayOrdersWithItemsByTableId(Number(tableId));
     return { table, orders: ordersWithItems };
   })
   .get('/:id', async ({ params: { id } }) => {
-    const order = await orderRepo.getOrderById(Number(id));
-    if (!order) {
+    const orderWithItems = await orderRepo.getOrderWithItemsById(Number(id));
+    if (!orderWithItems) {
       return { error: 'Order not found' };
     }
-    const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
-    const table = order.tableId ? await tableRepo.getTableById(order.tableId) : null;
-    return { order, items, table };
+    const table = orderWithItems.tableId ? await tableRepo.getTableById(orderWithItems.tableId) : null;
+    return { order: orderWithItems, items: orderWithItems.items, table };
   })
   .post('/', async ({ body, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
