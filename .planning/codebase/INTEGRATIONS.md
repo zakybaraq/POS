@@ -1,230 +1,273 @@
 # External Integrations
 
-**Analysis Date:** 2026-04-11
+**Analysis Date:** 2026-04-12
 
 ## APIs & External Services
 
-**Current Status:**
-- No third-party API integrations detected
-- No payment gateways (Stripe, PayPal, etc.)
-- No SMS/email notification services
-- No cloud services (AWS, GCP, Azure)
-- No analytics or monitoring services
+**No third-party APIs currently integrated** - The POS system operates as a self-contained application with no external service dependencies for core functionality.
 
-**Payment Processing:**
-- Internal implementation only
-- Service: `src/services/payment.ts`
-- Features: Change calculation, order status completion on payment
-- Integration: Called from `src/routes/orders.ts`
-- Supported: Cash payments only (extensible to other methods via `paymentMethods` table)
+**Future integration points identified:**
+- Payment processors (Stripe, Square, local payment gateways)
+- SMS/Email services (customer notifications)
+- Cloud backup services
+- Analytics platforms
 
 ## Data Storage
 
 **Primary Database:**
-- Type: MySQL 5.7+
-- Driver: mysql2/promise 3.20.0
-- Connection pool: 5 connections max, unlimited queue
-- Configuration:
-  ```
-  Host: process.env.DB_HOST (default: localhost)
-  User: process.env.DB_USER (default: root)
-  Password: process.env.DB_PASSWORD (default: empty)
-  Database: process.env.DB_NAME (default: pos_db)
-  ```
-- ORM: Drizzle ORM 0.45.2
-- Schema file: `src/db/schema.ts` (429 lines with relations)
-- Connection manager: `src/db/index.ts`
-
-**Database Schema:**
-- `users` - User accounts with roles (super_admin, admin_restoran, kasir, waitress, chef)
-- `categories` - Menu categories (makanan, minuman)
-- `menus` - Menu items with pricing and availability
-- `tables` - Restaurant table configuration with capacity/area
-- `orders` - Order records with status tracking (draft, active, completed, cancelled)
-- `orderItems` - Line items with cooking status tracking
-- `ingredients` - Inventory ingredient master data
-- `recipes` - Menu-to-ingredient mappings with quantities
-- `stockMovements` - Stock transaction audit trail (in, out, adjustment, waste)
-- `customers` - Customer profiles with loyalty tier and points
-- `loyaltyTransactions` - Point earn/redeem history
-- `suppliers` - Supplier contact information
-- `purchaseOrders` - Procurement orders with status tracking
-- `purchaseOrderItems` - PO line items with received quantities
-- `supplierPrices` - Supplier pricing for ingredients
-- `employeeProfiles` - Employee details linked to users
-- `shifts` - Cash drawer shift tracking with reconciliation
-- `attendance` - Employee attendance and clock in/out
-- `auditLogs` - User action audit trail
-- `businessSettings` - Business name, currency, timezone, language
-- `taxSettings` - Tax configuration (exclusive/inclusive, percentage)
-- `paymentMethods` - Available payment method registry
-- `receiptSettings` - Receipt format and content configuration
-- `operatingHours` - Business hours by day of week
+- MySQL 5.7+ (self-hosted or cloud-managed)
+  - Connection: `src/db/index.ts` uses mysql2/promise pool
+  - ORM: Drizzle ORM for type-safe queries
+  - Client: mysql2 with promise wrapper
+  - Configuration: `drizzle.config.ts`
+  - Schema: `src/db/schema.ts` (23 tables)
 
 **File Storage:**
-- Local filesystem only - No cloud storage
-- Static assets: `src/public/styles/` (CSS files)
-- Templates: `src/pages/` (server-rendered HTML)
-- Logo storage: Stored as URL string in `businessSettings.logo` column
+- Local filesystem only
+  - Static assets: `src/public/` (CSS, JavaScript)
+  - HTML templates: `src/templates/`
+  - Logo/images: Stored as strings in `businessSettings` table
+  - No cloud storage integration
 
 **Caching:**
-- None detected
-- All queries execute directly to MySQL
+- None - All queries hit MySQL directly
+- Session management handled via JWT tokens (stateless)
+- No Redis or in-memory cache layer
 
 ## Authentication & Identity
 
 **Auth Provider:**
-- Custom implementation (no OAuth, Auth0, or third-party provider)
-  - Service: `src/services/auth.ts`
-  - Utilities: `src/utils/auth.ts`
+- Custom JWT-based implementation
+  - Token generation: `src/services/auth.ts` (login flow)
+  - Token verification: `src/utils/auth.ts` (middleware)
+  - Token storage: HTTP-only cookies via @elysiajs/cookie
 
-**Implementation Details:**
-- JWT tokens: jsonwebtoken 9.0.3
-- Token secret: `JWT_SECRET` environment variable
-- Development default: 'pos-secret-key-change-in-production'
-- Token payload:
-  ```typescript
-  {
-    userId: number,
-    email: string,
-    name: string,
-    role: 'super_admin' | 'admin_restoran' | 'kasir' | 'waitress' | 'chef'
-  }
-  ```
-- Token storage: `pos_session` HTTP cookie (HttpOnly, Secure in production)
+**Authentication Flow:**
+1. User login at `/login` (`src/pages/auth.ts`)
+2. Credentials validated in `src/services/auth.ts`
+3. Password verified via bcryptjs comparison
+4. JWT token generated with payload: `{ userId, email, name, role }`
+5. Token stored in `pos_session` cookie
+6. Subsequent requests extract token from cookie and verify signature
 
-**User Roles:**
-- `super_admin` - Full system access
-- `admin_restoran` - Business administration
-- `kasir` - Cashier/payment processing
-- `waitress` - Customer service/orders
-- `chef` - Kitchen operations
+**Password Hashing:**
+- bcryptjs 3.0.3 - Bcrypt algorithm for password storage
+  - Used in: `src/repositories/user.ts`
+  - Hash rounds: Default (10)
+  - Never stored in plain text
 
-**Password Security:**
-- Hashing: bcryptjs 3.0.3
-- Storage: `users.password` column (never plaintext)
+**JWT Configuration:**
+- Secret key: `process.env.JWT_SECRET || 'pos-secret-key-change-in-production'`
+  - ⚠️ Default unsafe - must be set in production
+- Algorithm: HS256 (default for jsonwebtoken)
+- Expiration: 24 hours (configured in `src/services/auth.ts`)
 
-**Authorization:**
+**Role-Based Access Control:**
+- 5 roles defined in schema: `super_admin`, `admin_restoran`, `kasir`, `waitress`, `chef`
 - Middleware: `src/middleware/authorization.ts`
-- Cookie-based session management: `@elysiajs/cookie` 0.8.0
+- Convenience middleware functions:
+  - `requireAdmin()` - super_admin, admin_restoran
+  - `requirePosAccess()` - super_admin, admin_restoran, kasir
+  - `requireOrderAccess()` - super_admin, admin_restoran, kasir, waitress, chef
+  - `requireSuperAdmin()` - super_admin only
 
 ## Monitoring & Observability
 
 **Error Tracking:**
-- Not implemented - No Sentry, DataDog, or similar
-- Errors logged to console via console.error()
+- None - No external error tracking service (Sentry, Rollbar, etc.)
+- Errors logged to console/stdout via JavaScript `console.error()`
 
-**Application Logging:**
-- Console logging: `console.log()` and `console.error()`
-- Audit logging: Database table `audit_logs`
-  - Tracks: userId, userName, action, details, timestamp
-  - All user operations logged for compliance
+**Logs:**
+- Server startup log: `server.log` file
+- Activity logging: Audit trails stored in `auditLogs` table
+  - Records: userId, userName, action, details, createdAt
+  - Used for: User action history and accountability
+  - Location: `src/repositories/audit-log.ts`
 
-**Distributed Tracing:**
-- Not implemented
+**Structured Logging:**
+- Not implemented - Ad-hoc console logging only
+- No correlation IDs or request tracking
 
 ## CI/CD & Deployment
 
 **Hosting:**
-- Self-hosted required
-- Any server with Bun 1.0+ and MySQL 5.7+
-- No specific platform requirement
+- Self-hosted or VPS-based (no platform-specific integration)
+- Runs on any system with Bun + MySQL
+- Typical deployment: Standalone Bun process listening on port 3000
 
 **CI Pipeline:**
-- Not detected - Manual deployment
+- None - No automated CI/CD pipeline configured
+- Manual deployment required
 
-**Deployment Methods:**
-- Direct: `bun run start` on server
-- Process manager: Can use pm2, systemd, or container orchestration
+**Process Management:**
+- Dev: `bun run dev` (watch mode)
+- Production: `bun run start` (single instance)
+- Recommended: Use process manager (PM2, systemd, Docker) for production
 
-**Environment Management:**
-- Configuration via environment variables
-- Example provided: `.env.example`
-- No external configuration management service
+**Database Migrations:**
+- Drizzle Kit CLI: `bunx drizzle-kit generate:mysql` (create migrations)
+- Apply: `bunx drizzle-kit push:mysql` (apply to database)
+- Migrations stored in: `drizzle/` directory
 
 ## Environment Configuration
 
-**Required Variables:**
+**Required Environment Variables:**
 ```
-DB_HOST              # MySQL server hostname
-DB_USER              # MySQL username
-DB_PASSWORD          # MySQL password
-DB_NAME              # Database name
-JWT_SECRET           # Token signing secret
-PORT                 # HTTP server port (optional, default 3000)
-NODE_ENV             # Environment mode (development/production)
+# Database
+DB_HOST=localhost              # MySQL server hostname
+DB_USER=root                   # MySQL username
+DB_PASSWORD=                   # MySQL password
+DB_NAME=pos_db                 # Database name
+
+# Server
+PORT=3000                      # HTTP server port
+NODE_ENV=development           # Environment (development/production)
+
+# Authentication
+JWT_SECRET=change-me-in-prod   # CRITICAL: JWT signing key
 ```
 
-**Secrets Management:**
-- Environment variables only
-- `.env` file (git-ignored, not committed)
-- No third-party secrets manager (Vault, AWS Secrets Manager, etc.)
+**Secrets Location:**
+- `.env` file (local development only)
+- Note: `.env` is in `.gitignore` - not committed to repository
+- Production: Set via environment variables or secret management system
 
-**Configuration Files:**
-- `.env` - Runtime configuration
-- `tsconfig.json` - TypeScript compilation settings
-- `drizzle.config.ts` - ORM migration settings
-- `package.json` - Dependencies and scripts
+**Configuration Defaults:**
+- All database variables have fallback values for localhost development
+- JWT_SECRET has insecure default - MUST be overridden in production
+- PORT defaults to 3000
 
-## Webhooks & Callbacks
+## Data Format Integration
+
+**Request/Response Validation:**
+- Elysia type validators (`t.Object`, `t.String`, `t.Number`, etc.)
+- Located in route handlers: `src/routes/*.ts`
+- Not using Zod (installed but unused)
+- Example pattern:
+  ```typescript
+  body: t.Object({
+    tableId: t.Number(),
+    userId: t.Number(),
+  })
+  ```
+
+**JSON API:**
+- All responses returned as JSON
+- Consistent response format from repositories and services
+- Example order response:
+  ```json
+  {
+    "id": 1,
+    "tableId": 5,
+    "status": "completed",
+    "total": 500000,
+    "items": [...]
+  }
+  ```
+
+**Database Type Safety:**
+- Drizzle generates TypeScript types automatically from schema
+- All queries type-checked at build time
+- Type exports: `User`, `Order`, `Menu`, etc. (38 types defined)
+- Insert types: `NewUser`, `NewOrder`, `NewMenu`, etc.
+
+## Cookie Management
+
+**Session Cookies:**
+- Package: @elysiajs/cookie 0.8.0
+- Cookie name: `pos_session`
+- Content: JWT token
+- Scope: Used by `src/utils/auth.ts` for session verification
+- Features: Automatic parsing by Elysia
+
+**Cookie Options:**
+- Set via: `src/routes/auth.ts` (login endpoint)
+- Path: Root (`/`) - accessible to all routes
+- Secure flag: Not currently set (HTTP only in development)
+  - ⚠️ Should enable in production for HTTPS
+
+## Third-Party Integrations
+
+**Currently Unused Dependencies:**
+- `zod 4.3.6` - Installed but NOT used for validation
+  - Validation instead uses Elysia's built-in `t.*` validators
+  - No schema definitions found in codebase
+
+**No External APIs:**
+- No Stripe, PayPal, Square integration
+- No email service (no nodemailer, SendGrid, etc.)
+- No SMS service (no Twilio, etc.)
+- No cloud storage (no AWS S3, Azure Blob, etc.)
+- No analytics (no Google Analytics, Mixpanel, etc.)
+
+## Data Flow: Order to Payment to Stock
+
+**Complete integration chain:**
+
+1. **Order Creation** (Routes: `src/routes/orders.ts`)
+   - POST /api/orders/with-items
+   - Input validation via Elysia type validators
+   - Creates order in MySQL via `src/repositories/order.ts`
+
+2. **Order Service Layer** (`src/repositories/order.ts`)
+   - Uses Drizzle queries to insert/update orders
+   - Manages status transitions: draft → active → completed
+   - Triggers stock decrement on completion
+
+3. **Payment Processing** (`src/services/payment.ts`)
+   - Validates order status and payment amount
+   - Calls `src/repositories/order.ts` → `completeOrder()`
+   - Stock decrement executed atomically with order completion
+
+4. **Inventory Management** (`src/repositories/inventory.ts`)
+   - `decrementStockForOrderTx()` - Transaction-based stock reduction
+   - Creates `stockMovements` record for audit trail
+   - Updates `ingredients` current stock
+   - Only executes when order reaches "completed" status
+
+5. **Stock Tracking** (Database tables)
+   - `ingredients` - Current stock levels
+   - `recipes` - Menu-to-ingredient mappings
+   - `stockMovements` - Transaction log with before/after values
+   - `orders` - Order status (triggers decrement on "completed")
+
+**Key Integration Point:**
+- Stock is decremented ONLY when `orders.status` = "completed"
+- Ensures inventory accuracy throughout order lifecycle
+- Transaction isolation prevents race conditions
+- Audit trail maintained in `stockMovements` table
+
+## Communication Patterns
+
+**HTTP/REST API:**
+- Routes: `src/routes/` (18 route modules)
+- All routes use Elysia HTTP server
+- Request types: GET, POST (PUT/DELETE not used in current routes)
+- Response format: JSON
+
+**Database Communication:**
+- Query builder: Drizzle ORM
+- Connection pooling: mysql2 promise pool (5 connections)
+- Transaction support: Available via Drizzle transactions
+- Type safety: Full TypeScript compilation-time checking
+
+**Authentication Token Exchange:**
+- Login: POST with email/password → JWT token returned in Set-Cookie
+- Subsequent requests: JWT extracted from pos_session cookie
+- Token verified server-side on every protected route
+
+## Webhook & Callback Handling
 
 **Incoming Webhooks:**
-- None detected - No external services call this API
+- None - No external webhooks received
 
 **Outgoing Webhooks:**
-- None detected - No callbacks to external systems
+- None - No outbound webhook calls made
 
-## Internal Integration Points
-
-**Frontend to Backend:**
-- All via RESTful HTTP API
-- Content-Type: application/json
-- Authentication: Cookie-based JWT
-- Credentials: included in requests
-
-**API Endpoint Suites:**
-- `/api/auth/*` - Login, logout, token verification
-- `/api/orders/*` - Order CRUD and status management
-- `/api/menus/*` - Menu item operations
-- `/api/categories/*` - Category management
-- `/api/customers/*` - Customer profiles and loyalty
-- `/api/inventory/*` - Stock and recipe management
-- `/api/employees/*` - Staff management
-- `/api/reports/*` - Sales and analytics
-- `/api/settings/*` - Business configuration
-- `/api/suppliers/*` - Supplier management
-- `/api/tables/*` - Table management
-- `/api/kitchen/*` - Kitchen display system
-- `/api/shifts/*` - Cash drawer operations
-- `/api/attendance/*` - Employee attendance
-
-**Page Rendering:**
-- All pages server-rendered via Elysia routes
-- Response type: HTML with embedded JavaScript
-- Client-side scripts: Fetch API for backend calls
-
-## Payment Methods Infrastructure
-
-**Database Schema:**
-- Table: `paymentMethods` - Extensible registry
-  - Fields: id, code, name, icon, isActive, sortOrder, createdAt
-  - Current implementation: Cash only
-  - Future ready: Can add credit card, e-wallet, mobile payment
-
-**Payment Processing:**
-- Service: `src/services/payment.ts`
-- Process: Change calculation → Order completion
-- Workflow: All payments currently cash-based
-- No external payment gateway integration
-
-## Third-Party Libraries (Types Only)
-
-**Type Definitions (No Runtime Dependency):**
-- @types/bun (latest)
-- @types/bcryptjs 3.0.0
-- @types/jsonwebtoken 9.0.10
-- @types/cookie 0.5.x (via @elysiajs/cookie dependencies)
+**Local Event Handling:**
+- Audit logging: `src/repositories/audit-log.ts` creates logs on user actions
+- Status callbacks: Order status changes trigger stock movements automatically
 
 ---
 
-*Integration audit: 2026-04-11*
+*Integration audit: 2026-04-12*

@@ -1,272 +1,314 @@
-# Architecture
+# POS System Architecture
 
-**Analysis Date:** 2026-04-11
+**Analysis Date:** 2026-04-12
 
 ## Pattern Overview
 
-**Overall:** Layered MVC-inspired architecture using Elysia.js (Bun web framework) with clear separation between presentation, business logic, and data layers.
+**Overall:** Layered N-tier REST architecture with domain-driven design
 
 **Key Characteristics:**
-- Request flows through routes → pages (rendering) and API endpoints
-- Service layer handles business logic (e.g., payment processing)
-- Repository layer abstracts database operations with Drizzle ORM
-- Middleware handles authentication and authorization
-- Database: SQLite with schema-first approach (Drizzle)
+- Clean separation between HTTP routes, business logic (services), and data access (repositories)
+- Domain-focused repositories organized by functional area (orders, inventory, customers, employees)
+- Transaction-aware operations for critical workflows (order completion with stock decrement, loyalty tracking)
+- Role-based access control (RBAC) enforced at middleware layer
+- Request-response cycle driven by Elysia web framework
+- Database-first with Drizzle ORM providing type-safe queries and migrations
 
 ## Layers
 
-**Pages Layer (Presentation/Views):**
-- Purpose: HTML rendering and server-side page generation
-- Location: `src/pages/`
-- Contains: Page components that render full HTML responses with embedded templates
-- Depends on: Templates, Repositories, Utils (auth)
-- Used by: Main app entry point (`src/index.ts`)
-- Key files:
-  - `src/pages/orders.ts` - Orders management page
-  - `src/pages/inventory.ts` - Inventory/stock management page
-  - `src/pages/menu.ts` - Menu item management
-  - `src/pages/pos.ts` - Point of sale terminal UI
-  - `src/pages/admin.ts` - Administrative dashboard
-  - Auth pages: `src/pages/auth.ts`
-
-**Routes/API Layer:**
-- Purpose: HTTP endpoint definitions, request parsing, response formatting
+**HTTP Routes Layer:**
+- Purpose: Handle incoming requests, parse parameters, delegate to services, return responses
 - Location: `src/routes/`
-- Contains: REST API handlers for all business domains
-- Depends on: Services, Repositories, Middleware (authorization)
-- Used by: Main app setup
-- Pattern: Each domain has its own route file (e.g., `orders.ts`, `inventory.ts`, `menus.ts`)
-- Key routes:
-  - `/api/orders` - Order CRUD, payment processing
-  - `/api/inventory` - Ingredient management, recipes, stock movements
-  - `/api/menus` - Menu items and categories
-  - `/api/tables` - Table management
-  - `/api/auth` - Authentication endpoints
+- Contains: Endpoint definitions for each business domain (orders, menus, tables, customers, inventory, kitchen, employees, etc.)
+- Depends on: Services, repositories, authorization middleware, Zod validation
+- Used by: Client applications (UI, POS terminals)
+- Pattern: Elysia plugin pattern with prefix-based namespacing (e.g., `/api/orders`, `/api/inventory`)
 
-**Services Layer (Business Logic):**
-- Purpose: Complex business logic and cross-cutting concerns
+**Services Layer:**
+- Purpose: Business logic orchestration, cross-cutting concerns, complex calculations
 - Location: `src/services/`
-- Contains: Payment processing, session management, auth logic
-- Depends on: Repositories
-- Used by: Routes
-- Key services:
-  - `src/services/payment.ts` - Payment calculation and order completion logic
-  - `src/services/auth.ts` - JWT token generation and validation
-  - `src/services/session.ts` - Session management
+- Contains: `payment.ts` (payment processing, change calculation, receipt generation), `auth.ts` (JWT token management), `session.ts` (session handling)
+- Depends on: Repositories, domain models
+- Used by: Routes layer
+- Pattern: Stateless service functions, pure functions for calculations
 
-**Repository Layer (Data Access):**
-- Purpose: Database abstraction - all database operations centralized here
+**Repositories Layer:**
+- Purpose: Data access abstraction, database operations, domain-specific queries
 - Location: `src/repositories/`
-- Contains: CRUD operations and queries for each entity
-- Depends on: Database (`src/db/`)
-- Used by: Routes, Services, Pages
-- Key repositories:
-  - `src/repositories/order.ts` - Order queries, creation, status updates, completion
-  - `src/repositories/inventory.ts` - Ingredient CRUD, recipe management, stock movements
-  - `src/repositories/order-item.ts` - Order line items
-  - `src/repositories/menu.ts` - Menu items
-  - `src/repositories/table.ts` - Table management
-  - `src/repositories/category.ts` - Menu categories
-  - `src/repositories/user.ts` - User management
-  - `src/repositories/supplier.ts` - Supplier management
-  - `src/repositories/customer.ts` - Customer profiles
+- Contains: One repository file per major domain entity
+  - `order.ts` (order CRUD, status transitions, financial calculations)
+  - `order-item.ts` (line items for orders)
+  - `inventory.ts` (ingredients, recipes, stock movements, cost calculations)
+  - `customer.ts` (customer profiles, loyalty points, tier management)
+  - `employee.ts` (employee profiles, shifts, attendance)
+  - `kitchen.ts` (kitchen order workflows, item status tracking)
+  - `menu.ts` (menu items, availability)
+  - `table.ts` (dining table management)
+  - `supplier.ts` (supplier master data)
+  - `purchase-orders.ts` (supplier purchase orders)
+  - `user.ts` (system users, authentication)
+  - `settings.ts` (business configuration)
+  - `report.ts`, `financial-report.ts` (reporting queries)
+  - `audit-log.ts` (audit trail)
+  - `category.ts` (menu categories)
+- Depends on: Drizzle ORM, database connection
+- Used by: Services, routes
+- Pattern: CRUD operations with specialized query methods, transaction-aware variants (e.g., `*Tx` functions)
+
+**Middleware Layer:**
+- Purpose: Cross-cutting request/response concerns, authentication, authorization
+- Location: `src/middleware/`
+- Contains: `authorization.ts` (JWT verification, role-based access control)
+- Depends on: Utils/auth
+- Used by: Routes
+- Pattern: Middleware functions return early with redirects/errors if conditions not met
 
 **Database Layer:**
-- Purpose: Database connection, schema definition
+- Purpose: Database connection pooling, ORM initialization, schema definition
 - Location: `src/db/`
 - Contains:
-  - `src/db/index.ts` - Database connection setup with Drizzle
-  - `src/db/schema.ts` - Complete schema definitions (429 lines)
-- Provides: Drizzle ORM instance for queries
+  - `index.ts` - Drizzle ORM instance with MySQL2 connection pool (5 connections)
+  - `schema.ts` - All table definitions with relations, indexes, enums, and type exports
+- Depends on: MySQL2, Drizzle ORM, environment configuration
+- Used by: Repositories
+- Pattern: Single exported `db` instance, relations defined with Drizzle `relations()`
 
-**Templates Layer (HTML/UI):**
-- Purpose: Reusable HTML fragments for page composition
-- Location: `src/templates/`
-- Contains: Common UI components (navbar, sidebar, footer, etc.)
-- Used by: Pages layer
-- Key templates:
-  - `src/templates/navbar.ts` - Navigation bar HTML
-  - `src/templates/sidebar.ts` - Sidebar navigation
-  - `src/templates/footer.ts` - Footer component
-  - `src/templates/html.ts` - Main HTML wrapper
-  - `src/templates/common-scripts.ts` - Shared JavaScript
+**Template Layer (Server-Side Rendering):**
+- Purpose: HTML page rendering, UI template generation
+- Location: `src/templates/`, `src/pages/`
+- Contains: HTML builders for common UI elements (navbar, sidebar, footer, scripts), page-specific templates
+- Depends on: Elysia
+- Used by: Routes (returns HTML responses)
+- Pattern: String concatenation-based HTML generation
 
-**Middleware Layer (Cross-Cutting Concerns):**
-- Purpose: Request authentication, authorization, role-based access control
-- Location: `src/middleware/`
-- Contains:
-  - `src/middleware/authorization.ts` - Role checking, permission validation
-- Used by: Routes (via `onBeforeHandle` or direct checks)
-
-**Utilities Layer:**
-- Purpose: Helper functions and shared utilities
+**Utils Layer:**
+- Purpose: Helper functions, cross-cutting utilities
 - Location: `src/utils/`
-- Contains:
-  - `src/utils/auth.ts` - JWT token handling, cookie parsing
-  - `src/utils/session.ts` - Session utilities
-
+- Contains: `auth.ts` (JWT creation/verification, cookie parsing, token extraction)
+- Depends on: jsonwebtoken, external libraries
+- Used by: Services, middleware
 
 ## Data Flow
 
-**Order Creation & Payment Flow:**
+### Primary Order Management Flow
 
-1. User accesses POS terminal (`/pos`) → Page renders interactive UI
-2. User adds menu items to order → Frontend calls `/api/orders/table/:id/items` (POST)
-3. Route receives request → Calls `orderItemRepo.addItem()`
-4. Repository inserts item, calls `orderRepo.calculateTotals()` → Database updated
-5. User clicks "Pay" → Frontend calls `/api/orders/:id/complete` (POST)
-6. Route → Calls `paymentService.processPayment()` → Route calls `orderRepo.completeOrder()`
-7. `completeOrder()` sets order status='completed' and triggers stock decrement via `decrementStockForOrder()`
-8. Stock decrement iterates recipe items → calls `inv.adjustStock()` for each ingredient
-9. Response returns completed order with receipt data → Frontend generates receipt
+**Order Creation:**
+1. Client → `POST /api/orders/with-items` (routes/orders.ts)
+2. Route validates request, checks authorization
+3. Route calls `orderRepo.createOrder()` (repositories/order.ts)
+4. Order created with status='active', subtotal=0, tax=0
+5. Returns new order with assigned ID
 
-**Stock Decrement Logic (Phase 3 Implementation):**
+**Item Addition to Order:**
+1. Client → `POST /api/order-items` (routes/orders.ts)
+2. Route validates item and menu existence
+3. Route calls `orderItemRepo.addItemToOrder()` (repositories/order-item.ts)
+4. OrderItem created with priceAtOrder captured at time of addition
+5. Route calls `orderRepo.calculateTotals()` (repositories/order.ts)
+6. Totals recalculated: subtotal (sum of qty × priceAtOrder), tax (subtotal × 0.1), total = subtotal + tax
 
-1. Order marked as "completed" (not during draft/active states)
-2. `src/repositories/order.ts` → `completeOrder()` at line 91-112:
-   - Sets `status = 'completed'` and `completedAt`
-   - Conditionally calls `decrementStockForOrder(orderId)` if `markCompleted = true`
-3. `src/repositories/inventory.ts` → `decrementStockForOrder()` at line 145-172:
-   - Validates order is completed (line 151)
-   - Fetches order items and their recipes
-   - For each recipe ingredient: calls `adjustStock()` with negative quantity
-   - Each adjustment creates a stock movement record
-4. Atomicity: All stock operations occur within single database transaction context
+**Stock-Critical Order Completion Flow (TRANSACTIONAL):**
+1. Client → `POST /api/orders/:id/payment` with amountPaid
+2. Route calls `paymentService.processPayment(orderId, amountPaid)` (services/payment.ts)
+3. Service validates: order status='active', amountPaid >= order.total
+4. Service calls `orderRepo.completeOrder(orderId, amountPaid, markCompleted=true)` (repositories/order.ts)
+5. **TRANSACTION BEGINS:**
+   - Update order: status='completed', amountPaid, changeDue, completedAt=now
+   - Call `inventoryRepo.decrementStockForOrderTx(tx, orderId)` **WITHIN SAME TRANSACTION**
+     - Fetch all orderItems for the order
+     - For each item: find recipes (ingredient requirements)
+     - For each ingredient: validate sufficient stock, decrement, create stockMovement record
+     - If insufficient stock → throw error → **ENTIRE TRANSACTION ROLLS BACK**
+   - If customer attached to order: call `customerRepo.updateCustomerVisitTx(tx, customerId, total)` and `customerRepo.addLoyaltyPointsTx(tx, customerId, points, orderId)`
+   - **TRANSACTION COMMITS** - all operations atomic
+6. Return completed order to client
 
-**Inventory Lookup Flow:**
+**Key Transaction Properties:**
+- **Atomicity:** Stock, order status, customer loyalty all succeed or all fail together
+- **Consistency:** Stock never decremented if order completion fails; inventory counts always accurate
+- **Isolation:** Multiple payment requests for same order won't cause race conditions (order status check prevents)
+- **Durability:** MySQL persists after transaction commit
 
-1. User views `/inventory` → Page fetches all ingredients via `inv.getAllIngredients()`
-2. Page displays current stock, min stock, status indicators
-3. User filters/sorts inventory via JavaScript on client → Filters applied to rendered table rows
-4. User clicks "Stok" → Shows stock adjustment modal
-5. User submits adjustment → Calls `/api/inventory/stock-movements` (POST)
-6. Route receives request → Calls `inv.adjustStock()` with type ('in', 'out', 'adjustment', 'waste')
-7. Repository updates `ingredients.currentStock` and creates `stockMovements` entry
+### Kitchen Workflow Flow
 
-**Menu Management Flow:**
+1. Order created with status='active', kitchenStatus='pending'
+2. Kitchen staff views active orders → `GET /api/kitchen/orders`
+3. Staff marks order as cooking → `PATCH /api/kitchen/orders/:id` with kitchenStatus='cooking', cookingStartedAt=now
+4. Items prepared, staff marks ready → `PATCH /api/kitchen/orders/:id` with kitchenStatus='ready', readyAt=now
+5. Waitress serves to customer → `PATCH /api/kitchen/orders/:id` with kitchenStatus='served'
+6. Payment processed → order transitions to status='completed'
 
-1. Admin accesses `/menu` page
-2. Page renders menu items with categories
-3. CRUD operations through `/api/menus` routes
-4. Menu items linked to recipes (many-to-many via `recipes` table)
-5. Recipe defines ingredient quantities for each menu item
+### Inventory Management Flow
 
-**State Management:**
+1. Admin views ingredients → `GET /api/inventory/ingredients`
+2. Ingredients show currentStock vs minStock
+3. If currentStock < minStock, flagged in UI for reordering
+4. Admin creates purchase order with supplier → `POST /api/purchase-orders`
+5. Items received → update stockMovement type='in', increment currentStock
+6. When order completed (payment processed) → stock automatically decremented via decrementStockForOrderTx
 
-- **Order Status Flow:** `draft` → `active` → `completed` OR `cancelled`
-- **Kitchen Status:** `pending` → `cooking` → `ready` → `served` (parallel to order status)
-- **Table Status:** `available` ↔ `occupied`
-- **Item Status:** `pending` → `cooking` → `ready` → `served`
-- **Stock Levels:** Dynamic based on purchases (decrements) and restocking (increments)
+### Customer Loyalty Flow
+
+1. During order completion (in transaction), if customerId attached:
+   - Calculate loyalty points earned: floor(order.total × 0.01)
+   - Insert loyaltyTransaction record with type='earn', points, referenceId=orderId
+   - Increment customer.loyaltyPoints by points
+   - Update customer tier based on totalSpent:
+     - regular: any
+     - silver: totalSpent >= 1,000,000
+     - gold: totalSpent >= 5,000,000
+2. Customer can redeem points → decrements loyaltyPoints, logs redemption transaction
+
+### Employee Shift & Attendance Flow
+
+1. Employee clocks in → `POST /api/shifts/clock-in` creates attendance record
+2. Shift opened → `POST /api/shifts/open` with startingCash (opening balance)
+3. Orders processed by this employee throughout shift → orders.userId links to employee
+4. Shift closed → `POST /api/shifts/:id/close` with actualCash
+5. System calculates: expectedCash = startingCash + totalSalesInShift
+6. Compares actualCash vs expectedCash, logs difference
+
+## State Management
+
+**Order Lifecycle States:**
+- `draft` (initial, not used actively)
+- `active` (items being added)
+- `completed` (payment processed, stock decremented)
+- `cancelled` (order voided)
+
+**Kitchen Item States:**
+- `pending` (awaiting cooking)
+- `cooking` (on stove)
+- `ready` (complete, waiting service)
+- `served` (delivered to customer)
+
+**Kitchen Order States:**
+- `pending` (not started)
+- `cooking` (preparation in progress)
+- `ready` (food ready for service)
+- `served` (delivered to customer)
+
+**Table Status:**
+- `available` (no active order)
+- `occupied` (has active order)
+
+**Shift Status:**
+- `open` (cashier on duty)
+- `closed` (shift ended, reconciled)
 
 ## Key Abstractions
 
 **Order Entity:**
-- Purpose: Represents a single customer transaction/table session
-- Examples: `src/repositories/order.ts`, `src/pages/orders.ts`, `src/routes/orders.ts`
-- Pattern: Order aggregates multiple order items; order controls table occupancy
-- Key states: draft (being built), active (items added), completed (paid), cancelled
+- Purpose: Central revenue document, tracks transaction lifecycle
+- Examples: `src/repositories/order.ts`, `src/routes/orders.ts`
+- Pattern: Status-driven state machine, contains computed totals (subtotal, tax, total)
+- Relations: 1:N orderItems, M:1 table, M:1 user, 1:N stockMovements (via reference)
 
 **OrderItem Entity:**
-- Purpose: Individual line item in an order (a menu selection)
+- Purpose: Line item for orders, captures menu prices at order time
 - Examples: `src/repositories/order-item.ts`
-- Pattern: Links orders → menus; stores price snapshot at order time
-- Tracks kitchen status independently (pending/cooking/ready/served)
+- Pattern: Immutable price capture (priceAtOrder), quantity variable
+- Relations: M:1 order, M:1 menu
 
 **Recipe Entity:**
-- Purpose: Defines ingredient composition for each menu item
+- Purpose: Maps menu items to ingredient requirements
 - Examples: `src/repositories/inventory.ts`
-- Pattern: Many-to-many relationship between menus and ingredients
-- Enables automatic stock decrement calculations
-
-**Ingredient Entity:**
-- Purpose: Raw materials/stock items
-- Examples: `src/repositories/inventory.ts`
-- Pattern: Tracks current stock, min stock (reorder point), cost per unit
-- Immutable once used in completed orders (via stock movements)
+- Pattern: Specifies quantity needed per menu item for production
+- Relations: M:1 menu, M:1 ingredient
+- Cardinality: Single menu can have multiple ingredients (M:N via recipes)
 
 **StockMovement Entity:**
 - Purpose: Audit trail for all inventory changes
-- Pattern: Immutable log entries; reason and type track why stock changed
-- Enables: Stock history, traceability, cost analysis
+- Examples: `src/repositories/inventory.ts`
+- Pattern: Immutable log of every stock change with before/after values
+- Types: 'in' (purchase received), 'out' (used in order), 'adjustment' (manual correction), 'waste' (spoilage)
+- Reference tracking: referenceId links to originating order/PO for traceability
+
+**Customer Entity:**
+- Purpose: Loyalty tracking, repeat customer identification
+- Examples: `src/repositories/customer.ts`
+- Pattern: Tracks lifetime value (totalSpent, totalVisits), loyalty tier
+- Relations: 1:N loyaltyTransactions, 1:N orders
+
+**Employee Entity:**
+- Purpose: Staff management, shift tracking, attendance
+- Examples: `src/repositories/employee.ts`
+- Pattern: 1:1 relationship with user (employment details separate from login account)
+- Relations: 1:N shifts, 1:N attendance, M:1 user
 
 ## Entry Points
 
-**Web Server:**
+**Server Start:**
 - Location: `src/index.ts`
-- Triggers: Application startup (Bun runtime)
-- Responsibilities: Initialize Elysia app, register all routes and pages, seed default data, listen on PORT
+- Triggers: `npm run dev` or `bun run src/index.ts`
+- Responsibilities:
+  - Initialize Elysia app
+  - Mount cookie middleware
+  - Register all route plugins (routes/*)
+  - Register all page plugins (pages/*)
+  - Seed default settings and categories on startup
+  - Listen on PORT (default 3000)
+  - Serve static CSS files from `/styles/:path`
+  - Serve page scripts from `/pages/:path`
 
-**Browser Entry (Pages):**
-- `/` → Redirects to `/pos` or `/login`
-- `/login` → Authentication page
-- `/dashboard` → Overview page
-- `/pos` → Main POS terminal interface
-- `/admin` → Admin panel
-- `/orders` → Orders history/management
-- `/inventory` → Stock/ingredient management
-- `/menu` → Menu item management
-- `/categories` → Menu categories
-- `/tables` → Table management
-- `/kitchen` → Kitchen display system
-- `/reports` → Sales/analytics reports
-
-**API Entry Points:**
-- All prefixed with `/api/`
-- Domains: `orders`, `inventory`, `menus`, `tables`, `auth`, `users`, `dashboard`, `reports`, `kitchen`, `suppliers`, `categories`
+**HTTP Route Examples:**
+- `GET /health` - Liveness probe
+- `GET /api/orders/today` - List today's orders
+- `POST /api/orders/with-items` - Create order with initial items
+- `POST /api/orders/:id/payment` - Process payment, trigger stock decrement
+- `GET /api/kitchen/orders` - List active kitchen orders
+- `PATCH /api/kitchen/orders/:id` - Update kitchen status
+- `GET /api/inventory/ingredients` - List ingredients with stock levels
+- `POST /api/inventory/stock-movement` - Manual stock adjustment
+- `GET /api/customers/:id` - Fetch customer with loyalty history
+- `POST /api/employees/shifts/open` - Open new shift
+- `GET /pages/:path` - Fetch page-specific JavaScript
 
 ## Error Handling
 
-**Strategy:** Validation at route level, exception propagation from repositories
+**Strategy:** Synchronous error handling with transaction rollback
 
 **Patterns:**
+- Route layer: Return `{ error: 'message' }` JSON for validation failures
+- Service layer: Throw Error objects with descriptive messages; caller catches and returns to client
+- Repository layer (transactional): Throw Error objects; Drizzle transaction context automatically rolls back
+- Database errors: MySQL errors bubble up as exceptions, caught at service layer
 
-1. **Route-level validation:**
-   - Request body validation using Elysia's `t.Object()` schema
-   - Example: `src/routes/inventory.ts` line 24-31 validates ingredient creation payload
-
-2. **Repository error handling:**
-   - Returns `null` on not-found conditions (e.g., `getOrderById()` returns `null`)
-   - Throws errors for data integrity issues
-   - Example: `src/repositories/order.ts` line 33-35
-
-3. **Service-layer error handling:**
-   - Throws descriptive errors for business rule violations
-   - Example: `src/services/payment.ts` line 9-19 validates payment amount
-
-4. **Page-level error handling:**
-   - Redirects to login on auth failure: `redirectToLogin()`
-   - Returns 403 Forbidden for permission denials
-   - Example: `src/pages/inventory.ts` line 20-22
+**Examples:**
+- Insufficient stock → `decrementStockForOrderTx` throws → transaction rolls back → order remains active, payment returns error
+- Invalid role → `requireRole()` middleware returns 403 Forbidden
+- Unauthorized request → `getUserFromRequest()` returns null → route returns `{ error: 'Unauthorized' }`
+- Validation failure → Zod schema validation fails → route returns error
 
 ## Cross-Cutting Concerns
 
-**Authentication:**
-- Mechanism: JWT tokens stored in `pos_session` cookie
-- Implementation: `src/utils/auth.ts` - JWT verification
-- Token payload: `{ userId, email, name, role }`
-- Token secret: `JWT_SECRET` environment variable (fallback: 'pos-secret-key-change-in-production')
-
-**Authorization:**
-- Roles: `super_admin`, `admin_restoran`, `kasir`, `waitress`, `chef`
-- Role-based access control in middleware: `src/middleware/authorization.ts`
-- Convenience middleware: `requireAdmin()`, `requirePosAccess()`, `requireOrderAccess()`, `requireSuperAdmin()`
-- Per-endpoint role checks: e.g., `/api/orders/complete` requires `kasir` or `admin_restoran`
-
-**Logging:**
-- Audit logs via `src/repositories/audit-log.ts`
-- Tracks: userId, action, details, timestamp
-- Called manually where needed (not automatic)
+**Logging:** 
+- Approach: `console.error()` and `console.log()` for critical events
+- Patterns: Error on failed stock decrement, log on skipped operations (idempotent checks)
+- Location: Throughout repositories and services
 
 **Validation:**
-- Schema validation at route layer using Elysia's type system
-- Business logic validation in services and repositories
-- Example: Stock adjustment checks for sufficient inventory before allowing negative adjustments
+- Approach: Zod schemas at route layer for request body/parameters
+- Patterns: `body: t.Object({ ... })` in Elysia route definitions
+- Example: `orderRoutes.post('/', ..., { body: t.Object({ tableId: t.Number(), userId: t.Number() }) })`
 
-**Transactions:**
-- Handled by Drizzle ORM's `db.transaction()` in critical operations
-- Stock decrement and order completion are atomic within `completeOrder()`
+**Authentication:**
+- Approach: JWT tokens stored in cookies, verified per request
+- Patterns: `getTokenFromCookies()` extracts from request, `verifyToken()` validates signature
+- Flow: Login creates token → stored in httpOnly cookie → included in subsequent requests
+- Location: `src/utils/auth.ts`, `src/middleware/authorization.ts`
+
+**Authorization:**
+- Approach: Role-based access control (RBAC)
+- Roles: super_admin, admin_restoran, kasir, waitress, chef
+- Patterns: `requireRole(['kasir', 'admin_restoran'])` middleware, `getUserFromRequest()` gets current user
+- Example: Order payment restricted to kasir/admin roles
+
+**Multi-Tenancy (Business Settings):**
+- Approach: Single-instance (per restaurant deployment)
+- Customization: `businessSettings`, `taxSettings`, `receiptSettings`, `operatingHours` tables
+- Pattern: Settings loaded per request, not cached
 
 ---
 
-*Architecture analysis: 2026-04-11*
+*Architecture analysis: 2026-04-12*
