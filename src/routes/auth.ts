@@ -6,11 +6,17 @@ import * as userRepo from '../repositories/user';
 import * as auditRepo from '../repositories/audit-log';
 import { registerSchema, loginSchema, changePasswordSchema, resetPasswordSchema } from '../schemas/auth';
 import { validateBody } from '../schemas/index';
+import { checkRateLimit, resetRateLimit } from '../middleware/rate-limit';
 
 const COOKIE_NAME = 'pos_session';
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
-  .post('/register', async ({ body, cookie, headers }) => {
+  .post('/register', async ({ body, cookie, headers, ip }) => {
+    const clientIp = ip || 'unknown';
+    if (!checkRateLimit(clientIp, 'register')) {
+      return { error: 'Too many registration attempts. Please try again later.', status: 429 };
+    }
+
     const validation = validateBody(registerSchema)(body);
     if (!validation.success) {
       return { error: validation.error };
@@ -28,13 +34,19 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     
     try {
       const result = await authService.register(email, password, name, assignedRole);
+      resetRateLimit(clientIp);
       return { success: true, user: result };
     } catch (e: any) {
       return { error: e.message };
     }
   })
   
-   .post('/login', async ({ body, cookie }) => {
+   .post('/login', async ({ body, cookie, ip }) => {
+    const clientIp = ip || 'unknown';
+    if (!checkRateLimit(clientIp, 'login')) {
+      return { error: 'Too many login attempts. Please try again later.', status: 429 };
+    }
+
     const validation = validateBody(loginSchema)(body);
     if (!validation.success) {
       return { error: validation.error };
@@ -59,6 +71,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         ...createSessionCookie()
       };
       
+      resetRateLimit(clientIp);
       return { success: true, user: result.user };
     } catch (e: any) {
       return { error: 'Invalid credentials' };
