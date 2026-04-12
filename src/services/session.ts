@@ -1,16 +1,17 @@
 import jwt from 'jsonwebtoken';
 import type { CookieOptions } from '@elysiajs/cookie';
 import type { TokenPayload } from './auth';
+import config from '../config';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pos-secret-key-change-in-production';
+const JWT_SECRET = config.jwt.secret;
 const COOKIE_NAME = 'pos_session';
 
 export function createSessionCookie(): CookieOptions {
   return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax',
-    maxAge: 24 * 60 * 60 * 1000,
+    httpOnly: config.cookie.httpOnly,
+    secure: config.cookie.secure,
+    sameSite: config.cookie.sameSite,
+    maxAge: config.cookie.maxAge,
     path: '/',
   };
 }

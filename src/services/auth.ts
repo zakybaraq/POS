@@ -1,8 +1,9 @@
 import jwt from 'jsonwebtoken';
 import * as userRepo from '../repositories/user';
+import config from '../config';
 
-const JWT_SECRET = process.env.JWT_SECRET || 'pos-secret-key-change-in-production';
-const JWT_EXPIRES = '24h';
+const JWT_SECRET = config.jwt.secret;
+const JWT_EXPIRES = config.jwt.expiresIn;
 
 export interface TokenPayload {
   userId: number;

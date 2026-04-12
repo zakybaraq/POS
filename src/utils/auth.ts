@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
+import config from '../config';
 
-export const JWT_SECRET = process.env.JWT_SECRET || 'pos-secret-key-change-in-production';
+const JWT_SECRET = config.jwt.secret;
 
 export interface TokenPayload {
   userId: number;
