@@ -1,830 +1,394 @@
-# POS Application Hardening Roadmap
+# POS Application v2.0 Roadmap
 
-**Status:** Comprehensive codebase analysis complete
-**Date:** 2026-04-12
-**Scope:** Full POS system (not just stock sync)
-**Current State:** Functional but high-risk for production (0% test coverage, multiple race conditions, security gaps)
+**Status:** Planning  
+**Version:** 2.0.0  
+**Theme:** Real-time Notifications & Dashboard  
+**Date:** 2026-04-13  
+**Previous:** v1.0 Complete ✅
 
 ---
 
 ## Executive Summary
 
-The POS application has a solid 3-layer architecture (Routes → Services → Repositories → Drizzle ORM → MySQL) with **correct atomic stock decrement on order completion**. However, it lacks:
-
-- **Testing:** 0% coverage; critical financial paths (payment, stock, loyalty) untested
-- **Data Integrity:** Race conditions in order item operations, table transfers, order cancellations
-- **Security:** Hardcoded JWT secrets (fallback), unauthenticated password reset, no rate limiting, role assignment bypass
-- **Observability:** Ad-hoc console logging, no structured logging or request tracing
-- **Validation:** Zod imported but unused; ad-hoc checks throughout
-
-**Risk Level:** HIGH for production (financial + inventory data at risk)
+Build real-time notification system and advanced reporting dashboard to improve operational visibility and user experience. This milestone adds WebSocket capabilities for live updates and creates a comprehensive dashboard for monitoring restaurant operations in real-time.
 
 ---
 
 ## Phased Implementation Plan
 
-### Phase 1: Critical Data Integrity Fixes (Week 1)
-**Priority:** CRITICAL | Effort: 3-4 days | Risk: Medium
+### Phase 6: WebSocket Infrastructure & Order Notifications
+**Priority:** HIGH | Effort: 5-6 days | Risk: Medium
 
-**Why:** Race conditions in production can cause:
-- Order totals to be incorrect (if item ops race with calculateTotals)
-- Tables to be both occupied and available simultaneously (transfer ops)
-- Stock to not be refunded on order cancellation (inconsistent inventory)
+**Why:** Real-time updates improve kitchen efficiency and customer service by ensuring staff are immediately notified of order changes.
 
-#### 1.1 Fix Order Item Operation Race Conditions
-**What:** Wrap order item add/remove/update operations in database transactions
+#### 6.1 WebSocket Server Setup
+**What:** Set up WebSocket server with authentication and connection management
 
 **How:**
-1. Create transactional variants of `addOrderItem()`, `updateOrderItemQuantity()`, `removeOrderItem()`
-2. In routes/orders.ts, use transactional wrappers for endpoints:
-   - POST /api/orders/:id/items (add item)
-   - PUT /api/orders/:id/items/:itemId (update quantity/notes)
-   - DELETE /api/orders/:id/items/:itemId (remove item)
-3. Ensure `calculateTotals()` is called inside the same transaction to prevent intermediate state
+1. Add WebSocket dependency (Socket.io or Elysia WebSocket)
+2. Configure WebSocket server in src/index.ts
+3. Implement JWT authentication for connections
+4. Create room/channel architecture (kitchen, cashier, admin)
+5. Implement connection heartbeat/ping-pong
+6. Add error handling and reconnection logic
+
+**Files to create:**
+- `src/websocket/index.ts` - WebSocket server setup
+- `src/websocket/auth.ts` - JWT authentication middleware
+- `src/websocket/rooms.ts` - Room management
 
 **Files to modify:**
-- `src/repositories/order-item.ts` - Add TX versions of CRUD methods
-- `src/routes/orders.ts:114-122, 170-175, 188-201` - Use TX variants
+- `src/index.ts` - Add WebSocket registration
+- `package.json` - Add WebSocket dependency
 
 **Success Criteria:**
-- Concurrent add/remove operations on same order result in consistent state
-- Total is calculated after all item operations commit atomically
-- No orphaned or missing items
+- WebSocket connections authenticate via JWT
+- Clients can join appropriate rooms
+- Connection stays alive with heartbeat
+- Reconnection works on network failure
+
+**Estimate:** 8 hours
+
+---
+
+#### 6.2 Order Notification Events
+**What:** Broadcast order events to kitchen and cashier in real-time
+
+**How:**
+1. Create notification service in `src/services/notifications.ts`
+2. Emit events on order lifecycle changes:
+   - `order:created` → Kitchen room
+   - `order:status-changed` → Kitchen, Cashier rooms
+   - `order:completed` → Cashier room
+   - `payment:received` → Cashier room
+3. Include full order context in notifications
+4. Add visual/audio indicator in UI
+
+**Files to create:**
+- `src/services/notifications.ts` - Notification service
+- `src/websocket/events/order-events.ts` - Order event handlers
+
+**Files to modify:**
+- `src/routes/orders.ts` - Emit events on order changes
+- `src/services/payment.ts` - Emit on payment completion
+- `src/pages/kitchen.ts` - Subscribe to kitchen events
+- `src/pages/pos.ts` - Subscribe to cashier events
+
+**Success Criteria:**
+- Kitchen receives new order notification within 1 second
+- Order status updates sync across all connected clients
+- Notifications include full order details
+- Visual and audio alerts work in UI
+
+**Estimate:** 10 hours
+
+---
+
+**Total Phase 6:** ~18 hours | Risk reduction: Medium | Feature: WebSocket infrastructure
+
+---
+
+### Phase 7: Inventory Alert System
+**Priority:** HIGH | Effort: 3-4 days | Risk: Low
+
+**Why:** Prevent stockouts by alerting staff when inventory falls below thresholds, ensuring continuous kitchen operations.
+
+#### 7.1 Low Stock Threshold Configuration
+**What:** Allow setting minimum stock levels per ingredient
+
+**How:**
+1. Add `minStockThreshold` field to ingredients table
+2. Create settings UI for threshold configuration
+3. Default thresholds based on average usage
+4. Validation for reasonable threshold values
+
+**Files to modify:**
+- `src/db/schema.ts` - Add threshold field
+- `src/routes/inventory.ts` - Add threshold update endpoint
+- `src/pages/inventory.ts` - Add threshold settings UI
+
+**Success Criteria:**
+- Thresholds configurable per ingredient
+- UI shows current threshold and suggested values
+- Changes persist in database
+- Validation prevents invalid values
 
 **Estimate:** 4 hours
 
 ---
 
-#### 1.2 Fix Table Status Race Condition in Order Transfer
-**What:** Make table status updates atomic during order transfer
+#### 7.2 Real-time Stock Monitoring
+**What:** Monitor stock levels and emit alerts when below threshold
 
 **How:**
-1. Create `transferOrderToTable(orderId, sourceTableId, targetTableId)` with single transaction
-2. Inside transaction:
-   - Validate target table is available (status='available')
-   - Update source table status to 'available'
-   - Update target table status to 'occupied'
-   - Update order.tableId
-3. Roll back entire operation if any step fails
-
-**Files to modify:**
-- `src/repositories/table.ts` - Add transactional transfer method
-- `src/routes/orders.ts:274-291` - Use atomic transfer instead of sequential updates
-
-**Success Criteria:**
-- No scenario where both tables are marked occupied
-- No race condition between availability check and status update
-- Both tables remain consistent even on network failure during transfer
-
-**Estimate:** 3 hours
-
----
-
-#### 1.3 Fix Order Cancellation Stock Refund Gap
-**What:** Add stock refund logic when orders are cancelled; prevent double-decrement
-
-**How:**
-1. Determine cancellation rules: Are only unpaid orders refundable? Partially paid?
-2. Create `refundStockForOrderTx(tx, orderId)` as inverse of `decrementStockForOrderTx()`
-3. Update cancellation endpoint to:
-   - Check if stock was already decremented (order completed before cancellation)
-   - If yes, call refund logic within same transaction
-   - Update order.status to 'cancelled'
-   - Update table.status back to 'available'
-4. Use stockMovements.reason field to track refunds (reason: "Refund for order #X")
-
-**Files to modify:**
-- `src/repositories/inventory.ts` - Add `refundStockForOrderTx()`
-- `src/routes/orders.ts:231-253` - Integrate refund logic
-- `src/db/schema.ts` - Consider adding order.completedStock boolean flag to track if stock was already decremented
-
-**Success Criteria:**
-- Cancelled orders have stock refunded if applicable
-- stockMovements table shows clear in/out pairs for refunds
-- No double-decrement scenarios
-
-**Estimate:** 5 hours
-
----
-
-#### 1.4 Clarify Order Completion Payment Logic
-**What:** Separate "mark complete" from "finalize payment" to remove ambiguity
-
-**How:**
-1. Create two distinct operations:
-   - `completeOrder(orderId, amountPaid)` - Called by payment service; marks status='completed' and decrements stock
-   - `finishOrder(orderId)` - Called by manual finish endpoint; only marks status='completed' without payment; **does NOT decrement stock**
-2. Update routes to call appropriate method:
-   - POST /api/orders/:id/pay → paymentService.processPayment() → completeOrder() [stock decrements]
-   - POST /api/orders/:id/finish → finishOrder() [no stock decrement, table stays occupied]
-3. Document business rule: Stock only decrements when payment is made or finalize endpoint is called with explicit flag
-
-**Files to modify:**
-- `src/repositories/order.ts` - Add `finishOrder()` separate from `completeOrder()`
-- `src/routes/orders.ts:268` - Use new `finishOrder()` method
-- `src/services/payment.ts` - Ensure calls `completeOrder()` with amountPaid
-
-**Success Criteria:**
-- Clear distinction between paid (stock decremented) and unpaid (stock not decremented) order completion
-- All code paths explicit about whether stock decrements
-- Documentation updated with business rule
-
-**Estimate:** 3 hours
-
-**Total Phase 1:** ~15 hours | Risk reduction: High | Business impact: Critical
-
----
-
-### Phase 2: Security Hardening (Week 1-2)
-**Priority:** HIGH | Effort: 2-3 days | Risk: Medium
-
-**Why:** Security gaps allow unauthorized access and data breaches (password reset bypass, role assignment bypass, brute force)
-
-#### 2.1 Fix JWT Secret Management
-**What:** Eliminate hardcoded fallback JWT secret; enforce environment variable requirement
-
-**How:**
-1. Create `src/config.ts` with centralized config loading
-2. At startup, throw error if `JWT_SECRET` not set:
-   ```typescript
-   const JWT_SECRET = process.env.JWT_SECRET;
-   if (!JWT_SECRET) throw new Error('JWT_SECRET env var required');
-   ```
-3. Remove hardcoded fallback from all files: `src/utils/auth.ts`, `src/services/auth.ts`, `src/services/session.ts`
-4. Update `.env.example` to require JWT_SECRET
-
-**Files to modify:**
-- `src/config.ts` (new) - Centralized config with validation
-- `src/utils/auth.ts:3` - Remove hardcoded secret, import from config
-- `src/services/auth.ts:4` - Remove hardcoded secret, import from config
-- `src/services/session.ts:5` - Remove hardcoded secret, import from config
-- `.env.example` - Add JWT_SECRET requirement
-
-**Success Criteria:**
-- Application fails to start if JWT_SECRET not set
-- Single source of truth for all secrets
-- No hardcoded secrets in code
-
-**Estimate:** 2 hours
-
----
-
-#### 2.2 Fix Password Reset Authentication
-**What:** Require authentication for password reset; add reset token flow
-
-**How:**
-1. Option A (Recommended): Require active session
-   - Endpoint: PUT /api/auth/reset-password
-   - Required: `oldPassword` (current password) + `newPassword`
-   - Verify requester is authenticated
-   - Verify `oldPassword` matches current hash
-   - Hash new password and update
-
-2. Option B: Email-based reset token (if "forgot password" needed)
-   - Endpoint for request: POST /api/auth/forgot-password (email only)
-   - Generate short-lived token (15 min), store in DB
-   - Send token to email (requires email service integration)
-   - Endpoint for reset: POST /api/auth/reset-password-token (token, newPassword)
-   - Verify token exists, not expired, matches email
-
-**Files to modify:**
-- `src/routes/auth.ts:95-111` - Update reset-password endpoint
-- `src/repositories/user.ts` - Add token table if doing Option B
-- `src/utils/auth.ts` - Add password verification function
-
-**Success Criteria:**
-- Password reset requires prior authentication (active session or correct old password)
-- No email enumeration possible
-- Reset tokens are short-lived and invalidated after use
-
-**Estimate:** 3 hours
-
----
-
-#### 2.3 Fix Cookie Security Flags
-**What:** Always use secure cookies; implement CSRF protection
-
-**How:**
-1. In `src/services/session.ts`, set `secure: true` unconditionally:
-   ```typescript
-   const cookieOptions = {
-     secure: true,  // Always secure; use localhost:80 for local dev if needed
-     httpOnly: true,
-     sameSite: 'strict', // Add CSRF protection
-     maxAge: 86400 * 7, // 7 days
-   };
-   ```
-2. For local development, add `.env` var `COOKIE_SECURE=false` if testing requires HTTP
-3. Add CSRF token middleware for state-changing operations (POST/PUT/DELETE):
-   - Generate token on GET requests (form pages)
-   - Validate token on state-change requests
-   - Use `src/middleware/csrf.ts` (new)
-
-**Files to modify:**
-- `src/services/session.ts:11` - Set secure: true always
-- `src/middleware/csrf.ts` (new) - Add CSRF token validation
-- `src/index.ts` - Register CSRF middleware
-
-**Success Criteria:**
-- Cookies always sent over secure transport
-- CSRF tokens validated on state-changing endpoints
-- No MITM cookie theft possible
-
-**Estimate:** 3 hours
-
----
-
-#### 2.4 Add Input Validation on All Routes
-**What:** Implement Zod schemas for all POST/PUT endpoints; validate types and ranges
-
-**How:**
-1. Create `src/schemas/` with Zod schemas for each resource:
-   - `schemas/order.ts` - Order creation, item addition
-   - `schemas/inventory.ts` - Stock adjustments (positive integers only)
-   - `schemas/settings.ts` - Business settings validation
-   - `schemas/menu.ts` - Menu creation (bounds on description length, category)
-2. In each route handler, validate request body with `schema.parse(body)` or `schema.safeParse(body)`
-3. Return 400 with validation errors if parsing fails
-4. Add numeric bounds: `currentStock >= 0`, `price > 0`, `quantity > 0`
-
-**Files to modify:**
-- `src/schemas/` (new directory) - All validation schemas
-- `src/routes/inventory.ts:13-31` - Add schema validation
-- `src/routes/settings.ts` - Add schema validation
-- `src/routes/menus.ts` - Add schema validation
-- `src/routes/orders.ts` - Add schema validation
-
-**Success Criteria:**
-- All POST/PUT endpoints validate input with Zod
-- Negative stock, invalid prices rejected at route entry
-- No unvalidated data reaches database layer
-
-**Estimate:** 4 hours
-
----
-
-#### 2.5 Fix Auth Endpoint Role Assignment Bypass
-**What:** Reject arbitrary role assignments; default to 'kasir' for new users
-
-**How:**
-1. In `/api/auth/register` endpoint:
-   - Remove role parameter from request
-   - Always default to role='kasir'
-   - Only admins can assign roles post-registration via `/api/users/:id/role` (new endpoint)
-2. Add permission check: Only users with role='admin_restoran' or 'super_admin' can assign roles
-3. Add audit logging: Log all role assignment attempts
-
-**Files to modify:**
-- `src/routes/auth.ts:32-41` - Remove role parameter handling
-- `src/routes/users.ts` (new endpoint) - PUT /api/users/:id/role with admin check
-- `src/repositories/user.ts` - Add role update function
-
-**Success Criteria:**
-- New users cannot register with admin roles
-- Role assignment requires authentication + admin role
-- All role changes are audited
-
-**Estimate:** 2 hours
-
----
-
-#### 2.6 Add Rate Limiting on Auth Endpoints
-**What:** Prevent brute force attacks on login/register
-
-**How:**
-1. Create `src/middleware/rate-limit.ts` using simple in-memory store or Redis
-2. Implement sliding window: Max 5 failed login attempts per email per 15 minutes
-3. Apply to endpoints:
-   - POST /api/auth/login (check failed attempts)
-   - POST /api/auth/register (check per-IP limit, e.g., 10 registrations per hour)
-4. Return 429 (Too Many Requests) when limit exceeded
-5. Log rate limit violations for security monitoring
-
-**Files to modify:**
-- `src/middleware/rate-limit.ts` (new) - Rate limit middleware
-- `src/routes/auth.ts` - Apply rate limiting to login/register endpoints
-- `src/index.ts` - Register rate limit middleware
-
-**Success Criteria:**
-- Brute force attempts blocked after 5 failures
-- Rate limit info visible in response headers
-- Abuse logged for review
-
-**Estimate:** 3 hours
-
----
-
-#### 2.7 Add RBAC to Inventory GET Routes
-**What:** Require authentication for sensitive read operations (cost data, supplier info)
-
-**How:**
-1. Apply `requireRole()` middleware to GET endpoints:
-   - GET /api/inventory/ingredients - Require 'admin_restoran' or 'super_admin' (cost data)
-   - GET /api/inventory/stock-movements - Require admin (audit trail)
-   - GET /api/recipes - Allow 'kasir' and 'chef' (public menu info)
-2. Filter returned data by role (e.g., don't return costPerUnit for 'kasir')
-
-**Files to modify:**
-- `src/routes/inventory.ts:6-7, 97-99` - Add auth middleware
-- `src/repositories/inventory.ts` - Add role-based filters
-
-**Success Criteria:**
-- Unauthenticated users cannot access inventory
-- Cost data hidden from non-admin roles
-- Stock movements only visible to admins
-
-**Estimate:** 2 hours
-
-**Total Phase 2:** ~20 hours | Risk reduction: High | Business impact: High
-
----
-
-### Phase 3: Testing Infrastructure & Critical Path Coverage (Week 2-3)
-**Priority:** HIGH | Effort: 4-5 days | Risk: Low (only adds code, no breaking changes)
-
-**Why:** 0% coverage means all fixes above are untested; financial operations must have tests
-
-#### 3.1 Set Up Vitest Testing Framework
-**What:** Install Vitest, configure for integration tests, set up test database
-
-**How:**
-1. Install Vitest and dependencies:
-   ```bash
-   bun add -D vitest @vitest/ui @testing-library/node
-   ```
-2. Create `vitest.config.ts`:
-   ```typescript
-   import { defineConfig } from 'vitest/config';
-   export default defineConfig({
-     test: {
-       globals: true,
-       environment: 'node',
-       setupFiles: ['./test/setup.ts'],
-     },
-   });
-   ```
-3. Create `test/setup.ts` to initialize test database (isolated MySQL instance or in-memory mock)
-4. Add test script to `package.json`: `"test": "vitest"`
+1. Create stock monitoring service
+2. Check stock levels after each decrement operation
+3. Emit `inventory:low-stock` event when below threshold
+4. Deduplicate alerts (don't spam same ingredient)
+5. Add alert acknowledgment system
 
 **Files to create:**
-- `vitest.config.ts`
-- `test/setup.ts`
-- `test/fixtures/` - Test data fixtures
-- `.env.test` - Test environment variables
+- `src/services/inventory-monitor.ts` - Stock monitoring service
+- `src/websocket/events/inventory-events.ts` - Inventory event handlers
+
+**Files to modify:**
+- `src/repositories/inventory.ts` - Check thresholds after decrement
+- `src/pages/admin.ts` - Subscribe to inventory alerts
+- `src/pages/kitchen.ts` - Show low stock warnings
 
 **Success Criteria:**
-- `bun test` runs Vitest
-- Tests can connect to isolated test database
-- Test environment isolated from production
-
-**Estimate:** 2 hours
-
----
-
-#### 3.2 Write Unit Tests for Auth & Validation
-**What:** Unit tests for JWT, password hashing, role checks
-
-**How:**
-1. Create test files:
-   - `test/utils/auth.test.ts` - verifyToken, createToken, hash/verify password
-   - `test/middleware/authorization.test.ts` - requireRole, hasRole, requirePosAccess
-   - `test/schemas/*.test.ts` - Zod schema validation
-2. Test cases:
-   - Valid JWT parsing
-   - Invalid/expired tokens throw
-   - Correct role checks
-   - Schema validation passes/fails appropriately
-   - Boundary conditions (empty strings, negative numbers)
-
-**Files to create:**
-- `test/utils/auth.test.ts`
-- `test/middleware/authorization.test.ts`
-- `test/schemas/*.test.ts`
-
-**Success Criteria:**
-- 50+ unit tests written
-- Auth utilities 100% covered
-- Schema validation 100% covered
-
-**Estimate:** 4 hours
-
----
-
-#### 3.3 Write Integration Tests for Order Lifecycle
-**What:** Integration tests covering order creation → item add → payment → completion → stock decrement
-
-**How:**
-1. Create `test/integration/order.test.ts`
-2. Test scenarios:
-   - Create order
-   - Add item to order
-   - Verify total calculates correctly
-   - Add another item concurrently; verify no race condition
-   - Process payment
-   - Verify stock is decremented
-   - Verify stock movement recorded
-   - Verify order marked completed
-3. Test error cases:
-   - Add item to non-existent order (fails)
-   - Process payment on already-paid order (idempotent)
-   - Concurrent payments (only one succeeds)
-
-**Files to create:**
-- `test/integration/order.test.ts`
-
-**Test coverage:**
-- Happy path: order → items → payment → completion → stock
-- Error cases: invalid operations, race conditions, idempotency
-- All file changes from Phase 1 should be covered here
-
-**Success Criteria:**
-- 20+ integration tests for order lifecycle
-- All race condition fixes verified by tests
-- All payment logic verified
+- Alerts trigger immediately when stock below threshold
+- No duplicate alerts for same ingredient
+- Alerts show in dashboard and kitchen display
+- Acknowledgment clears alert
 
 **Estimate:** 6 hours
 
 ---
 
-#### 3.4 Write Integration Tests for Stock & Inventory
-**What:** Tests for stock decrement, refund, transaction atomicity
-
-**How:**
-1. Create `test/integration/inventory.test.ts`
-2. Test scenarios:
-   - Stock decrements on order completion
-   - Stock NOT decremented until order completed
-   - Stock refund on order cancellation
-   - No double-decrement on retry
-   - Insufficient stock prevents completion
-   - Stock movements table tracks all changes with order reference
-3. Edge cases:
-   - Multiple items in single order affect multiple ingredients
-   - Recipe ingredients consumed correctly (e.g., 2 pizzas = 4 units flour)
-   - Rollback on failed completion leaves stock untouched
-
-**Files to create:**
-- `test/integration/inventory.test.ts`
-
-**Success Criteria:**
-- 15+ integration tests for stock operations
-- All Phase 1 fixes verified (transaction atomicity, refund logic)
-- Idempotency tested (retries don't double-decrement)
-
-**Estimate:** 5 hours
+**Total Phase 7:** ~10 hours | Risk reduction: Low | Feature: Inventory alerts
 
 ---
 
-#### 3.5 Write Integration Tests for Payment Processing
-**What:** Tests for payment flows, change calculation, multiple payment methods
+### Phase 8: Real-time Dashboard Backend
+**Priority:** MEDIUM-HIGH | Effort: 4-5 days | Risk: Medium
+
+**Why:** Provide management with live operational metrics for better decision-making and faster response to issues.
+
+#### 8.1 Metrics Aggregation Endpoints
+**What:** Create endpoints for real-time dashboard metrics
 
 **How:**
-1. Create `test/integration/payment.test.ts`
-2. Test scenarios:
-   - Single payment completes order
-   - Partial payment (first installment)
-   - Second payment (remaining balance)
-   - Overpayment with change calculation
-   - Payment reversal/refund
-   - Concurrent payments on same order (one succeeds, other fails)
+1. Create dashboard service in `src/services/dashboard.ts`
+2. Aggregate metrics:
+   - Sales today (live counter)
+   - Orders today (live counter)
+   - Kitchen queue (pending, cooking, ready counts)
+   - Inventory status (low stock count)
+   - Top selling items (real-time)
+3. Cache frequently accessed data
+4. Optimize queries for sub-second response
 
 **Files to create:**
-- `test/integration/payment.test.ts`
+- `src/services/dashboard.ts` - Dashboard metrics service
+- `src/routes/dashboard.ts` - Dashboard API endpoints
+
+**Files to modify:**
+- `src/repositories/order.ts` - Add dashboard query methods
+- `src/repositories/inventory.ts` - Add low stock count method
 
 **Success Criteria:**
-- 10+ integration tests for payment flows
-- All financial calculations verified
-- Race conditions tested
+- API response < 500ms
+- Metrics update in real-time via WebSocket
+- Caching improves performance
+- All required metrics available
 
-**Estimate:** 4 hours
+**Estimate:** 8 hours
 
 ---
 
-#### 3.6 Write Integration Tests for RBAC & Security
-**What:** Tests for authentication, role-based access, input validation
+#### 8.2 WebSocket Streaming
+**What:** Stream dashboard data via WebSocket for live updates
 
 **How:**
-1. Create `test/integration/auth-rbac.test.ts`
-2. Test scenarios:
-   - Unauthenticated requests rejected
-   - Role-based access works (admin can, kasir cannot)
-   - Password reset requires old password
-   - Role assignment requires admin
-   - Rate limiting blocks brute force
-   - Input validation rejects invalid data
+1. Create dashboard room in WebSocket
+2. Emit metric updates on data changes
+3. Subscribe dashboard clients to room
+4. Batch updates to reduce network traffic
+5. Handle client disconnection gracefully
 
 **Files to create:**
-- `test/integration/auth-rbac.test.ts`
+- `src/websocket/events/dashboard-events.ts` - Dashboard event handlers
+- `src/services/dashboard-stream.ts` - Streaming service
+
+**Files to modify:**
+- `src/services/dashboard.ts` - Emit events on metric changes
+- `src/index.ts` - Start dashboard streaming
 
 **Success Criteria:**
-- 20+ security tests
-- All Phase 2 security fixes verified
-- Permission checks comprehensive
+- Dashboard updates automatically without refresh
+- Updates received within 1 second of data change
+- Batching prevents network overload
+- Graceful handling of disconnections
 
-**Estimate:** 5 hours
-
-**Total Phase 3:** ~26 hours | Risk reduction: Medium | Coverage gain: 30-40%
+**Estimate:** 6 hours
 
 ---
 
-### Phase 4: Logging, Monitoring & Observability (Week 3)
+**Total Phase 8:** ~14 hours | Risk reduction: Medium | Feature: Dashboard backend
+
+---
+
+### Phase 9: Dashboard Frontend
+**Priority:** HIGH | Effort: 5-6 days | Risk: Medium
+
+**Why:** Visual dashboard provides at-a-glance operational status and helps identify issues quickly.
+
+#### 9.1 Dashboard Layout & Widgets
+**What:** Create dashboard page with real-time widgets
+
+**How:**
+1. Create dashboard page at `/dashboard`
+2. Build widget components:
+   - Sales counter (big number, live update)
+   - Orders counter (big number, live update)
+   - Kitchen queue status (visual indicators)
+   - Low stock list (scrollable list)
+   - Top items (bar chart)
+   - Hourly sales trend (line chart)
+3. Mobile-responsive grid layout
+4. Auto-reconnect on WebSocket failure
+
+**Files to create:**
+- `src/pages/dashboard.ts` - Dashboard page
+- `src/pages/dashboard/widgets/` - Widget components
+- `src/pages/dashboard/charts.ts` - Chart.js integration
+
+**Files to modify:**
+- `src/index.ts` - Add dashboard route
+- `src/public/styles/dashboard.css` - Dashboard styles
+
+**Success Criteria:**
+- Dashboard loads < 3 seconds
+- Widgets auto-update via WebSocket
+- Mobile layout functional
+- Charts render correctly
+- Reconnection works automatically
+
+**Estimate:** 12 hours
+
+---
+
+#### 9.2 Interactive Features
+**What:** Add interactivity to dashboard (filters, drill-down)
+
+**How:**
+1. Date range selector (today, yesterday, custom)
+2. Kitchen queue interaction (click to see orders)
+3. Low stock item quick actions (view, reorder)
+4. Export dashboard data (PDF, CSV)
+5. Fullscreen mode
+
+**Files to modify:**
+- `src/pages/dashboard.ts` - Add interactive elements
+- `src/routes/dashboard.ts` - Add filter endpoints
+- `src/services/reports.ts` - Add export methods
+
+**Success Criteria:**
+- Date filters work and update widgets
+- Drill-down shows detailed data
+- Export generates files correctly
+- Fullscreen mode works
+
+**Estimate:** 6 hours
+
+---
+
+**Total Phase 9:** ~18 hours | Risk reduction: Low | Feature: Dashboard UI
+
+---
+
+### Phase 10: Notification Preferences
 **Priority:** MEDIUM | Effort: 2-3 days | Risk: Low
 
-**Why:** No structured logging makes debugging production issues impossible; no request tracing
+**Why:** Users should control which notifications they receive to avoid alert fatigue.
 
-#### 4.1 Implement Structured Logging
-**What:** Replace console.log with structured logger; add request tracing
-
-**How:**
-1. Install logger library (e.g., `pino` or `winston`):
-   ```bash
-   bun add pino
-   ```
-2. Create `src/logger.ts`:
-   ```typescript
-   import pino from 'pino';
-   export const logger = pino({
-     level: process.env.LOG_LEVEL || 'info',
-     transport: {
-       target: 'pino-pretty',
-     },
-   });
-   ```
-3. Replace all console.log/console.error:
-   - In routes: `logger.info({ path, method, user })` for requests
-   - In repositories: `logger.debug({ query, duration })` for DB ops
-   - In error handlers: `logger.error({ error, context })`
-4. Add request ID middleware for tracing:
-   - Generate unique requestId per request
-   - Include in all log messages
-   - Include in error responses
-
-**Files to modify:**
-- `src/logger.ts` (new)
-- `src/index.ts` - Register logger middleware
-- `src/routes/*.ts` - Replace console.log with logger
-- `src/repositories/*.ts` - Replace console.log with logger
-
-**Success Criteria:**
-- All logs are structured JSON (not plain text)
-- Request tracing via requestId possible
-- Log level configurable
-- No console.log in production code
-
-**Estimate:** 4 hours
-
----
-
-#### 4.2 Add Observability to Financial Operations
-**What:** Log all payment, stock, loyalty operations with full context
+#### 10.1 User Notification Settings
+**What:** Allow users to customize notification preferences
 
 **How:**
-1. Add detailed logging to:
-   - Payment initiation: `logger.info({ orderId, customerId, amount, timestamp })`
-   - Stock decrement: `logger.info({ orderId, ingredients: [...], before, after })`
-   - Loyalty points: `logger.info({ customerId, pointsBefore, pointsAfter, reason })`
-2. Include business context in all logs (customer name, order details)
-3. Log both success and failure paths
-4. Consider audit trail in DB for compliance (already exists in stockMovements; extend to payments, loyalty)
-
-**Files to modify:**
-- `src/services/payment.ts` - Add comprehensive logging
-- `src/repositories/inventory.ts` - Log all stock changes
-- `src/repositories/customer.ts` - Log loyalty changes
-
-**Success Criteria:**
-- All financial operations produce detailed logs
-- Logs include timestamps, users, amounts, results
-- Audit trail visible for compliance review
-
-**Estimate:** 3 hours
-
----
-
-#### 4.3 Add Health Check & Metrics Endpoints
-**What:** Expose system health and basic metrics for monitoring
-
-**How:**
-1. Create health check endpoint: GET /health
-   ```typescript
-   {
-     status: 'healthy',
-     uptime: 12345,
-     database: 'connected',
-     timestamp: '2026-04-12T10:00:00Z'
-   }
-   ```
-2. Create metrics endpoint: GET /metrics (optional, for Prometheus integration)
-   ```typescript
-   # requests_total{method="GET",status="200"} 1234
-   # request_duration_seconds{method="GET",path="/orders"} 0.123
-   # database_pool_size{current=5,max=5} 5
-   ```
-3. Register health checks for: database connectivity, JWT secret loaded, required services available
+1. Add notification settings to user profile
+2. Create settings UI for toggling notification types
+3. Role-based defaults (kitchen gets order notifications)
+4. Persist preferences in database
+5. Apply filters before sending notifications
 
 **Files to create:**
-- `src/routes/health.ts`
-- `src/metrics.ts` (optional)
+- `src/routes/users/notifications.ts` - Notification settings endpoints
+- `src/pages/settings/notifications.ts` - Settings UI
+
+**Files to modify:**
+- `src/db/schema.ts` - Add notification settings column
+- `src/services/notifications.ts` - Check preferences before sending
+- `src/pages/settings.ts` - Add notification tab
 
 **Success Criteria:**
-- Health endpoint responds with system status
-- Metrics available for monitoring
-- Can detect if database connection lost
+- Users can toggle notification types
+- Role-based defaults applied
+- Changes saved to database
+- Notifications respect user preferences
 
-**Estimate:** 2 hours
-
-**Total Phase 4:** ~9 hours | Risk reduction: Low | Operational gain: High
+**Estimate:** 8 hours
 
 ---
 
-### Phase 5: Performance Optimization (Week 4)
-**Priority:** MEDIUM-LOW | Effort: 2-3 days | Risk: Low
-
-**Why:** N+1 queries, missing pagination, no caching cause performance issues under load
-
-#### 5.1 Fix N+1 Query Patterns
-**What:** Optimize order queries to use joins instead of loops
-
-**How:**
-1. In `src/repositories/order.ts`, update `getTodayOrdersByTableId()`:
-   - Use LEFT JOIN on orderItems and menus
-   - Fetch all data in single query
-   - Group results in code if needed
-2. Benchmark before/after (10 orders: 1 query vs 11 queries)
-3. Apply same pattern to other list endpoints
-
-**Files to modify:**
-- `src/repositories/order.ts` - Optimize order+items queries
-- `src/routes/orders.ts:34-46` - Use optimized query
-
-**Success Criteria:**
-- Single query for orders + items instead of 1+N
-- Performance improvement measurable (benchmark)
-- No duplicate data returned
-
-**Estimate:** 3 hours
-
----
-
-#### 5.2 Add Pagination Limits
-**What:** Cap query results; enforce max limits on client requests
-
-**How:**
-1. Add validation to report endpoints:
-   - Default limit: 50
-   - Max limit: 500 (prevent 999999 attacks)
-   - Min limit: 1
-2. Return pagination metadata:
-   ```typescript
-   {
-     data: [...],
-     pagination: {
-       limit: 50,
-       offset: 0,
-       total: 1234,
-     }
-   }
-   ```
-
-**Files to modify:**
-- `src/repositories/report.ts:148` - Add limit validation
-- `src/repositories/financial-report.ts:115` - Add limit validation
-- `src/routes/reports.ts` - Return pagination metadata
-
-**Success Criteria:**
-- Max limit enforced (no 999999 requests)
-- Pagination metadata in responses
-- Memory usage capped
-
-**Estimate:** 2 hours
-
----
-
-#### 5.3 Add Database Indexes
-**What:** Add indexes for common queries (orders by date, items by order, etc.)
-
-**How:**
-1. Analyze query patterns in code
-2. Add indexes in schema:
-   - orders(createdAt) - For date range queries
-   - orderItems(orderId) - For order detail queries
-   - stockMovements(ingredientId, createdAt) - For stock audit reports
-   - customers(email) - For customer lookup
-3. Use `drizzle-kit generate:mysql` to create migration
-
-**Files to modify:**
-- `src/db/schema.ts` - Add index definitions
-- Create migration via drizzle-kit
-
-**Success Criteria:**
-- Queries use indexes (EXPLAIN shows index usage)
-- Query performance improved
-- No full table scans for common operations
-
-**Estimate:** 2 hours
-
-**Total Phase 5:** ~7 hours | Risk reduction: Low | Performance gain: 50-80%
+**Total Phase 10:** ~8 hours | Risk reduction: Low | Feature: Preferences
 
 ---
 
 ## Quick Wins (0.5-1 hour each)
 
-These can be tackled first to build momentum:
-
-1. **Create src/config.ts** - Centralize environment variable loading
-   - Files: src/config.ts (new), update auth files to use it
-   - Impact: Improves code maintainability
-   - Time: 30 min
-
-2. **Add .env validation script** - Ensure required vars are set at startup
-   - Files: src/index.ts (add validation at top)
-   - Impact: Prevent silent failures
-   - Time: 30 min
-
-3. **Fix kitchen.ts route guard** - Add missing auth middleware
-   - Files: src/routes/kitchen.ts
-   - Impact: Improves security
-   - Time: 15 min
-
-4. **Document stock sync flow** - Add comments to order.ts + inventory.ts explaining atomic operation
-   - Files: src/repositories/order.ts, src/repositories/inventory.ts
-   - Impact: Improves maintainability
-   - Time: 45 min
-
-5. **Implement .env.example** - Add all required environment variables with descriptions
-   - Files: .env.example
-   - Impact: Improves onboarding
-   - Time: 30 min
+1. **Add WebSocket health check endpoint** - Verify WebSocket server status
+2. **Dashboard favicon with unread indicator** - Show notification count
+3. **Toast notifications for alerts** - Brief popup notifications
+4. **Sound toggle for notifications** - Mute/unmute audio alerts
 
 ---
 
-## Implementation Strategy
+## Success Criteria
 
-### Recommended Execution Order:
-1. **Quick Wins (Day 1)** - 2-3 hours
-   - Config.ts, env validation, docs
-   - Boosts confidence and momentum
-
-2. **Phase 1: Data Integrity (Days 2-4)** - 15 hours
-   - Critical for production stability
-   - Most business-impactful
-   - Should be done before any major release
-
-3. **Phase 2: Security (Days 5-7)** - 20 hours
-   - Must be done before public/multi-user access
-   - Parallel with Phase 1 testing
-
-4. **Phase 3: Testing (Days 8-12)** - 26 hours
-   - Validates all fixes work
-   - Prevents regressions
-
-5. **Phase 4: Observability (Days 13-15)** - 9 hours
-   - Enables production debugging
-   - Lower priority but important
-
-6. **Phase 5: Performance (Days 16-18)** - 7 hours
-   - For scale readiness
-   - Can be deferred if not under load
-
-### Parallel Tracks:
-- Phases 1 & 2 can run in parallel if team has 2+ people
-- Phase 3 can run alongside Phase 2 (write tests as features are built)
-- Phase 4 & 5 are independent and can be done anytime
-
-### Estimated Total Effort:
-- **Baseline:** ~77 hours development
-- **With testing & review:** ~100-120 hours (including PR reviews, debugging)
-- **Team of 1:** 3-4 weeks (part-time)
-- **Team of 2:** 2-3 weeks (parallel)
+- [ ] WebSocket connections stable with < 1% disconnections
+- [ ] Dashboard loads in < 3 seconds
+- [ ] Real-time updates received within 1 second
+- [ ] All 78 existing tests still passing
+- [ ] Mobile dashboard functional
+- [ ] No regression in existing features
 
 ---
 
-## Success Criteria (Final)
+## Technical Stack Additions
 
-✓ All Phase 1 fixes implemented and tested (data integrity)
-✓ All Phase 2 security gaps closed (security)
-✓ 30-40% test coverage with critical paths covered (testing)
-✓ Structured logging in place (observability)
-✓ N+1 queries fixed, pagination limits enforced (performance)
-✓ Zero known race conditions in order lifecycle
-✓ Zero security vulnerabilities (JWT, auth, validation)
-✓ Production-ready confidence
+- **WebSocket:** Socket.io or Elysia WebSocket
+- **Charts:** Chart.js or D3.js
+- **Caching:** Redis (optional, for horizontal scaling)
+- **Email:** Nodemailer (optional, for email alerts)
 
 ---
 
-## Related Documents
+## Risks & Mitigations
 
-- `.planning/codebase/ARCHITECTURE.md` - System design
-- `.planning/codebase/CONCERNS.md` - Detailed issue list
-- `.planning/codebase/TESTING.md` - Test strategy
-- `.planning/codebase/CONVENTIONS.md` - Code standards
-- `CONTEXT.md` - Stock sync requirements
+| Risk | Mitigation |
+|------|------------|
+| WebSocket scaling issues | Implement Redis adapter for multi-instance support |
+| Dashboard performance | Implement caching and optimize queries |
+| Browser compatibility | Test on multiple browsers, fallback to polling |
+| Network interruptions | Implement automatic reconnection with exponential backoff |
 
 ---
 
-**Next Steps:**
-1. Review this roadmap with team
-2. Pick Phase 1 tasks to start immediately
-3. Create issues/PRs for each task
-4. Execute in phases with weekly check-ins
-5. Update roadmap as priorities change
+## Dependencies
+
+- ✅ Phase 1-5 (v1.0) complete
+- ✅ Authentication system ready
+- ✅ Database optimized
+- WebSocket library (to be added)
+- Chart library (to be added)
+
+---
+
+## Timeline
+
+| Phase | Duration | Start | End |
+|-------|----------|-------|-----|
+| Phase 6 | 3-4 days | Week 1 | Week 1 |
+| Phase 7 | 2-3 days | Week 2 | Week 2 |
+| Phase 8 | 3-4 days | Week 2 | Week 3 |
+| Phase 9 | 3-4 days | Week 3 | Week 4 |
+| Phase 10 | 1-2 days | Week 4 | Week 4 |
+| **Total** | **~4 weeks** | | |
+
+---
+
+**Next:** Start with Phase 6 - WebSocket Infrastructure
+
+**Previous Milestone:** [v1.0 ROADMAP](./milestones/v1.0-ROADMAP.md)

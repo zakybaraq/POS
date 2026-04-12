@@ -1,102 +1,207 @@
-# POS Application - Requirements
+# POS Application v2.0 - Requirements
 
-**Version:** 1.0.0  
-**Status:** Complete ✅  
-**Last Updated:** 2026-04-13
+**Version:** 2.0.0  
+**Status:** In Planning  
+**Last Updated:** 2026-04-13  
+**Theme:** Real-time Notifications & Dashboard
 
 ---
 
 ## Overview
 
-This document captures the requirements for the POS Application v1.0, which has been successfully implemented.
+Milestone v2.0 focuses on adding real-time capabilities to the POS system through WebSocket integration and building an advanced reporting dashboard for improved operational visibility.
 
 ---
 
-## Requirements Status
+## Requirements
 
-### ✅ REQ-001: Data Integrity
-**Status:** Complete  
-**Phase:** 1
+### REQ-001: WebSocket Infrastructure
+**Priority:** Must Have  
+**Status:** Planning  
+**Phase:** 6
 
-- [x] Order item operations must be transactional
-- [x] Table transfers must be atomic
-- [x] Stock must be refunded on order cancellation
-- [x] Payment semantics must be clear (complete vs finish)
+#### Description
+Set up WebSocket server infrastructure to enable real-time communication between server and clients.
 
-**Outcome:** All data integrity requirements met with proper transaction handling.
+#### Acceptance Criteria
+- [ ] WebSocket server integrated with Elysia
+- [ ] JWT authentication for WebSocket connections
+- [ ] Connection management (handle disconnections, reconnections)
+- [ ] Room/channel architecture for organizing broadcasts
+- [ ] Event-driven message system
+- [ ] Error handling and recovery mechanisms
 
----
-
-### ✅ REQ-002: Security Hardening
-**Status:** Complete  
-**Phase:** 2
-
-- [x] JWT secrets must not be hardcoded
-- [x] Password reset must require authentication
-- [x] Cookies must use secure flags
-- [x] All inputs must be validated with Zod
-- [x] Role-based access control (RBAC) must be implemented
-- [x] Rate limiting must be applied to auth endpoints
-
-**Outcome:** All security requirements met. Application passes security review.
+#### Technical Notes
+- Use Elysia's built-in WebSocket support or Socket.io
+- Implement heartbeat/ping-pong to detect stale connections
+- Redis adapter for horizontal scaling (optional for v2.0)
 
 ---
 
-### ✅ REQ-003: Testing Coverage
-**Status:** Complete  
-**Phase:** 3
+### REQ-002: Real-time Order Notifications
+**Priority:** Must Have  
+**Status:** Planning  
+**Phase:** 6
 
-- [x] Test framework must be set up (Vitest)
-- [x] Critical paths must have tests (78 tests)
-- [x] Auth & validation must be tested
-- [x] Order lifecycle must be tested
-- [x] Payment & stock operations must be tested
-- [x] RBAC security must be tested
+#### Description
+Notify kitchen staff and cashiers in real-time about order updates.
 
-**Outcome:** 78/78 tests passing. Comprehensive test coverage.
+#### Acceptance Criteria
+- [ ] New order notifications to kitchen display
+- [ ] Order status change notifications (cooking → ready → served)
+- [ ] Order completion alerts for cashiers
+- [ ] Payment received confirmations
+- [ ] Visual and audio alerts in UI
+- [ ] Notification acknowledgment system
 
----
-
-### ✅ REQ-004: Observability
-**Status:** Complete  
-**Phase:** 4
-
-- [x] Structured logging must be implemented (Pino)
-- [x] Request tracing must work
-- [x] PII must be redacted from logs
-- [x] Financial operations must have audit logs
-- [x] Health check endpoint must exist
-- [x] Metrics endpoint must exist
-
-**Outcome:** Full observability stack in place. Production-ready monitoring.
+#### Events to Broadcast
+- `order:created` → Kitchen
+- `order:status-changed` → Kitchen, Cashier
+- `order:completed` → Cashier
+- `payment:received` → Cashier
 
 ---
 
-### ✅ REQ-005: Performance Optimization
-**Status:** Complete  
-**Phase:** 5
+### REQ-003: Inventory Alert System
+**Priority:** Must Have  
+**Status:** Planning  
+**Phase:** 7
 
-- [x] N+1 queries must be fixed
-- [x] Pagination must be standardized
-- [x] Database indexes must be verified
+#### Description
+Real-time monitoring and alerting for low stock levels.
 
-**Outcome:** Performance improved 50-80%. All critical queries optimized.
+#### Acceptance Criteria
+- [ ] Configurable low stock thresholds per ingredient
+- [ ] Automatic stock level monitoring
+- [ ] Alert dispatch when stock below threshold
+- [ ] Alert history tracking
+- [ ] Acknowledgment and dismissal workflow
+- [ ] Email notification support (optional)
+
+#### Alert Triggers
+- Stock decremented below threshold
+- Manual stock adjustment below threshold
+- Daily low stock summary
 
 ---
 
-## Completion Summary
+### REQ-004: Real-time Dashboard Backend
+**Priority:** Must Have  
+**Status:** Planning  
+**Phase:** 8
 
-**Total Requirements:** 5  
-**Completed:** 5 ✅  
-**In Progress:** 0  
-**Pending:** 0
+#### Description
+Backend infrastructure for real-time dashboard with live metrics.
 
-**Status:** ALL REQUIREMENTS MET
+#### Acceptance Criteria
+- [ ] Real-time metrics aggregation endpoints
+- [ ] WebSocket streaming for live data
+- [ ] Historical data caching for performance
+- [ ] API response time < 500ms
+- [ ] Support for multiple concurrent dashboard users
+
+#### Metrics to Track
+- Live sales (hourly, daily)
+- Active orders count
+- Kitchen queue status
+- Inventory status overview
+- Top selling items (real-time)
 
 ---
 
-## Notes
+### REQ-005: Dashboard Frontend
+**Priority:** Must Have  
+**Status:** Planning  
+**Phase:** 9
 
-All requirements have been successfully implemented and verified. The application is production-ready.
+#### Description
+Interactive dashboard UI with real-time updates and visualizations.
 
-**Next:** Archive this document and create fresh REQUIREMENTS.md for v2.0 milestone.
+#### Acceptance Criteria
+- [ ] Dashboard page accessible at `/dashboard`
+- [ ] Real-time widgets auto-update
+- [ ] Charts for sales trends (Chart.js or similar)
+- [ ] Inventory status visualization
+- [ ] Mobile-responsive layout
+- [ ] Page load time < 3 seconds
+
+#### Widgets Required
+1. Sales Today (live counter)
+2. Orders Today (live counter)
+3. Kitchen Queue (pending, cooking, ready)
+4. Low Stock Alerts (list)
+5. Top Selling Items (chart)
+6. Hourly Sales Trend (chart)
+
+---
+
+### REQ-006: User Notification Preferences
+**Priority:** Should Have  
+**Status:** Planning  
+**Phase:** 10
+
+#### Description
+Allow users to customize their notification settings.
+
+#### Acceptance Criteria
+- [ ] User notification settings page
+- [ ] Toggle notification types (order, inventory, system)
+- [ ] Role-based default settings
+- [ ] Notification templates
+- [ ] Delivery method preferences (WebSocket, Email)
+
+#### Notification Types
+- Order notifications
+- Inventory alerts
+- System notifications
+
+---
+
+## Requirements Summary
+
+| Priority | Count | Status |
+|----------|-------|--------|
+| Must Have | 5 | 0/5 complete |
+| Should Have | 1 | 0/1 complete |
+| **Total** | **6** | **0/6 complete** |
+
+---
+
+## Technical Stack Additions
+
+- **WebSocket:** Elysia WebSocket / Socket.io
+- **Charts:** Chart.js or D3.js
+- **Caching:** Redis (optional for v2.0)
+- **Email:** Nodemailer (optional)
+
+---
+
+## Performance Targets
+
+- WebSocket latency: < 1 second
+- Dashboard load time: < 3 seconds
+- API response: < 500ms
+- Concurrent connections: 100+
+
+---
+
+## Out of Scope (v2.0)
+
+- Mobile native app
+- Multi-location support
+- Advanced analytics/ML
+- Third-party integrations
+- SMS notifications
+
+---
+
+## Dependencies
+
+- ✅ Phase 1-5 (v1.0) complete
+- ✅ Testing framework ready
+- ✅ Authentication system ready
+- WebSocket library to be added
+
+---
+
+**Next:** Create ROADMAP.md with phase breakdown
