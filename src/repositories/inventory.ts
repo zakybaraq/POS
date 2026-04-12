@@ -216,6 +216,8 @@ export async function decrementStockForOrderTx(
   const { getItemsWithMenuByOrderId } = await import('./order-item');
   const items = await getItemsWithMenuByOrderId(orderId);
 
+  logger.info({ orderId, itemCount: items.length }, 'Starting stock decrement for order');
+
   for (const item of items) {
     const recipeItems = await getRecipesByMenuId(item.menuId);
     for (const recipe of recipeItems) {
@@ -239,6 +241,18 @@ export async function decrementStockForOrderTx(
         );
       }
 
+      logger.debug(
+        {
+          orderId,
+          ingredientId: recipe.ingredientId,
+          ingredientName: ingredient.name,
+          quantity: totalQuantity,
+          stockBefore: currentStock,
+          stockAfter: newStock,
+        },
+        'Decrementing stock for ingredient'
+      );
+
       await tx
         .update(ingredients)
         .set({ currentStock: String(newStock), updatedAt: new Date() })
@@ -256,6 +270,8 @@ export async function decrementStockForOrderTx(
       });
     }
   }
+
+  logger.info({ orderId }, 'Stock decrement completed successfully');
 }
 
 /**

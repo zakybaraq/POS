@@ -2,6 +2,7 @@ import { eq, and, desc, sql, gte } from 'drizzle-orm';
 import { db } from '../db/index';
 import { customers, loyaltyTransactions, orders } from '../db/schema';
 import type { NewCustomer, NewLoyaltyTransaction } from '../db/schema';
+import { getLoggerWithRequestId } from '../utils/logger-with-context';
 
 export async function getAllCustomers() {
   return db.select().from(customers).orderBy(customers.name);
@@ -61,7 +62,26 @@ export async function addLoyaltyPoints(customerId: number, points: number, order
 }
 
 export async function addLoyaltyPointsTx(tx: any, customerId: number, points: number, orderId?: number) {
+  const logger = getLoggerWithRequestId();
+  
   if (points <= 0) return;
+  
+  const customer = await tx.select().from(customers).where(eq(customers.id, customerId)).then((r: any) => r[0]);
+  const pointsBefore = customer?.loyaltyPoints || 0;
+  const pointsAfter = pointsBefore + points;
+  
+  logger.info(
+    {
+      customerId,
+      orderId,
+      pointsBefore,
+      pointsAfter,
+      pointsEarned: points,
+      reason: orderId ? `Pesanan #${orderId}` : 'Manual',
+    },
+    'Loyalty points earned'
+  );
+  
   await tx.insert(loyaltyTransactions).values({
     customerId,
     type: 'earn',
@@ -76,10 +96,35 @@ export async function addLoyaltyPointsTx(tx: any, customerId: number, points: nu
 }
 
 export async function redeemLoyaltyPoints(customerId: number, points: number, reason?: string) {
+  const logger = getLoggerWithRequestId();
+  
   const customer = await getCustomerById(customerId);
-  if (!customer) return { error: 'Customer not found' };
-  if (customer.loyaltyPoints < points) return { error: 'Poin tidak cukup' };
-  if (points <= 0) return { error: 'Jumlah poin harus lebih dari 0' };
+  if (!customer) {
+    logger.error({ customerId }, 'Loyalty redeem failed - customer not found');
+    return { error: 'Customer not found' };
+  }
+  if (customer.loyaltyPoints < points) {
+    logger.error({ customerId, available: customer.loyaltyPoints, requested: points }, 'Loyalty redeem failed - insufficient points');
+    return { error: 'Poin tidak cukup' };
+  }
+  if (points <= 0) {
+    logger.error({ customerId, points }, 'Loyalty redeem failed - invalid point amount');
+    return { error: 'Jumlah poin harus lebih dari 0' };
+  }
+
+  const pointsBefore = customer.loyaltyPoints;
+  const pointsAfter = pointsBefore - points;
+
+  logger.info(
+    {
+      customerId,
+      pointsBefore,
+      pointsAfter,
+      pointsRedeemed: points,
+      reason: reason || 'Redeem poin',
+    },
+    'Loyalty points redeemed'
+  );
 
   await db.insert(loyaltyTransactions).values({
     customerId,

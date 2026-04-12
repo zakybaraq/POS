@@ -68,10 +68,20 @@ export async function getOrdersTodayWithTables() {
 }
 
 export async function updateOrderStatus(id: number, status: 'draft' | 'active' | 'completed' | 'cancelled') {
+  const logger = getLoggerWithRequestId();
+  const currentOrder = await getOrderById(id);
+  const previousStatus = currentOrder?.status;
+  
   const updateData: Partial<Order> = { status };
   if (status === 'completed' || status === 'cancelled') {
     updateData.completedAt = new Date();
   }
+  
+  logger.info(
+    { orderId: id, previousStatus, newStatus: status },
+    'Order status changed'
+  );
+  
   await db.update(orders).set(updateData).where(eq(orders.id, id));
   return getOrderById(id);
 }
@@ -91,10 +101,16 @@ export async function updateOrderTotals(id: number, subtotal: number, tax: numbe
 }
 
 export async function completeOrder(id: number, amountPaid: number, markCompleted: boolean = true) {
+  const logger = getLoggerWithRequestId();
   const order = await getOrderById(id);
   if (!order) return null;
 
   const changeDue = amountPaid - order.total;
+
+  logger.info(
+    { orderId: id, previousStatus: order.status, amountPaid, total: order.total },
+    'Order completion initiated'
+  );
 
   return await db.transaction(async (tx: any) => {
     try {
@@ -110,6 +126,7 @@ export async function completeOrder(id: number, amountPaid: number, markComplete
       await tx.update(orders).set(updateData).where(eq(orders.id, id));
 
       if (markCompleted) {
+        logger.info({ orderId: id }, 'Order status: pending → completed');
         const { decrementStockForOrderTx } = await import('./inventory');
         await decrementStockForOrderTx(tx, id);
       }
@@ -124,7 +141,6 @@ export async function completeOrder(id: number, amountPaid: number, markComplete
       const [completedOrder] = await tx.select().from(orders).where(eq(orders.id, id));
       return completedOrder || null;
     } catch (error) {
-      const logger = getLoggerWithRequestId();
       logger.error({ orderId: id, err: error }, 'Failed to complete order');
       throw error;
     }
@@ -139,6 +155,7 @@ export async function completeOrderWithPayment(
   id: number,
   amountPaid: number
 ) {
+  const logger = getLoggerWithRequestId();
   const order = await getOrderById(id);
   if (!order) {
     throw new Error(`Order #${id} not found`);
@@ -150,6 +167,11 @@ export async function completeOrderWithPayment(
 
   const changeDue = amountPaid - order.total;
 
+  logger.info(
+    { orderId: id, previousStatus: order.status, amountPaid, total: order.total, changeDue },
+    'Order completion with payment initiated'
+  );
+
   return await db.transaction(async (tx: any) => {
     await tx.update(orders)
       .set({
@@ -159,6 +181,8 @@ export async function completeOrderWithPayment(
         completedAt: new Date(),
       })
       .where(eq(orders.id, id));
+
+    logger.info({ orderId: id }, 'Order status: active → completed');
 
     const { decrementStockForOrderTx } = await import('./inventory');
     await decrementStockForOrderTx(tx, id);
