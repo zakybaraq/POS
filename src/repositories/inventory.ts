@@ -1,6 +1,6 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
 import { db } from '../db/index';
-import { ingredients, recipes, stockMovements, menus, orders } from '../db/schema';
+import { ingredients, recipes, stockMovements, menus, orders, orderItems } from '../db/schema';
 import type { NewIngredient, NewRecipe, NewStockMovement } from '../db/schema';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 
@@ -253,4 +253,78 @@ export async function decrementStockForOrderTx(
       });
     }
   }
+}
+
+/**
+ * Refund stock for a cancelled completed order
+ * @param tx - Database transaction object
+ * @param orderId - Order ID to refund stock for
+ */
+export async function refundStockForOrderTx(tx: any, orderId: number) {
+  const order = await tx.select().from(orders)
+    .where(eq(orders.id, orderId))
+    .then((r: any) => r[0]);
+
+  if (!order) {
+    throw new Error(`Order #${orderId} not found`);
+  }
+
+  if (order.status !== 'completed') {
+    return { orderId, refunded: false, reason: 'Order was not completed' };
+  }
+
+  const existingRefunds = await tx.select().from(stockMovements)
+    .where(
+      and(
+        eq(stockMovements.referenceId, orderId),
+        eq(stockMovements.type, 'in'),
+        sql`reason LIKE '%Refund%'`
+      )
+    )
+    .then((r: any) => r.length > 0);
+
+  if (existingRefunds) {
+    return { orderId, refunded: false, reason: 'Already refunded' };
+  }
+
+  const items = await tx.select().from(orderItems)
+    .where(eq(orderItems.orderId, orderId));
+
+  if (!items || items.length === 0) {
+    return { orderId, refunded: false, reason: 'No items in order' };
+  }
+
+  for (const item of items) {
+    const recipeItems = await tx.select().from(recipes)
+      .where(eq(recipes.menuId, item.menuId));
+
+    for (const recipe of recipeItems) {
+      const ingredient = await tx.select().from(ingredients)
+        .where(eq(ingredients.id, recipe.ingredientId))
+        .then((r: any) => r[0]);
+
+      if (!ingredient) continue;
+
+      const refundQuantity = Number(recipe.quantity) * item.quantity;
+      const currentStock = Number(ingredient.currentStock);
+      const newStock = currentStock + refundQuantity;
+
+      await tx.update(ingredients)
+        .set({ currentStock: String(newStock), updatedAt: new Date() })
+        .where(eq(ingredients.id, recipe.ingredientId));
+
+      await tx.insert(stockMovements).values({
+        ingredientId: recipe.ingredientId,
+        type: 'in',
+        quantity: String(refundQuantity),
+        stockBefore: String(currentStock),
+        stockAfter: String(newStock),
+        reason: `Refund for cancelled order #${orderId}`,
+        referenceId: orderId,
+        createdAt: new Date(),
+      });
+    }
+  }
+
+  return { orderId, refunded: true, itemsRefunded: items.length };
 }

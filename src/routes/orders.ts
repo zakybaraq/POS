@@ -292,29 +292,61 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       amountPaid: t.Number(),
     }),
   })
-  .post('/:id/cancel', async ({ cookie, headers, params: { id } }) => {
+  .post('/:id/cancel', async ({ cookie, headers, params: { id }, body }) => {
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
     if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
       return { error: 'Akses ditolak: hanya kasir, waitress, dan admin yang dapat membatalkan pesanan' };
     }
-    const order = await orderRepo.getOrderById(Number(id));
-    if (!order) {
-      return { error: 'Order not found' };
+    
+    const { reason } = body as any;
+    
+    try {
+      const { db } = await import('../db/index');
+      const { orders, tables } = await import('../db/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      const order = await db.transaction(async (tx: any) => {
+        const existing = await tx.select().from(orders)
+          .where(eq(orders.id, Number(id)))
+          .then((r: any) => r[0]);
+        
+        if (!existing) {
+          throw new Error('Order not found');
+        }
+        
+        if (existing.status === 'cancelled') {
+          throw new Error('Order already cancelled');
+        }
+        
+        if (existing.status === 'completed') {
+          const { refundStockForOrderTx } = await import('../repositories/inventory');
+          await refundStockForOrderTx(tx, Number(id));
+        }
+        
+        await tx.update(orders)
+          .set({
+            status: 'cancelled',
+            completedAt: new Date(),
+            notes: reason || '',
+          })
+          .where(eq(orders.id, Number(id)));
+        
+        if (existing.tableId && existing.tableId > 0) {
+          await tx.update(tables)
+            .set({ status: 'available' })
+            .where(eq(tables.id, existing.tableId));
+        }
+        
+        return tx.select().from(orders)
+          .where(eq(orders.id, Number(id)))
+          .then((r: any) => r[0]);
+      });
+      
+      return { order, success: true };
+    } catch (error: any) {
+      return { error: error.message, status: 400 };
     }
-    if (order.status !== 'active') {
-      return { error: 'Order cannot be cancelled' };
-    }
-    await orderItemRepo.deleteItemsByOrderId(Number(id));
-    await orderRepo.updateOrderStatus(Number(id), 'cancelled');
-    // Only free table if no other active orders on this table
-    if (order.tableId) {
-      const otherActiveOrders = await orderRepo.getActiveOrderByTableId(order.tableId);
-      if (!otherActiveOrders || otherActiveOrders.id === Number(id)) {
-        await tableRepo.updateTableStatus(order.tableId, 'available');
-      }
-    }
-    return { success: true };
   })
 .post('/:id/finish', async ({ cookie, headers, params: { id } }) => {
   const user = getUserFromRequest(cookie, headers);
