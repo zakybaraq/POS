@@ -1,21 +1,11 @@
 import { Elysia, t } from 'elysia';
 import * as authService from '../services/auth';
-import { createToken } from '../services/session';
+import { createToken, createSessionCookie } from '../services/session';
 import { getUserFromRequest } from '../middleware/authorization';
 import * as userRepo from '../repositories/user';
 import * as auditRepo from '../repositories/audit-log';
 
 const COOKIE_NAME = 'pos_session';
-
-function createSessionCookie() {
-  return {
-    httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    sameSite: 'lax' as const,
-    maxAge: 24 * 60 * 60 * 1000,
-    path: '/',
-  };
-}
 
 export const authRoutes = new Elysia({ prefix: '/api/auth' })
   .post('/register', async ({ cookie, headers, body }) => {
@@ -55,7 +45,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .post('/login', async ({ body, set }) => {
+   .post('/login', async ({ body, cookie }) => {
     const { email, password } = body as any;
     
     if (!email || !password) {
@@ -74,7 +64,10 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         details: `Login via email ${email}`,
       });
       
-      set.headers['Set-Cookie'] = `${COOKIE_NAME}=${token}; HttpOnly; SameSite=Lax; Max-Age=86400; Path=/`;
+      cookie[COOKIE_NAME] = { 
+        value: token,
+        ...createSessionCookie()
+      };
       
       return { success: true, user: result.user };
     } catch (e: any) {
@@ -87,8 +80,11 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }),
   })
   
-  .post('/logout', async ({ set }) => {
-    set.headers['Set-Cookie'] = `${COOKIE_NAME}=; HttpOnly; SameSite=Lax; Max-Age=0; Path=/`;
+  .post('/logout', async ({ cookie }) => {
+    cookie[COOKIE_NAME] = {
+      value: '',
+      maxAge: 0,
+    };
     return { success: true };
   })
   
@@ -112,6 +108,46 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
   }, {
     body: t.Object({
       email: t.String({ format: 'email' }),
+      newPassword: t.String({ minLength: 6 }),
+    }),
+  })
+
+  .put('/change-password', async ({ headers, cookie, body }) => {
+    const authHeader = headers.authorization;
+    
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { error: 'No token provided' };
+    }
+
+    const { oldPassword, newPassword } = body as any;
+
+    if (!oldPassword || !newPassword) {
+      return { error: 'Old password and new password are required' };
+    }
+
+    if (newPassword.length < 6) {
+      return { error: 'New password must be at least 6 characters' };
+    }
+
+    try {
+      const token = authHeader.slice(7);
+      const user = authService.verifyToken(token);
+      const result = await authService.changePassword(user.userId, oldPassword, newPassword);
+      
+      await auditRepo.createAuditLog({
+        userId: user.userId,
+        userName: user.name,
+        action: 'change_password',
+        details: 'User changed their password',
+      });
+
+      return { success: true };
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  }, {
+    body: t.Object({
+      oldPassword: t.String({ minLength: 6 }),
       newPassword: t.String({ minLength: 6 }),
     }),
   })

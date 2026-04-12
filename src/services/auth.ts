@@ -72,3 +72,22 @@ export async function resetPassword(email: string, newPassword: string) {
   await userRepo.updatePassword(user.id, newPassword);
   return { success: true };
 }
+
+export async function changePassword(userId: number, oldPassword: string, newPassword: string) {
+  const user = await userRepo.getUserById(userId);
+  if (!user) {
+    throw new Error('User not found');
+  }
+
+  const isOldPasswordValid = await userRepo.verifyPassword(oldPassword, user.password);
+  if (!isOldPasswordValid) {
+    throw new Error('Current password is incorrect');
+  }
+
+  if (oldPassword === newPassword) {
+    throw new Error('New password must be different from current password');
+  }
+
+  await userRepo.updatePassword(userId, newPassword);
+  return { success: true };
+}
