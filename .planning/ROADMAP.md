@@ -17,9 +17,15 @@ Build real-time notification system and advanced reporting dashboard to improve 
 ## Phased Implementation Plan
 
 ### Phase 6: WebSocket Infrastructure & Order Notifications
-**Priority:** HIGH | Effort: 5-6 days | Risk: Medium
+**Priority:** HIGH | Effort: 5-6 days | Risk: Medium | **Status:** 📝 Planned
 
 **Why:** Real-time updates improve kitchen efficiency and customer service by ensuring staff are immediately notified of order changes.
+
+**Plans:**
+- [ ] `06-01-PLAN.md` — WebSocket Server Setup with JWT Auth & Room Management
+- [ ] `06-02-PLAN.md` — Order Notification Events & UI Integration
+
+**Requirements:** WS-01, WS-02, WS-03, WS-04, WS-05, WS-06
 
 #### 6.1 WebSocket Server Setup
 **What:** Set up WebSocket server with authentication and connection management
