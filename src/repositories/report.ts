@@ -106,7 +106,7 @@ export async function getMonthlySales(year?: number, month?: number) {
 export async function getSalesByDateRange(startDate: string, endDate: string) {
   const start = dateStart(startDate);
   const end = dateEnd(endDate);
-  
+
   return db.select({
     date: sql<string>`DATE(${orders.createdAt})`,
     totalOrders: count(orders.id).mapWith(Number),
@@ -120,6 +120,28 @@ export async function getSalesByDateRange(startDate: string, endDate: string) {
   .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)))
   .groupBy(sql`DATE(${orders.createdAt})`)
   .orderBy(sql`DATE(${orders.createdAt})`);
+}
+
+export async function getSalesByDateRangePaginated(startDate: string, endDate: string, page: number, limit: number) {
+  const start = dateStart(startDate);
+  const end = dateEnd(endDate);
+  const offset = (page - 1) * limit;
+
+  return db.select({
+    date: sql<string>`DATE(${orders.createdAt})`,
+    totalOrders: count(orders.id).mapWith(Number),
+    completedOrders: sql<number>`SUM(CASE WHEN ${orders.status} = 'completed' THEN 1 ELSE 0 END)`,
+    cancelledOrders: sql<number>`SUM(CASE WHEN ${orders.status} = 'cancelled' THEN 1 ELSE 0 END)`,
+    totalSales: sum(orders.total).mapWith(Number),
+    totalTax: sum(orders.tax).mapWith(Number),
+    avgOrderValue: avg(orders.total).mapWith(Number),
+  })
+  .from(orders)
+  .where(and(gte(orders.createdAt, start), lte(orders.createdAt, end)))
+  .groupBy(sql`DATE(${orders.createdAt})`)
+  .orderBy(sql`DATE(${orders.createdAt})`)
+  .limit(limit)
+  .offset(offset);
 }
 
 // Menu Reports

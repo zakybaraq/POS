@@ -1,6 +1,7 @@
 import { Elysia } from 'elysia';
 import * as reportRepo from '../repositories/report';
 import * as financialRepo from '../repositories/financial-report';
+import { parsePaginationQuery, createPaginatedResult } from '../utils/pagination';
 
 export const reportRoutes = new Elysia({ prefix: '/api/reports' })
   .get('/sales/daily', async ({ query }) => {
@@ -23,7 +24,9 @@ export const reportRoutes = new Elysia({ prefix: '/api/reports' })
     if (!startDate || !endDate) {
       return { error: 'startDate and endDate are required' };
     }
-    return reportRepo.getSalesByDateRange(startDate, endDate);
+    const { page, limit } = parsePaginationQuery(query as any);
+    const data = await reportRepo.getSalesByDateRangePaginated(startDate, endDate, page, limit);
+    return createPaginatedResult(data, data.length, page, limit);
   })
   .get('/menus/top-quantity', async ({ query }) => {
     const startDate = (query as any)?.startDate;
