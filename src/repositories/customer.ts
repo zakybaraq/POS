@@ -55,9 +55,24 @@ export async function addLoyaltyPoints(customerId: number, points: number, order
     reason: orderId ? `Pesanan #${orderId}` : 'Manual',
   });
   await db.update(customers)
-    .set({ loyaltyPoints: sql`${customers.loyaltyPoints} + ${points}` })
-    .where(eq(customers.id, customerId));
+  .set({ loyaltyPoints: sql`${customers.loyaltyPoints} + ${points}` })
+  .where(eq(customers.id, customerId));
   await updateCustomerTier(customerId);
+}
+
+export async function addLoyaltyPointsTx(tx: any, customerId: number, points: number, orderId?: number) {
+  if (points <= 0) return;
+  await tx.insert(loyaltyTransactions).values({
+    customerId,
+    type: 'earn',
+    points,
+    referenceId: orderId || null,
+    reason: orderId ? `Pesanan #${orderId}` : 'Manual',
+  });
+  await tx.update(customers)
+  .set({ loyaltyPoints: sql`${customers.loyaltyPoints} + ${points}` })
+  .where(eq(customers.id, customerId));
+  await updateCustomerTierTx(tx, customerId);
 }
 
 export async function redeemLoyaltyPoints(customerId: number, points: number, reason?: string) {
@@ -97,15 +112,40 @@ export async function updateCustomerTier(customerId: number) {
   }
 }
 
+export async function updateCustomerTierTx(tx: any, customerId: number) {
+  const result = await tx.select().from(customers).where(eq(customers.id, customerId));
+  const customer = result[0];
+  if (!customer) return;
+  const totalSpent = customer.totalSpent || 0;
+  let newTier = 'regular';
+  if (totalSpent >= 2000000) newTier = 'gold';
+  else if (totalSpent >= 500000) newTier = 'silver';
+
+  if (customer.tier !== newTier) {
+    await tx.update(customers).set({ tier: newTier as any }).where(eq(customers.id, customerId));
+  }
+}
+
 export async function updateCustomerVisit(customerId: number, amount: number) {
   await db.update(customers)
-    .set({
-      totalSpent: sql`${customers.totalSpent} + ${amount}`,
-      totalVisits: sql`${customers.totalVisits} + 1`,
-      updatedAt: new Date(),
-    })
-    .where(eq(customers.id, customerId));
+  .set({
+    totalSpent: sql`${customers.totalSpent} + ${amount}`,
+    totalVisits: sql`${customers.totalVisits} + 1`,
+    updatedAt: new Date(),
+  })
+  .where(eq(customers.id, customerId));
   await updateCustomerTier(customerId);
+}
+
+export async function updateCustomerVisitTx(tx: any, customerId: number, amount: number) {
+  await tx.update(customers)
+  .set({
+    totalSpent: sql`${customers.totalSpent} + ${amount}`,
+    totalVisits: sql`${customers.totalVisits} + 1`,
+    updatedAt: new Date(),
+  })
+  .where(eq(customers.id, customerId));
+  await updateCustomerTierTx(tx, customerId);
 }
 
 export async function getCustomerOrderHistory(customerId: number, limit: number = 20) {
@@ -117,7 +157,7 @@ export async function getCustomerOrderHistory(customerId: number, limit: number 
     createdAt: orders.createdAt,
   })
   .from(orders)
-  .where(eq(orders.userId, customerId))
+  .where(eq(orders.customerId, customerId))
   .orderBy(desc(orders.createdAt))
   .limit(limit);
 }

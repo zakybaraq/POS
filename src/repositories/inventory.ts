@@ -191,7 +191,7 @@ export async function decrementStockForOrder(orderId: number) {
 }
 
 export async function decrementStockForOrderTx(
-  tx: MySql2Database,
+  tx: any,
   orderId: number
 ) {
   const [order] = await tx.select().from(orders).where(eq(orders.id, orderId));

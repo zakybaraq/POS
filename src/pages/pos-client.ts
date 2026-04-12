@@ -641,6 +641,7 @@ async function processPayment() {
 
       const orderData = { userId: state.currentUserId, items: cart.items.map(i => ({ menuId: i.menuId, quantity: i.quantity, notes: i.notes || '' })), orderType: state.orderType };
       if (cart.tableId != null) orderData.tableId = cart.tableId;
+      if (state.selectedCustomerId) orderData.customerId = state.selectedCustomerId;
 
       const res = await fetch('/api/orders/with-items', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(orderData) });
       const data = await res.json();
@@ -659,22 +660,14 @@ async function processPayment() {
       localStorage.setItem('last-receipt', JSON.stringify(cart));
     }
 
-    const payRes = await fetch('/api/orders/' + state.currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
-    const payData = await payRes.json();
-    if (payData.error) { toast(payData.error, 'error'); }
-    else {
-      if (state.selectedCustomerId) {
-        const points = Math.floor(total * 0.01);
-        await fetch('/api/customers/' + state.selectedCustomerId + '/loyalty/earn', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ points: points, reason: 'Pembelian order #' + state.currentOrderId })
-        });
+      const payRes = await fetch('/api/orders/' + state.currentOrderId + '/pay', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ amountPaid: paid }) });
+      const payData = await payRes.json();
+      if (payData.error) { toast(payData.error, 'error'); }
+      else {
+        toast('Pembayaran berhasil!');
+        printReceipt();
+        resetAfterPayment();
       }
-      toast('Pembayaran berhasil!');
-      printReceipt();
-      resetAfterPayment();
-    }
   } catch (e) {
     console.error('Payment error:', e);
     toast('Payment failed: ' + e.message, 'error');
@@ -688,6 +681,9 @@ function resetAfterPayment() {
   state.currentTableNumber = null;
   state.orderType = null;
   state.paymentConfirmed = false;
+  state.selectedCustomerId = null;
+  const customerSelect = document.getElementById('payment-customer-select');
+  if (customerSelect) customerSelect.value = '';
   document.querySelectorAll('.pos-table').forEach(b => b.classList.remove('selected'));
   document.getElementById('cart-title').textContent = 'Pilih Jenis Pesanan';
   document.getElementById('cart-items').innerHTML = '<div class="pos-cart-empty">Pilih Dine-in atau Takeaway</div>';
@@ -911,11 +907,6 @@ async function loadCustomers() {
   }
 }
 
-function onCustomerSelectChange() {
-  const select = document.getElementById('payment-customer-select');
-  state.selectedCustomerId = select.value ? parseInt(select.value) : null;
-}
-
 document.addEventListener('DOMContentLoaded', () => {
   updateHeldCount();
   loadCustomers();
@@ -933,5 +924,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 });
 }
+
+window.onCustomerSelectChange = function() {
+  const select = document.getElementById('payment-customer-select');
+  state.selectedCustomerId = select.value ? parseInt(select.value) : null;
+};
 
 initPOS(null);
