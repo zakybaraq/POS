@@ -173,7 +173,7 @@ export async function getTopMenusByQuantity(startDate: string, endDate: string, 
 export async function getTopMenusByRevenue(startDate: string, endDate: string, limit: number = 10) {
   const start = dateStart(startDate);
   const end = dateEnd(endDate);
-  
+
   return db.select({
     menuId: orderItems.menuId,
     menuName: menus.name,
@@ -192,6 +192,32 @@ export async function getTopMenusByRevenue(startDate: string, endDate: string, l
   .groupBy(orderItems.menuId, menus.name, menus.category)
   .orderBy(desc(sum(sql`${orderItems.priceAtOrder} * ${orderItems.quantity}`)))
   .limit(limit);
+}
+
+export async function getTopMenusByRevenuePaginated(startDate: string, endDate: string, page: number, limit: number) {
+  const start = dateStart(startDate);
+  const end = dateEnd(endDate);
+  const offset = (page - 1) * limit;
+
+  return db.select({
+    menuId: orderItems.menuId,
+    menuName: menus.name,
+    category: menus.category,
+    totalQty: sum(orderItems.quantity).mapWith(Number),
+    revenue: sum(sql`${orderItems.priceAtOrder} * ${orderItems.quantity}`).mapWith(Number),
+  })
+  .from(orderItems)
+  .leftJoin(orders, eq(orderItems.orderId, orders.id))
+  .leftJoin(menus, eq(orderItems.menuId, menus.id))
+  .where(and(
+    gte(orders.createdAt, start),
+    lte(orders.createdAt, end),
+    eq(orders.status, 'completed')
+  ))
+  .groupBy(orderItems.menuId, menus.name, menus.category)
+  .orderBy(desc(sum(sql`${orderItems.priceAtOrder} * ${orderItems.quantity}`)))
+  .limit(limit)
+  .offset(offset);
 }
 
 export async function getMenuCategoryBreakdown(startDate: string, endDate: string) {

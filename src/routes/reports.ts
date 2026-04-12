@@ -40,11 +40,12 @@ export const reportRoutes = new Elysia({ prefix: '/api/reports' })
   .get('/menus/top-revenue', async ({ query }) => {
     const startDate = (query as any)?.startDate;
     const endDate = (query as any)?.endDate;
-    const limit = (query as any)?.limit ? parseInt((query as any).limit) : 10;
     if (!startDate || !endDate) {
       return { error: 'startDate and endDate are required' };
     }
-    return reportRepo.getTopMenusByRevenue(startDate, endDate, limit);
+    const { page, limit } = parsePaginationQuery(query as any);
+    const data = await reportRepo.getTopMenusByRevenuePaginated(startDate, endDate, page, limit);
+    return createPaginatedResult(data, data.length, page, limit);
   })
   .get('/menus/category', async ({ query }) => {
     const startDate = (query as any)?.startDate;
