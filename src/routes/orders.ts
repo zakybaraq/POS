@@ -6,6 +6,7 @@ import * as paymentService from '../services/payment';
 import { requireRole, getUserFromRequest } from '../middleware/authorization';
 import { createOrderSchema, createOrderWithItemsSchema, addItemToOrderSchema, updateOrderItemSchema, transferOrderSchema, paymentSchema, cancelOrderSchema } from '../schemas/order';
 import { validateBody } from '../schemas/index';
+import { notifyKitchen, notifyOrderStatusChanged } from '../services/notifications';
 
 const requireOrderCreate = () => requireRole(['super_admin', 'admin_restoran', 'kasir', 'waitress']);
 const requirePayment = () => requireRole(['super_admin', 'admin_restoran', 'kasir']);
@@ -123,11 +124,15 @@ export const orderRoutes = new Elysia({ prefix: '/api/orders' })
       await tableRepo.updateTableStatus(tableId, 'occupied');
     }
 
-    await orderRepo.updateOrderStatus(Number(order.id), 'active');
+await orderRepo.updateOrderStatus(Number(order.id), 'active');
 
-    const finalOrder = await orderRepo.getOrderById(Number(order.id));
-    const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
-    return { order: finalOrder, items: orderItems };
+  const finalOrder = await orderRepo.getOrderById(Number(order.id));
+  const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
+  
+  // Notify kitchen about new order
+  notifyKitchen({ ...finalOrder, items: orderItems });
+  
+  return { order: finalOrder, items: orderItems };
   })
   .put('/:id', async ({ params: { id }, body }) => {
     const { status } = body as any;
