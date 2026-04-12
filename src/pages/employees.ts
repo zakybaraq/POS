@@ -109,7 +109,7 @@ export const employeesPage = new Elysia()
             const data = await res.json();
             const tbody = document.getElementById('emp-tbody');
             if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="7" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
-            tbody.innerHTML = data.map(e => '<tr><td><strong>' + (e.name || '-') + '</strong></td><td>' + (e.position || '-') + '</td><td>' + (e.phone || '-') + '</td><td>Rp ' + (e.salary || 0).toLocaleString('id-ID') + '</td><td>' + (e.hireDate ? new Date(e.hireDate).toLocaleDateString('id-ID') : '-') + '</td><td><span class="badge ' + (e.isActive ? 'badge-success' : 'badge-error') + '">' + (e.isActive ? 'Aktif' : 'Nonaktif') + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="editEmp(' + e.id + ')">Edit</button></td></tr>').join('');
+            tbody.innerHTML = data.map(e => '<tr><td><strong>' + (e.name || '-') + '</strong></td><td>' + (e.position || '-') + '</td><td>' + (e.phone || '-') + '</td><td>Rp ' + (e.salary || 0).toLocaleString('id-ID') + '</td><td>' + (e.hireDate ? new Date(e.hireDate).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) : '-') + '</td><td><span class="badge ' + (e.isActive ? 'badge-success' : 'badge-error') + '">' + (e.isActive ? 'Aktif' : 'Nonaktif') + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="editEmp(' + e.id + ')">Edit</button></td></tr>').join('');
           } catch (e) { document.getElementById('emp-tbody').innerHTML = '<tr><td colspan="7" class="text-center text-secondary">Error: ' + e.message + '</td></tr>'; }
         }
 

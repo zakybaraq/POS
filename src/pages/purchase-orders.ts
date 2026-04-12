@@ -121,7 +121,7 @@ export const purchaseOrdersPage = new Elysia()
             suppliers.forEach(s => supMap[s.id] = s.name);
             const tbody = document.getElementById('po-tbody');
             if (!pos.length) { tbody.innerHTML = '<tr><td colspan="6" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
-            tbody.innerHTML = pos.map(po => '<tr><td><strong>' + po.poNumber + '</strong></td><td>' + (supMap[po.supplierId] || '-') + '</td><td>' + new Date(po.orderDate).toLocaleDateString('id-ID') + '</td><td>Rp ' + (po.subtotal || 0).toLocaleString('id-ID') + '</td><td><span class="badge ' + statusBadge(po.status) + '">' + statusLabel(po.status) + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="viewPO(' + po.id + ')">Detail</button></td></tr>').join('');
+            tbody.innerHTML = pos.map(po => '<tr><td><strong>' + po.poNumber + '</strong></td><td>' + (supMap[po.supplierId] || '-') + '</td><td>' + new Date(po.orderDate).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</td><td>Rp ' + (po.subtotal || 0).toLocaleString('id-ID') + '</td><td><span class="badge ' + statusBadge(po.status) + '">' + statusLabel(po.status) + '</span></td><td><button class="btn btn-secondary btn-sm" onclick="viewPO(' + po.id + ')">Detail</button></td></tr>').join('');
 
             const sel = document.getElementById('po-supplier');
             sel.innerHTML = '<option value="">-- Pilih Supplier --</option>' + suppliers.map(s => '<option value="' + s.id + '">' + s.name + '</option>').join('');
@@ -180,7 +180,7 @@ export const purchaseOrdersPage = new Elysia()
           const items = data.items || [];
           document.getElementById('po-detail-title').textContent = po.poNumber;
           let html = '<p><strong>Supplier:</strong> ' + (suppliers.find(s=>s.id===po.supplierId)?.name || '-') + '</p>';
-          html += '<p><strong>Tanggal:</strong> ' + new Date(po.orderDate).toLocaleDateString('id-ID') + ' | <strong>Status:</strong> <span class="badge ' + statusBadge(po.status) + '">' + statusLabel(po.status) + '</span></p>';
+          html += '<p><strong>Tanggal:</strong> ' + new Date(po.orderDate).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) + ' | <strong>Status:</strong> <span class="badge ' + statusBadge(po.status) + '">' + statusLabel(po.status) + '</span></p>';
           html += '<table class="table"><thead><tr><th>Bahan</th><th>Qty</th><th>Unit</th><th>Harga</th><th>Total</th></tr></thead><tbody>';
           for (const item of items) {
             const ing = ingredients.find(i => i.id === item.ingredientId);

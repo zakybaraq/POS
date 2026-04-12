@@ -112,7 +112,7 @@ export const shiftsPage = new Elysia()
             const shift = await res.json();
             if (shift && shift.id) {
               currentShiftId = shift.id;
-              const opened = new Date(shift.openedAt).toLocaleString('id-ID');
+              const opened = new Date(shift.openedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' });
               card.innerHTML = '<div style="margin-bottom:16px;"><h3 style="margin:0 0 8px;">🟢 Shift Terbuka</h3><p style="color:var(--color-text-secondary);margin:0;">Dibuka: ' + opened + '</p></div>' +
                 '<div class="shift-info">' +
                 '<div class="shift-stat"><div class="shift-stat-label">Modal Awal</div><div class="shift-stat-value">Rp ' + (shift.startingCash || 0).toLocaleString('id-ID') + '</div></div>' +
@@ -171,7 +171,7 @@ export const shiftsPage = new Elysia()
           const data = await res.json();
           const tbody = document.getElementById('all-shifts-tbody');
           if (!data || !data.length) { tbody.innerHTML = '<tr><td colspan="9" class="text-center text-secondary">Tidak ada data</td></tr>'; return; }
-          tbody.innerHTML = data.map(s => '<tr><td>' + (s.userName || '-') + '</td><td>' + new Date(s.openedAt).toLocaleString('id-ID') + '</td><td>' + (s.closedAt ? new Date(s.closedAt).toLocaleString('id-ID') : '-') + '</td><td>Rp ' + (s.startingCash || 0).toLocaleString('id-ID') + '</td><td>' + (s.expectedCash ? 'Rp ' + s.expectedCash.toLocaleString('id-ID') : '-') + '</td><td>' + (s.actualCash ? 'Rp ' + s.actualCash.toLocaleString('id-ID') : '-') + '</td><td>' + (s.cashDifference !== null && s.cashDifference !== undefined ? (s.cashDifference >= 0 ? '+' : '') + 'Rp ' + s.cashDifference.toLocaleString('id-ID') : '-') + '</td><td><span class="badge ' + (s.status === 'open' ? 'badge-warning' : 'badge-success') + '">' + (s.status === 'open' ? 'Terbuka' : 'Tertutup') + '</span></td></tr>').join('');
+          tbody.innerHTML = data.map(s => '<tr><td>' + (s.userName || '-') + '</td><td>' + new Date(s.openedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</td><td>' + (s.closedAt ? new Date(s.closedAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) : '-') + '</td><td>Rp ' + (s.startingCash || 0).toLocaleString('id-ID') + '</td><td>' + (s.expectedCash ? 'Rp ' + s.expectedCash.toLocaleString('id-ID') : '-') + '</td><td>' + (s.actualCash ? 'Rp ' + s.actualCash.toLocaleString('id-ID') : '-') + '</td><td>' + (s.cashDifference !== null && s.cashDifference !== undefined ? (s.cashDifference >= 0 ? '+' : '') + 'Rp ' + s.cashDifference.toLocaleString('id-ID') : '-') + '</td><td><span class="badge ' + (s.status === 'open' ? 'badge-warning' : 'badge-success') + '">' + (s.status === 'open' ? 'Terbuka' : 'Tertutup') + '</span></td></tr>').join('');
         }
 
         const today = new Date().toISOString().split('T')[0];

@@ -49,10 +49,6 @@ export const cancelOrderSchema = z.object({
   reason: z.string().max(500).optional(),
 });
 
-export const cancelOrderSchema = z.object({
-  reason: z.string().max(500).optional(),
-});
-
 export type CreateOrderInput = z.infer<typeof createOrderSchema>;
 export type CreateOrderWithItemsInput = z.infer<typeof createOrderWithItemsSchema>;
 export type CreateOrderFromTableInput = z.infer<typeof createOrderFromTableSchema>;

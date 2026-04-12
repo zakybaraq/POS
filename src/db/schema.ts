@@ -49,7 +49,7 @@ export const tables = mysqlTable('tables', {
   tableNumber: int('table_number').notNull().unique(),
   capacity: int('capacity').default(4),
   area: mysqlEnum('area', ['indoor', 'outdoor', 'vip']).default('indoor'),
-  status: mysqlEnum('table_status', ['available', 'occupied']).notNull().default('available'),
+  status: varchar('table_status', { length: 20 }).notNull().default('available'),
 });
 
 export const orders = mysqlTable('orders', {

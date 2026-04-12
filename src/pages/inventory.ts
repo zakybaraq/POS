@@ -500,7 +500,7 @@ async function submitStockAdjust() {
            document.getElementById('detail-order-id').textContent = order.id;
            let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">';
            html += '<div><strong>Meja:</strong> ' + (data.table?.tableNumber || '-') + '</div>';
-           html += '<div><strong>Tanggal:</strong> ' + new Date(order.createdAt).toLocaleString('id-ID') + '</div>';
+           html += '<div><strong>Tanggal:</strong> ' + new Date(order.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</div>';
            html += '<div><strong>Status:</strong> ' + (order.status === 'active' ? 'Aktif' : order.status === 'completed' ? 'Selesai' : 'Dibatal') + '</div>';
            html += '<div><strong>Total:</strong> Rp ' + (order.total || 0).toLocaleString('id-ID') + '</div>';
            html += '</div>';

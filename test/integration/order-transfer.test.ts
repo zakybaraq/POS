@@ -2,13 +2,17 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as orderRepo from '../../src/repositories/order';
 import * as tableRepo from '../../src/repositories/table';
 import { db } from '../../src/db/index';
+import { tables } from '../../src/db/schema';
+import { eq } from 'drizzle-orm';
 
 describe('Order Transfer (Transactional)', () => {
   let orderId: number;
-  const sourceTableId = 1;
-  const targetTableId = 2;
+  let sourceTableId = 11;
+  let targetTableId = 13;
   
   beforeEach(async () => {
+    await tableRepo.updateTableStatus(sourceTableId, 'available');
+    await tableRepo.updateTableStatus(targetTableId, 'available');
     const order = await orderRepo.createOrder(sourceTableId, 1);
     if (!order) throw new Error('Failed to create test order');
     orderId = order.id;

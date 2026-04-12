@@ -70,7 +70,9 @@ let config: Config;
 try {
   config = validateEnvironment();
 } catch (error) {
-  console.error(error instanceof Error ? error.message : String(error));
+  const errorMessage = error instanceof Error ? error.message : String(error);
+  // Use console at startup phase before logger is fully initialized
+  console.error(errorMessage);
   process.exit(1);
 }
 

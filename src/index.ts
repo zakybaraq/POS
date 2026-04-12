@@ -27,9 +27,14 @@ import { attendancePage } from './pages/attendance';
 import { kitchenPage } from './pages/kitchen';
 import { seedDefaultSettings } from './repositories/settings';
 import { seedDefaultCategories } from './repositories/category';
+import { logger } from './logger';
 
-seedDefaultSettings().catch(console.error);
-seedDefaultCategories().catch(console.error);
+seedDefaultSettings().catch(err => 
+  logger.error({ err }, 'Failed to seed settings')
+);
+seedDefaultCategories().catch(err => 
+  logger.error({ err }, 'Failed to seed categories')
+);
 
 const app = new Elysia()
   .use(routes)
@@ -74,6 +79,6 @@ const app = new Elysia()
   .use(kitchenPage)
   .listen(process.env.PORT || 3000);
 
-console.log(`Server running at http://localhost:${process.env.PORT || 3000}`);
+logger.info({ port: process.env.PORT || 3000 }, 'Server running');
 
 export type App = typeof app;

@@ -3,6 +3,7 @@ import { db } from '../db/index';
 import { ingredients, recipes, stockMovements, menus, orders, orderItems } from '../db/schema';
 import type { NewIngredient, NewRecipe, NewStockMovement } from '../db/schema';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
+import { getLoggerWithRequestId } from '../utils/logger-with-context';
 
 // === CRUD Ingredients ===
 export async function getAllIngredients() {
@@ -163,11 +164,12 @@ export async function adjustStock(
 }
 
 export async function decrementStockForOrder(orderId: number) {
+  const logger = getLoggerWithRequestId();
   const { getOrderById } = await import('./order');
   const order = await getOrderById(orderId);
 
   if (!order || order.status !== 'completed') {
-    console.log(`Stock decrement skipped for order #${orderId} - order not completed`);
+    logger.info({ orderId, orderStatus: order?.status }, 'Stock decrement skipped - order not completed');
     return;
   }
 
@@ -194,6 +196,7 @@ export async function decrementStockForOrderTx(
   tx: any,
   orderId: number
 ) {
+  const logger = getLoggerWithRequestId();
   const [order] = await tx.select().from(orders).where(eq(orders.id, orderId));
   
   if (!order || order.status !== 'completed') {
@@ -206,7 +209,7 @@ export async function decrementStockForOrderTx(
     .where(eq(stockMovements.referenceId, orderId));
     
   if (existingMovements[0]?.count > 0) {
-    console.log(`Stock already decremented for order #${orderId}, skipping`);
+    logger.info({ orderId, existingMovements: existingMovements[0]?.count }, 'Stock already decremented - skipping to prevent duplication');
     return;
   }
 

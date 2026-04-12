@@ -176,7 +176,7 @@ export const dashboardPage = new Elysia()
                           <td><strong>#${o.id}</strong></td>
                           <td>Rp ${(o.total || 0).toLocaleString('id-ID')}</td>
                           <td><span class="badge ${statusBadge(o.status)}">${statusLabel(o.status)}</span></td>
-                          <td>${new Date(o.createdAt).toLocaleTimeString('id-ID', { hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>${new Date(o.createdAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' })}</td>
                         </tr>
                       `).join('')}
                     </tbody>

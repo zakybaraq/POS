@@ -41,7 +41,7 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
     }
   })
   
-   .post('/login', async ({ body, cookie, ip }) => {
+   .post('/login', async ({ body, cookie, ip, set }) => {
     const clientIp = ip || 'unknown';
     if (!checkRateLimit(clientIp, 'login')) {
       return { error: 'Too many login attempts. Please try again later.', status: 429 };
@@ -70,6 +70,8 @@ export const authRoutes = new Elysia({ prefix: '/api/auth' })
         value: token,
         ...createSessionCookie()
       };
+      
+      set.headers['Set-Cookie'] = `${COOKIE_NAME}=${token}; HttpOnly; Path=/; Max-Age=86400; SameSite=Lax`;
       
       resetRateLimit(clientIp);
       return { success: true, user: result.user };

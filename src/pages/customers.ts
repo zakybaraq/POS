@@ -224,7 +224,7 @@ function renderCustomerHistory(history) {
     html += '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary);">Tidak ada riwayat</td></tr>';
   } else {
     pageData.forEach(o => {
-      html += '<tr><td>' + new Date(o.createdAt).toLocaleDateString('id-ID') + '</td><td>#' + o.id + '</td><td>Rp ' + (o.total || 0).toLocaleString('id-ID') + '</td><td>' + (o.status === 'completed' ? 'Selesai' : o.status === 'active' ? 'Aktif' : 'Dibatal') + '</td></tr>';
+      html += '<tr><td>' + new Date(o.createdAt).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</td><td>#' + o.id + '</td><td>Rp ' + (o.total || 0).toLocaleString('id-ID') + '</td><td>' + (o.status === 'completed' ? 'Selesai' : o.status === 'active' ? 'Aktif' : 'Dibatal') + '</td></tr>';
     });
   }
   html += '</tbody></table>';
@@ -252,7 +252,7 @@ function renderCustomerLoyalty(loyalty) {
     html += '<tr><td colspan="4" style="text-align: center; color: var(--color-text-secondary);">Tidak ada riwayat</td></tr>';
   } else {
     pageData.forEach(l => {
-      html += '<tr><td>' + new Date(l.createdAt).toLocaleDateString('id-ID') + '</td><td>' + (l.type === 'earn' ? '📥 Earn' : '📤 Redeem') + '</td><td style="color: ' + (l.type === 'earn' ? 'var(--color-success)' : 'var(--color-error)') + ';">' + (l.type === 'earn' ? '+' : '-') + l.points + '</td><td>' + (l.reason || '-') + '</td></tr>';
+      html += '<tr><td>' + new Date(l.createdAt).toLocaleDateString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</td><td>' + (l.type === 'earn' ? '📥 Earn' : '📤 Redeem') + '</td><td style="color: ' + (l.type === 'earn' ? 'var(--color-success)' : 'var(--color-error)') + ';">' + (l.type === 'earn' ? '+' : '-') + l.points + '</td><td>' + (l.reason || '-') + '</td></tr>';
     });
   }
   html += '</tbody></table>';

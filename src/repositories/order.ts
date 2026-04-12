@@ -2,6 +2,7 @@ import { eq, and, gte, gt, desc, sql, sum } from 'drizzle-orm';
 import { db } from '../db/index';
 import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
+import { getLoggerWithRequestId } from '../utils/logger-with-context';
 
 function todayStart(): Date {
   const now = new Date();
@@ -123,7 +124,8 @@ export async function completeOrder(id: number, amountPaid: number, markComplete
       const [completedOrder] = await tx.select().from(orders).where(eq(orders.id, id));
       return completedOrder || null;
     } catch (error) {
-      console.error(`Failed to complete order #${id}:`, error);
+      const logger = getLoggerWithRequestId();
+      logger.error({ orderId: id, err: error }, 'Failed to complete order');
       throw error;
     }
   });

@@ -92,7 +92,7 @@ export const ordersPage = new Elysia()
                         <td>${o.cashierName}</td>
                         <td>Rp ${(o.orders?.total || 0).toLocaleString('id-ID')}</td>
                         <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-                        <td>${o.orders?.createdAt ? new Date(o.orders.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
+                        <td>${o.orders?.createdAt ? new Date(o.orders.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '-'}</td>
                         <td><button onclick="showOrderDetail(${o.orders?.id})" class="btn btn-secondary btn-sm">👁️ Detail</button></td>
                       </tr>`;
                     }).join('')}
@@ -340,7 +340,7 @@ export const ordersPage = new Elysia()
           let html = '<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-bottom: 12px;">';
           html += '<div><strong>Meja:</strong> ' + (data.table?.tableNumber || '-') + '</div>';
           html += '<div><strong>Kasir:</strong> ${user.name}</div>';
-          html += '<div><strong>Tanggal:</strong> ' + new Date(order.createdAt).toLocaleString('id-ID') + '</div>';
+          html += '<div><strong>Tanggal:</strong> ' + new Date(order.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</div>';
           html += '<div><strong>Status:</strong> ' + (order.status === 'active' ? 'Aktif' : order.status === 'completed' ? 'Selesai' : 'Dibatal') + '</div>';
           html += '</div>';
           if (items.length > 0) {
@@ -374,7 +374,7 @@ export const ordersPage = new Elysia()
           html += '<div class="receipt-center" style="font-size: 11px;">Jl. Contoh No. 123</div>';
           html += '<div class="receipt-line"></div>';
           html += '<div class="receipt-row"><span>Order #</span><span>' + order.id + '</span></div>';
-          html += '<div class="receipt-row"><span>Tgl</span><span>' + new Date(order.createdAt).toLocaleString('id-ID') + '</span></div>';
+          html += '<div class="receipt-row"><span>Tgl</span><span>' + new Date(order.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' }) + '</span></div>';
           html += '<div class="receipt-line"></div>';
           items.forEach(item => {
             html += '<div class="receipt-row"><span>' + (item.menuName || 'Item') + ' x' + item.quantity + '</span><span>' + ((item.priceAtOrder || 0) * item.quantity).toLocaleString('id-ID') + '</span></div>';

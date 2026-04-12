@@ -169,7 +169,7 @@ export const adminPage = new Elysia()
                     ${auditLogs.length === 0 ? '<tr><td colspan="4" class="text-center text-secondary" style="padding: 24px;">Belum ada aktivitas</td></tr>' :
                       auditLogs.map((log: any) => `
                         <tr>
-                          <td>${new Date(log.createdAt).toLocaleString('id-ID', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
+                          <td>${new Date(log.createdAt).toLocaleString('id-ID', { timeZone: 'Asia/Jakarta', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}</td>
                           <td><strong>${log.userName}</strong></td>
                           <td>${actionLabel(log.action)}</td>
                           <td style="color: var(--color-text-secondary); font-size: 13px;">${log.details || '-'}</td>
