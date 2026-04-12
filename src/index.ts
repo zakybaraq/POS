@@ -2,6 +2,8 @@ import { Elysia } from 'elysia';
 import { cookie } from '@elysiajs/cookie';
 import { routes } from './routes';
 import { categoryRoutes } from './routes/categories';
+import { healthRoutes } from './routes/health';
+import { metricsRoutes } from './routes/metrics';
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { authPages } from './pages/auth';
@@ -39,7 +41,8 @@ seedDefaultCategories().catch(err =>
 const app = new Elysia()
   .use(routes)
   .use(categoryRoutes)
-  .get('/health', () => ({ status: 'ok', timestamp: new Date().toISOString() }))
+  .use(healthRoutes)
+  .use(metricsRoutes)
   .get('/styles/:path', ({ params }) => {
     const stylesDir = join(__dirname, 'public/styles');
     const filePath = join(stylesDir, params.path);

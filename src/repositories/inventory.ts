@@ -4,6 +4,7 @@ import { ingredients, recipes, stockMovements, menus, orders, orderItems } from 
 import type { NewIngredient, NewRecipe, NewStockMovement } from '../db/schema';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
+import { incrementStockDecrements } from '../metrics';
 
 // === CRUD Ingredients ===
 export async function getAllIngredients() {
@@ -271,6 +272,7 @@ export async function decrementStockForOrderTx(
     }
   }
 
+  incrementStockDecrements(1);
   logger.info({ orderId }, 'Stock decrement completed successfully');
 }
 

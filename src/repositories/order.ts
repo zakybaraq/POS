@@ -3,6 +3,7 @@ import { db } from '../db/index';
 import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
+import { incrementOrdersCompleted } from '../metrics';
 
 function todayStart(): Date {
   const now = new Date();
@@ -139,6 +140,11 @@ export async function completeOrder(id: number, amountPaid: number, markComplete
       }
 
       const [completedOrder] = await tx.select().from(orders).where(eq(orders.id, id));
+      
+      if (completedOrder) {
+        incrementOrdersCompleted(1);
+      }
+      
       return completedOrder || null;
     } catch (error) {
       logger.error({ orderId: id, err: error }, 'Failed to complete order');
@@ -196,7 +202,13 @@ export async function completeOrderWithPayment(
 
     return tx.select().from(orders)
       .where(eq(orders.id, id))
-      .then((r: any) => r[0]);
+      .then((r: any) => {
+        const result = r[0];
+        if (result) {
+          incrementOrdersCompleted(1);
+        }
+        return result;
+      });
   });
 }
 
