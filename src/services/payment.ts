@@ -7,25 +7,19 @@ export function calculateChange(total: number, amountPaid: number): number {
 }
 
 export async function processPayment(orderId: number, amountPaid: number) {
-    const order = await orderRepo.getOrderById(orderId);
-    if (!order) {
-      throw new Error('Order not found');
-    }
-    if (order.status !== 'active') {
-      throw new Error('Order is not active');
-    }
-    if (amountPaid < order.total) {
-      throw new Error('Insufficient payment');
-    }
-    
-    // Always mark the order as complete when payment is processed successfully.
-    // This ensures stock is decremented for both dine-in (with tableId) and takeaway orders.
-    // Stock decrement is handled automatically in order.completeOrder()
-    const shouldComplete = true;
-    const completedOrder = await orderRepo.completeOrder(orderId, amountPaid, shouldComplete);
-    
-    return completedOrder;
+  const order = await orderRepo.getOrderById(orderId);
+  if (!order) {
+    throw new Error('Order not found');
   }
+  if (order.status !== 'active') {
+    throw new Error('Order is not active');
+  }
+  if (amountPaid < order.total) {
+    throw new Error('Insufficient payment');
+  }
+  
+  return orderRepo.completeOrderWithPayment(orderId, amountPaid);
+}
 
  export function generateReceipt(order: Order, items: any[], tableNumber: number): string {
    const now = new Date();

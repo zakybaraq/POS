@@ -95,7 +95,7 @@ export async function completeOrder(id: number, amountPaid: number, markComplete
 
   const changeDue = amountPaid - order.total;
 
-  return await db.transaction(async (tx) => {
+  return await db.transaction(async (tx: any) => {
     try {
       const updateData: Record<string, unknown> = {
         amountPaid,
@@ -126,6 +126,75 @@ export async function completeOrder(id: number, amountPaid: number, markComplete
       console.error(`Failed to complete order #${id}:`, error);
       throw error;
     }
+  });
+}
+
+/**
+ * Complete order with payment (stock will be decremented)
+ * Called when payment is processed and verified
+ */
+export async function completeOrderWithPayment(
+  id: number,
+  amountPaid: number
+) {
+  const order = await getOrderById(id);
+  if (!order) {
+    throw new Error(`Order #${id} not found`);
+  }
+
+  if (amountPaid < order.total) {
+    throw new Error(`Payment insufficient: ${amountPaid} < ${order.total}`);
+  }
+
+  const changeDue = amountPaid - order.total;
+
+  return await db.transaction(async (tx: any) => {
+    await tx.update(orders)
+      .set({
+        status: 'completed',
+        amountPaid,
+        changeDue,
+        completedAt: new Date(),
+      })
+      .where(eq(orders.id, id));
+
+    const { decrementStockForOrderTx } = await import('./inventory');
+    await decrementStockForOrderTx(tx, id);
+
+    if (order.customerId) {
+      const { addLoyaltyPointsTx, updateCustomerVisitTx } = await import('./customer');
+      const points = Math.floor(order.total * 0.01);
+      await addLoyaltyPointsTx(tx, order.customerId, points, id);
+      await updateCustomerVisitTx(tx, order.customerId, order.total);
+    }
+
+    return tx.select().from(orders)
+      .where(eq(orders.id, id))
+      .then((r: any) => r[0]);
+  });
+}
+
+/**
+ * Finish order without payment (stock will NOT be decremented)
+ * Used for future payment, split payments, or manual review scenarios
+ */
+export async function finishOrderWithoutPayment(id: number) {
+  const order = await getOrderById(id);
+  if (!order) {
+    throw new Error(`Order #${id} not found`);
+  }
+
+  return await db.transaction(async (tx: any) => {
+    await tx.update(orders)
+      .set({
+        status: 'completed',
+        completedAt: new Date(),
+      })
+      .where(eq(orders.id, id));
+
+    return tx.select().from(orders)
+      .where(eq(orders.id, id))
+      .then((r: any) => r[0]);
   });
 }
 
