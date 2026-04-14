@@ -1,397 +1,229 @@
-# POS Application v2.0 Roadmap
+# POS Application v2.1 Roadmap
 
 **Status:** Planning  
-**Version:** 2.0.0  
-**Theme:** Real-time Notifications & Dashboard  
-**Date:** 2026-04-13  
-**Previous:** v1.0 Complete ✅
+**Version:** 2.1.0  
+**Theme:** Advanced Inventory Management  
+**Date:** 2026-04-14  
+**Previous:** v2.0 Complete ✅
 
 ---
 
 ## Executive Summary
 
-Build real-time notification system and advanced reporting dashboard to improve operational visibility and user experience. This milestone adds WebSocket capabilities for live updates and creates a comprehensive dashboard for monitoring restaurant operations in real-time.
+Milestone v2.1 advances inventory management with supplier relationships, purchase order workflows, cost tracking, and automated reordering. This builds on the basic inventory tracking from v1.0.
 
 ---
 
 ## Phased Implementation Plan
 
-### Phase 6: WebSocket Infrastructure & Order Notifications
-**Priority:** HIGH | Effort: 5-6 days | Risk: Medium | **Status:** 📝 Planned
+### Phase 11: Supplier Management
+**Priority:** HIGH | Effort: 3-4 days | Risk: Low | **Status:** 📝 Planned
 
-**Why:** Real-time updates improve kitchen efficiency and customer service by ensuring staff are immediately notified of order changes.
+**Why:** Establish supplier relationships to enable purchase orders and cost tracking.
 
 **Plans:**
-- [ ] `06-01-PLAN.md` — WebSocket Server Setup with JWT Auth & Room Management
-- [ ] `06-02-PLAN.md` — Order Notification Events & UI Integration
+- [ ] `11-01-PLAN.md` — Supplier Database & CRUD Operations
 
-**Requirements:** WS-01, WS-02, WS-03, WS-04, WS-05, WS-06
+**Requirements:** REQ-001
 
-#### 6.1 WebSocket Server Setup
-**What:** Set up WebSocket server with authentication and connection management
+#### 11.1 Supplier Database & CRUD
+**What:** Create supplier management infrastructure
 
 **How:**
-1. Add WebSocket dependency (Socket.io or Elysia WebSocket)
-2. Configure WebSocket server in src/index.ts
-3. Implement JWT authentication for connections
-4. Create room/channel architecture (kitchen, cashier, admin)
-5. Implement connection heartbeat/ping-pong
-6. Add error handling and reconnection logic
+1. Add `suppliers` table schema
+2. Create supplier repository methods
+3. Build API endpoints for CRUD
+4. Add supplier UI page
+5. Connect ingredients to preferred suppliers
 
 **Files to create:**
-- `src/websocket/index.ts` - WebSocket server setup
-- `src/websocket/auth.ts` - JWT authentication middleware
-- `src/websocket/rooms.ts` - Room management
+- `src/db/schema.ts` - Add suppliers table
+- `src/repositories/supplier.ts` - Supplier repository
+- `src/routes/suppliers.ts` - Supplier API routes
+- `src/pages/suppliers.ts` - Supplier management UI
 
 **Files to modify:**
-- `src/index.ts` - Add WebSocket registration
-- `package.json` - Add WebSocket dependency
+- `src/db/schema.ts` - Add supplier_id to ingredients
+- `src/repositories/inventory.ts` - Link to preferred supplier
+- `src/pages/admin.ts` - Add supplier link
 
 **Success Criteria:**
-- WebSocket connections authenticate via JWT
-- Clients can join appropriate rooms
-- Connection stays alive with heartbeat
-- Reconnection works on network failure
+- [ ] Suppliers CRUD functional
+- [ ] Each ingredient has preferred supplier
+- [ ] Lead time tracked
+- [ ] Rating system working
 
 **Estimate:** 8 hours
 
 ---
 
-#### 6.2 Order Notification Events
-**What:** Broadcast order events to kitchen and cashier in real-time
+### Phase 12: Purchase Order System
+**Priority:** HIGH | Effort: 4-5 days | Risk: Medium | **Status:** 📝 Planned
+
+**Why:** Formalize purchasing workflow from supplier to inventory.
+
+**Plans:**
+- [ ] `12-01-PLAN.md` — Purchase Order Schema & API
+- [ ] `12-02-PLAN.md` — PO Workflow & Receiving
+
+**Requirements:** REQ-002
+
+#### 12.1 Purchase Order Schema & API
+**What:** Core PO infrastructure and endpoints
 
 **How:**
-1. Create notification service in `src/services/notifications.ts`
-2. Emit events on order lifecycle changes:
-   - `order:created` → Kitchen room
-   - `order:status-changed` → Kitchen, Cashier rooms
-   - `order:completed` → Cashier room
-   - `payment:received` → Cashier room
-3. Include full order context in notifications
-4. Add visual/audio indicator in UI
+1. Add `purchase_orders` and `purchase_order_items` tables
+2. Create PO repository methods
+3. Build API endpoints (create, list, update, delete)
+4. Add status transitions
+5. Add search/filter endpoints
+
+**Schema:**
+- purchase_orders: id, supplier_id, status, total_amount, created_by, approved_by, created_at, updated_at
+- purchase_order_items: id, po_id, ingredient_id, quantity, unit_cost, received_qty
 
 **Files to create:**
-- `src/services/notifications.ts` - Notification service
-- `src/websocket/events/order-events.ts` - Order event handlers
-
-**Files to modify:**
-- `src/routes/orders.ts` - Emit events on order changes
-- `src/services/payment.ts` - Emit on payment completion
-- `src/pages/kitchen.ts` - Subscribe to kitchen events
-- `src/pages/pos.ts` - Subscribe to cashier events
-
-**Success Criteria:**
-- Kitchen receives new order notification within 1 second
-- Order status updates sync across all connected clients
-- Notifications include full order details
-- Visual and audio alerts work in UI
+- `src/repositories/purchase-order.ts` - PO repository
+- `src/routes/purchase-orders.ts` - PO API routes
 
 **Estimate:** 10 hours
 
 ---
 
-**Total Phase 6:** ~18 hours | Risk reduction: Medium | Feature: WebSocket infrastructure
-
----
-
-### Phase 7: Inventory Alert System
-**Priority:** HIGH | Effort: 3-4 days | Risk: Low | **Status:** 📝 Planned
-
-**Why:** Prevent stockouts by alerting staff when inventory falls below thresholds, ensuring continuous kitchen operations.
-
-**Plans:**
-- [ ] `07-01-PLAN.md` — Low Stock Threshold Configuration UI & API
-- [ ] `07-02-PLAN.md` — Real-time Stock Monitoring & WebSocket Alerts
-
-**Requirements:** INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08
-
-#### 7.1 Low Stock Threshold Configuration
-**What:** Allow setting minimum stock levels per ingredient
+#### 12.2 PO Workflow & Receiving
+**What:** Complete PO workflow with receiving
 
 **How:**
-1. Add `minStockThreshold` field to ingredients table
-2. Create settings UI for threshold configuration
-3. Default thresholds based on average usage
-4. Validation for reasonable threshold values
+1. Implement status transitions (draft→submitted→approved→received)
+2. Add approval endpoint
+3. Create receiving flow (update inventory on receive)
+4. Partial receiving support
+5. Add PO history tracking
 
 **Files to modify:**
-- `src/db/schema.ts` - Add threshold field
-- `src/routes/inventory.ts` - Add threshold update endpoint
-- `src/pages/inventory.ts` - Add threshold settings UI
+- `src/repositories/purchase-order.ts` - Add status methods
+- `src/repositories/inventory.ts` - Update stock on receive
+- `src/pages/purchase-orders.ts` - Add workflow UI
 
 **Success Criteria:**
-- Thresholds configurable per ingredient
-- UI shows current threshold and suggested values
-- Changes persist in database
-- Validation prevents invalid values
-
-**Estimate:** 4 hours
-
----
-
-#### 7.2 Real-time Stock Monitoring
-**What:** Monitor stock levels and emit alerts when below threshold
-
-**How:**
-1. Create stock monitoring service
-2. Check stock levels after each decrement operation
-3. Emit `inventory:low-stock` event when below threshold
-4. Deduplicate alerts (don't spam same ingredient)
-5. Add alert acknowledgment system
-
-**Files to create:**
-- `src/services/inventory-monitor.ts` - Stock monitoring service
-- `src/websocket/events/inventory-events.ts` - Inventory event handlers
-
-**Files to modify:**
-- `src/repositories/inventory.ts` - Check thresholds after decrement
-- `src/pages/admin.ts` - Subscribe to inventory alerts
-- `src/pages/kitchen.ts` - Show low stock warnings
-
-**Success Criteria:**
-- Alerts trigger immediately when stock below threshold
-- No duplicate alerts for same ingredient
-- Alerts show in dashboard and kitchen display
-- Acknowledgment clears alert
-
-**Estimate:** 6 hours
-
----
-
-**Total Phase 7:** ~10 hours | Risk reduction: Low | Feature: Inventory alerts
-
----
-
-### Phase 8: Real-time Dashboard Backend
-**Priority:** MEDIUM-HIGH | Effort: 4-5 days | Risk: Medium
-
-**Why:** Provide management with live operational metrics for better decision-making and faster response to issues.
-
-#### 8.1 Metrics Aggregation Endpoints
-**What:** Create endpoints for real-time dashboard metrics
-
-**How:**
-1. Create dashboard service in `src/services/dashboard.ts`
-2. Aggregate metrics:
-   - Sales today (live counter)
-   - Orders today (live counter)
-   - Kitchen queue (pending, cooking, ready counts)
-   - Inventory status (low stock count)
-   - Top selling items (real-time)
-3. Cache frequently accessed data
-4. Optimize queries for sub-second response
-
-**Files to create:**
-- `src/services/dashboard.ts` - Dashboard metrics service
-- `src/routes/dashboard.ts` - Dashboard API endpoints
-
-**Files to modify:**
-- `src/repositories/order.ts` - Add dashboard query methods
-- `src/repositories/inventory.ts` - Add low stock count method
-
-**Success Criteria:**
-- API response < 500ms
-- Metrics update in real-time via WebSocket
-- Caching improves performance
-- All required metrics available
-
-**Estimate:** 8 hours
-
----
-
-#### 8.2 WebSocket Streaming
-**What:** Stream dashboard data via WebSocket for live updates
-
-**How:**
-1. Create dashboard room in WebSocket
-2. Emit metric updates on data changes
-3. Subscribe dashboard clients to room
-4. Batch updates to reduce network traffic
-5. Handle client disconnection gracefully
-
-**Files to create:**
-- `src/websocket/events/dashboard-events.ts` - Dashboard event handlers
-- `src/services/dashboard-stream.ts` - Streaming service
-
-**Files to modify:**
-- `src/services/dashboard.ts` - Emit events on metric changes
-- `src/index.ts` - Start dashboard streaming
-
-**Success Criteria:**
-- Dashboard updates automatically without refresh
-- Updates received within 1 second of data change
-- Batching prevents network overload
-- Graceful handling of disconnections
-
-**Estimate:** 6 hours
-
----
-
-**Total Phase 8:** ~14 hours | Risk reduction: Medium | Feature: Dashboard backend
-
----
-
-### Phase 9: Dashboard Frontend
-**Priority:** HIGH | Effort: 5-6 days | Risk: Medium | **Status:** 📝 Planned
-
-**Why:** Visual dashboard provides at-a-glance operational status and helps identify issues quickly.
-
-**Plans:**
-- [ ] `09-01-PLAN.md` — Dashboard Charts & Date Filters
-- [ ] `09-02-PLAN.md` — CSV Export & Mobile Responsive
-
-#### 9.1 Dashboard Layout & Widgets
-**What:** Create dashboard page with real-time widgets
-
-**How:**
-1. Create dashboard page at `/dashboard`
-2. Build widget components:
-   - Sales counter (big number, live update)
-   - Orders counter (big number, live update)
-   - Kitchen queue status (visual indicators)
-   - Low stock list (scrollable list)
-   - Top items (bar chart)
-   - Hourly sales trend (line chart)
-3. Mobile-responsive grid layout
-4. Auto-reconnect on WebSocket failure
-
-**Files to create:**
-- `src/pages/dashboard.ts` - Dashboard page
-- `src/pages/dashboard/widgets/` - Widget components
-- `src/pages/dashboard/charts.ts` - Chart.js integration
-
-**Files to modify:**
-- `src/index.ts` - Add dashboard route
-- `src/public/styles/dashboard.css` - Dashboard styles
-
-**Success Criteria:**
-- Dashboard loads < 3 seconds
-- Widgets auto-update via WebSocket
-- Mobile layout functional
-- Charts render correctly
-- Reconnection works automatically
+- [ ] Full PO lifecycle
+- [ ] Partial receiving
+- [ ] Inventory auto-updates
+- [ ] Approval workflow
 
 **Estimate:** 12 hours
 
 ---
 
-#### 9.2 Interactive Features
-**What:** Add interactivity to dashboard (filters, drill-down)
-
-**How:**
-1. Date range selector (today, yesterday, custom)
-2. Kitchen queue interaction (click to see orders)
-3. Low stock item quick actions (view, reorder)
-4. Export dashboard data (PDF, CSV)
-5. Fullscreen mode
-
-**Files to modify:**
-- `src/pages/dashboard.ts` - Add interactive elements
-- `src/routes/dashboard.ts` - Add filter endpoints
-- `src/services/reports.ts` - Add export methods
-
-**Success Criteria:**
-- Date filters work and update widgets
-- Drill-down shows detailed data
-- Export generates files correctly
-- Fullscreen mode works
-
-**Estimate:** 6 hours
+**Total Phase 12:** ~22 hours | Risk reduction: Medium | Feature: Purchase orders
 
 ---
 
-**Total Phase 9:** ~18 hours | Risk reduction: Low | Feature: Dashboard UI
+### Phase 13: Cost Analytics
+**Priority:** MEDIUM-HIGH | Effort: 3-4 days | Risk: Low | **Status:** 📝 Planned
 
----
-
-### Phase 10: Notification Preferences
-**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** ✅ Planned
-
-**Why:** Users should control which notifications they receive to avoid alert fatigue.
+**Why:** Visibility into costs and supplier pricing.
 
 **Plans:**
-- [ ] `10-01-PLAN.md` — User Notification Preferences (schema, API, UI)
+- [ ] `13-01-PLAN.md` — Cost Tracking & History
 
-#### 10.1 User Notification Settings
-**What:** Allow users to customize notification preferences
+**Requirements:** REQ-003
+
+#### 13.1 Cost Tracking & History
+**What:** Track costs over time and per supplier
 
 **How:**
-1. Add notification settings to user profile
-2. Create settings UI for toggling notification types
-3. Role-based defaults (kitchen gets order notifications)
-4. Persist preferences in database
-5. Apply filters before sending notifications
+1. Add price history tracking (log price per PO)
+2. Create cost analytics endpoints
+3. Add variance alerts (configurable threshold)
+4. Build cost comparison reports
+5. Add to dashboard
 
 **Files to create:**
-- `src/routes/users/notifications.ts` - Notification settings endpoints
-- `src/pages/settings/notifications.ts` - Settings UI
+- `src/services/cost-analytics.ts` - Cost tracking service
+- `src/routes/analytics.ts` - Analytics API
 
 **Files to modify:**
-- `src/db/schema.ts` - Add notification settings column
-- `src/services/notifications.ts` - Check preferences before sending
-- `src/pages/settings.ts` - Add notification tab
+- `src/repositories/purchase-order.ts` - Add cost aggregation
+- `src/pages/dashboard.ts` - Add cost widget
 
 **Success Criteria:**
-- Users can toggle notification types
-- Role-based defaults applied
-- Changes saved to database
-- Notifications respect user preferences
+- [ ] Price history per ingredient
+- [ ] Cost variance alerts
+- [ ] Supplier price comparison
+- [ ] Monthly reports
 
 **Estimate:** 8 hours
 
 ---
 
-**Total Phase 10:** ~8 hours | Risk reduction: Low | Feature: Preferences
+**Total Phase 13:** ~8 hours | Risk reduction: Low | Feature: Cost analytics
+
+---
+
+### Phase 14: Auto-Reorder System
+**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** 📝 Planned
+
+**Why:** Reduce manual monitoring with automated suggestions.
+
+**Plans:**
+- [ ] `14-01-PLAN.md` — Reorder Suggestions & EOQ
+
+**Requirements:** REQ-004
+
+#### 14.1 Reorder Suggestions & EOQ
+**What:** Automated reorder recommendations
+
+**How:**
+1. Calculate reorder points per ingredient
+2. Implement EOQ formula
+3. Create suggestion service
+4. Auto-generate draft PO from suggestions
+5. Add dashboard widget
+
+**Formulas:**
+- Reorder Point = (Lead Time Days × Avg Daily Usage) + Safety Stock
+- EOQ = √((2 × Annual Demand × Order Cost) / Holding Cost %)
+
+**Files to create:**
+- `src/services/reorder.ts` - Reorder service
+- `src/routes/reorder.ts` - Reorder API
+
+**Files to modify:**
+- `src/repositories/inventory.ts` - Usage calculations
+- `src/repositories/supplier.ts` - Get supplier lead times
+
+**Success Criteria:**
+- [ ] Reorder suggestions display
+- [ ] EOQ calculated
+- [ ] Auto-generate PO draft
+- [ ] Manual override works
+
+**Estimate:** 6 hours
+
+---
+
+**Total Phase 14:** ~6 hours | Risk reduction: Low | Feature: Auto-reorder
 
 ---
 
 ## Quick Wins (0.5-1 hour each)
 
-1. **Add WebSocket health check endpoint** - Verify WebSocket server status
-2. **Dashboard favicon with unread indicator** - Show notification count
-3. **Toast notifications for alerts** - Brief popup notifications
-4. **Sound toggle for notifications** - Mute/unmute audio alerts
+1. **Supplier export** - Export supplier list to CSV
+2. **PO email notification** - Email on PO approval/receiving
+3. **Low stock → auto PO** - Trigger PO from low stock threshold
+4. **Cost alerts dashboard** - Show cost variance alerts
 
 ---
 
 ## Success Criteria
 
-- [ ] WebSocket connections stable with < 1% disconnections
-- [ ] Dashboard loads in < 3 seconds
-- [ ] Real-time updates received within 1 second
+- [ ] 4 phases complete
 - [ ] All 78 existing tests still passing
-- [ ] Mobile dashboard functional
 - [ ] No regression in existing features
-
----
-
-## Technical Stack Additions
-
-- **WebSocket:** Socket.io or Elysia WebSocket
-- **Charts:** Chart.js or D3.js
-- **Caching:** Redis (optional, for horizontal scaling)
-- **Email:** Nodemailer (optional, for email alerts)
-
----
-
-## Risks & Mitigations
-
-| Risk | Mitigation |
-|------|------------|
-| WebSocket scaling issues | Implement Redis adapter for multi-instance support |
-| Dashboard performance | Implement caching and optimize queries |
-| Browser compatibility | Test on multiple browsers, fallback to polling |
-| Network interruptions | Implement automatic reconnection with exponential backoff |
-
----
-
-## Dependencies
-
-- ✅ Phase 1-5 (v1.0) complete
-- ✅ Authentication system ready
-- ✅ Database optimized
-- WebSocket library (to be added)
-- Chart library (to be added)
+- [ ] Supplier management working
+- [ ] PO workflow complete
+- [ ] Cost analytics accessible
 
 ---
 
@@ -399,15 +231,14 @@ Build real-time notification system and advanced reporting dashboard to improve 
 
 | Phase | Duration | Start | End |
 |-------|----------|-------|-----|
-| Phase 6 | 3-4 days | Week 1 | Week 1 |
-| Phase 7 | 2-3 days | Week 2 | Week 2 |
-| Phase 8 | 3-4 days | Week 2 | Week 3 |
-| Phase 9 | 3-4 days | Week 3 | Week 4 |
-| Phase 10 | 1-2 days | Week 4 | Week 4 |
-| **Total** | **~4 weeks** | | |
+| Phase 11 | 1 day | Week 1 | Week 1 |
+| Phase 12 | 2-3 days | Week 1 | Week 2 |
+| Phase 13 | 1-2 days | Week 2 | Week 2 |
+| Phase 14 | 1 day | Week 2 | Week 2 |
+| **Total** | **~5 days** | | |
 
 ---
 
-**Next:** Start with Phase 6 - WebSocket Infrastructure
+**Next:** Plan and execute Phase 11 - Supplier Management
 
-**Previous Milestone:** [v1.0 ROADMAP](./milestones/v1.0-ROADMAP.md)
+**Previous Milestone:** [v2.0 ROADMAP](./milestones/v2.0-ROADMAP.md)

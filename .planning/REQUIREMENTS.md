@@ -1,159 +1,110 @@
-# POS Application v2.0 - Requirements
+# POS Application v2.1 - Requirements
 
-**Version:** 2.0.0  
+**Version:** 2.1.0  
 **Status:** In Planning  
-**Last Updated:** 2026-04-13  
-**Theme:** Real-time Notifications & Dashboard
+**Last Updated:** 2026-04-14  
+**Theme:** Advanced Inventory Management
 
 ---
 
 ## Overview
 
-Milestone v2.0 focuses on adding real-time capabilities to the POS system through WebSocket integration and building an advanced reporting dashboard for improved operational visibility.
+Milestone v2.1 focuses on advancing the inventory system with supplier management, purchase order workflows, cost analytics, and automated reordering capabilities.
 
 ---
 
 ## Requirements
 
-### REQ-001: WebSocket Infrastructure
+### REQ-001: Supplier Management
 **Priority:** Must Have  
 **Status:** Planning  
-**Phase:** 6
+**Phase:** 11
 
 #### Description
-Set up WebSocket server infrastructure to enable real-time communication between server and clients.
+Manage supplier relationships with contact info, ratings, and lead times.
 
 #### Acceptance Criteria
-- [ ] WebSocket server integrated with Elysia
-- [ ] JWT authentication for WebSocket connections
-- [ ] Connection management (handle disconnections, reconnections)
-- [ ] Room/channel architecture for organizing broadcasts
-- [ ] Event-driven message system
-- [ ] Error handling and recovery mechanisms
+- [ ] CRUD operations for suppliers
+- [ ] Supplier contact information (name, email, phone, address)
+- [ ] Supplier rating system (1-5 stars based on delivery/p quality)
+- [ ] Lead time tracking (average days to deliver)
+- [ ] Assign preferred supplier per ingredient
+- [ ] Supplier status (active/inactive)
 
-#### Technical Notes
-- Use Elysia's built-in WebSocket support or Socket.io
-- Implement heartbeat/ping-pong to detect stale connections
-- Redis adapter for horizontal scaling (optional for v2.0)
+#### Fields
+- id, name, contact_person, email, phone, address, rating, lead_time_days, status, created_at, updated_at
 
 ---
 
-### REQ-002: Real-time Order Notifications
+### REQ-002: Purchase Order System
 **Priority:** Must Have  
 **Status:** Planning  
-**Phase:** 6
+**Phase:** 12
 
 #### Description
-Notify kitchen staff and cashiers in real-time about order updates.
+Full purchase order workflow from creation to receiving.
 
 #### Acceptance Criteria
-- [ ] New order notifications to kitchen display
-- [ ] Order status change notifications (cooking → ready → served)
-- [ ] Order completion alerts for cashiers
-- [ ] Payment received confirmations
-- [ ] Visual and audio alerts in UI
-- [ ] Notification acknowledgment system
+- [ ] Create purchase order (PO) with multiple line items
+- [ ] PO status workflow: draft → submitted → approved → received → cancelled
+- [ ] Partial receiving (receive PO in multiple shipments)
+- [ ] PO approval workflow (admin approval required)
+- [ ] Receive goods and update inventory automatically
+- [ ] PO history and search
 
-#### Events to Broadcast
-- `order:created` → Kitchen
-- `order:status-changed` → Kitchen, Cashier
-- `order:completed` → Cashier
-- `payment:received` → Cashier
+#### PO Status Flow
+```
+draft → submitted → [approved/rejected] → received → completed
+                                              ↘ cancelled
+```
+
+#### Line Items
+- ingredient_id, quantity, unit_cost, received_quantity
 
 ---
 
-### REQ-003: Inventory Alert System
+### REQ-003: Cost Analytics
 **Priority:** Must Have  
 **Status:** Planning  
-**Phase:** 7
+**Phase:** 13
 
 #### Description
-Real-time monitoring and alerting for low stock levels.
+Track and analyze ingredient costs over time.
 
 #### Acceptance Criteria
-- [ ] Configurable low stock thresholds per ingredient
-- [ ] Automatic stock level monitoring
-- [ ] Alert dispatch when stock below threshold
-- [ ] Alert history tracking
-- [ ] Acknowledgment and dismissal workflow
-- [ ] Email notification support (optional)
+- [ ] Cost per unit per ingredient (current)
+- [ ] Price history per supplier (track changes over time)
+- [ ] Cost variance alerts (price change > X%)
+- [ ] Cost comparison between suppliers
+- [ ] Monthly cost reports
+- [ ] Profit margin calculations (menu item cost vs price)
 
-#### Alert Triggers
-- Stock decremented below threshold
-- Manual stock adjustment below threshold
-- Daily low stock summary
+#### Metrics
+- Average cost per ingredient
+- Cost trend (up/down/stable)
+- Best supplier per ingredient by price
 
 ---
 
-### REQ-004: Real-time Dashboard Backend
-**Priority:** Must Have  
-**Status:** Planning  
-**Phase:** 8
-
-#### Description
-Backend infrastructure for real-time dashboard with live metrics.
-
-#### Acceptance Criteria
-- [ ] Real-time metrics aggregation endpoints
-- [ ] WebSocket streaming for live data
-- [ ] Historical data caching for performance
-- [ ] API response time < 500ms
-- [ ] Support for multiple concurrent dashboard users
-
-#### Metrics to Track
-- Live sales (hourly, daily)
-- Active orders count
-- Kitchen queue status
-- Inventory status overview
-- Top selling items (real-time)
-
----
-
-### REQ-005: Dashboard Frontend
-**Priority:** Must Have  
-**Status:** Planning  
-**Phase:** 9
-
-#### Description
-Interactive dashboard UI with real-time updates and visualizations.
-
-#### Acceptance Criteria
-- [ ] Dashboard page accessible at `/dashboard`
-- [ ] Real-time widgets auto-update
-- [ ] Charts for sales trends (Chart.js or similar)
-- [ ] Inventory status visualization
-- [ ] Mobile-responsive layout
-- [ ] Page load time < 3 seconds
-
-#### Widgets Required
-1. Sales Today (live counter)
-2. Orders Today (live counter)
-3. Kitchen Queue (pending, cooking, ready)
-4. Low Stock Alerts (list)
-5. Top Selling Items (chart)
-6. Hourly Sales Trend (chart)
-
----
-
-### REQ-006: User Notification Preferences
+### REQ-004: Auto-Reorder System
 **Priority:** Should Have  
 **Status:** Planning  
-**Phase:** 10
+**Phase:** 14
 
 #### Description
-Allow users to customize their notification settings.
+Automated reorder suggestions based on stock levels and usage.
 
 #### Acceptance Criteria
-- [ ] User notification settings page
-- [ ] Toggle notification types (order, inventory, system)
-- [ ] Role-based default settings
-- [ ] Notification templates
-- [ ] Delivery method preferences (WebSocket, Email)
+- [ ] Reorder point calculation per ingredient (min_stock + safety_stock)
+- [ ] Economic Order Quantity (EOQ) calculation
+- [ ] Auto-generate draft PO when stock hits reorder point
+- [ ] Manual override/approval before submission
+- [ ] Lead time consideration in calculations
+- [ ] Dashboard widget for pending reorder suggestions
 
-#### Notification Types
-- Order notifications
-- Inventory alerts
-- System notifications
+#### Formulas
+- Reorder Point = (Lead Time × Daily Usage) + Safety Stock
+- EOQ = √(2 × Annual Demand × Ordering Cost / Holding Cost)
 
 ---
 
@@ -161,46 +112,42 @@ Allow users to customize their notification settings.
 
 | Priority | Count | Status |
 |----------|-------|--------|
-| Must Have | 5 | 0/5 complete |
+| Must Have | 3 | 0/3 complete |
 | Should Have | 1 | 0/1 complete |
-| **Total** | **6** | **0/6 complete** |
+| **Total** | **4** | **0/4 complete** |
 
 ---
 
 ## Technical Stack Additions
 
-- **WebSocket:** Elysia WebSocket / Socket.io
-- **Charts:** Chart.js or D3.js
-- **Caching:** Redis (optional for v2.0)
-- **Email:** Nodemailer (optional)
+- **Charts:** D3.js or Chart.js (reuse from v2.0 if done)
+- **Reports:** PDF generation (optional)
+- **Email:** Nodemailer (for PO notifications)
 
 ---
 
 ## Performance Targets
 
-- WebSocket latency: < 1 second
-- Dashboard load time: < 3 seconds
-- API response: < 500ms
-- Concurrent connections: 100+
+- PO creation: < 2 seconds
+- Cost report generation: < 5 seconds
+- Real-time stock updates: < 1 second
 
 ---
 
-## Out of Scope (v2.0)
+## Out of Scope (v2.1)
 
-- Mobile native app
-- Multi-location support
-- Advanced analytics/ML
-- Third-party integrations
-- SMS notifications
+- Multi-location inventory
+- Barcode/QR scanning
+- Supplier portal (external)
+- Advanced forecasting/ML
 
 ---
 
 ## Dependencies
 
 - ✅ Phase 1-5 (v1.0) complete
-- ✅ Testing framework ready
-- ✅ Authentication system ready
-- WebSocket library to be added
+- ✅ Inventory system ready
+- ✅ Authentication ready
 
 ---
 

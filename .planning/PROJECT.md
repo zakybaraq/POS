@@ -97,41 +97,47 @@ All phases complete. Application is production-ready with comprehensive testing,
 
 ---
 
-## Next Milestone: v2.0 Real-time Notifications & Dashboard
+## Next Milestone: v2.1 Advanced Inventory Management
 
 **Status:** 🔄 In Planning  
 **Priority:** High  
 **Estimated Duration:** 3-4 weeks  
-**Focus:** Real-time features and enhanced reporting
+**Focus:** Supplier management, purchase orders, cost analytics
 
 ### Goals
 Build real-time notification system and advanced reporting dashboard to improve operational visibility and user experience.
 
 ### Key Features
-1. **Real-time Notifications (WebSocket)**
-   - Order status updates
-   - Kitchen notifications
-   - Low stock alerts
-   - Payment confirmations
+1. **Supplier Management**
+   - Supplier database with contact info
+   - Supplier ratings and history
+   - Lead time tracking
+   - Preferred supplier per ingredient
 
-2. **Advanced Reporting Dashboard**
-   - Real-time sales metrics
-   - Live order tracking
-   - Inventory status overview
-   - Customer insights
+2. **Purchase Order System**
+   - Create/approve purchase orders
+   - Order status tracking (pending, received, cancelled)
+   - Partial receiving support
+   - Automatic PO generation from low stock
 
-3. **Technical Stack Additions**
-   - WebSocket integration
-   - Real-time data streams
-   - Dashboard UI components
-   - Event-driven architecture
+3. **Cost Analytics**
+   - Cost per ingredient tracking
+   - Price history per supplier
+   - Cost variance alerts
+   - Profit margin calculations
+
+4. **Auto-Reorder System**
+   - Smart reorder suggestions
+   - Economic order quantity
+   - Supplier lead time consideration
+   - Manual override options
 
 ### Success Criteria
-- [ ] WebSocket connection stable
-- [ ] Real-time updates < 1 second latency
-- [ ] Dashboard loads < 3 seconds
-- [ ] Mobile-responsive dashboard
-- [ ] All tests passing
+- [ ] Suppliers CRUD functional
+- [ ] Purchase orders workflow complete
+- [ ] Cost analytics accurate
+- [ ] Auto-reorder suggestions working
+- [ ] All 78 existing tests still passing
 
 ---
 
