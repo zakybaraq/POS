@@ -305,9 +305,12 @@ Build real-time notification system and advanced reporting dashboard to improve 
 ---
 
 ### Phase 10: Notification Preferences
-**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low
+**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** ✅ Planned
 
 **Why:** Users should control which notifications they receive to avoid alert fatigue.
+
+**Plans:**
+- [ ] `10-01-PLAN.md` — User Notification Preferences (schema, API, UI)
 
 #### 10.1 User Notification Settings
 **What:** Allow users to customize notification preferences
