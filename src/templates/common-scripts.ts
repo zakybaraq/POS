@@ -25,6 +25,43 @@ function toggleNotifications() {
   dropdown.classList.toggle('show');
   const userDropdown = document.getElementById('user-dropdown');
   if (userDropdown) userDropdown.classList.remove('show');
+  loadPreferences();
+}
+
+function togglePreferencesPanel() {
+  const panel = document.getElementById('preferences-panel');
+  if (panel) panel.classList.toggle('hidden');
+}
+
+async function loadPreferences() {
+  try {
+    const res = await fetch('/api/users/me/notifications');
+    const data = await res.json();
+    if (data.preferences) {
+      const prefs = data.preferences;
+      document.getElementById('pref-order:created').checked = prefs['order:created'] ?? true;
+      document.getElementById('pref-order:status-changed').checked = prefs['order:status-changed'] ?? true;
+      document.getElementById('pref-order:completed').checked = prefs['order:completed'] ?? true;
+      document.getElementById('pref-payment:received').checked = prefs['payment:received'] ?? true;
+    }
+  } catch (e) {
+    console.error('Failed to load preferences:', e);
+  }
+}
+
+async function savePreference(checkbox) {
+  const prefKey = checkbox.id.replace('pref-', '');
+  const prefValue = {};
+  prefValue[prefKey] = checkbox.checked;
+  try {
+    await fetch('/api/users/me/notifications', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ preferences: prefValue })
+    });
+  } catch (e) {
+    console.error('Failed to save preference:', e);
+  }
 }
 
 function toggleUserMenu() {

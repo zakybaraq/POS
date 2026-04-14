@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
 import { db } from '../db/index';
 import { users } from '../db/schema';
-import type { User, NewUser } from '../db/schema';
+import type { User, NewUser, NotificationPreferences } from '../db/schema';
 import bcrypt from 'bcryptjs';
 
 export async function getUserByEmail(email: string) {
@@ -16,6 +16,11 @@ export async function getUserById(id: number) {
 
 export async function getAllUsers() {
   return db.select().from(users).orderBy(users.createdAt);
+}
+
+export async function getUsersByRoles(roles: string[]) {
+  const allUsers = await db.select().from(users);
+  return allUsers.filter((u: any) => roles.includes(u.role));
 }
 
 export async function createUser(data: { email: string; password: string; name: string; role?: string; isActive?: boolean }) {
@@ -71,4 +76,37 @@ export async function getUsersWithStats() {
     return created >= weekAgo;
   }).length;
   return { users: allUsers, total, active, inactive, roleCounts, newThisWeek };
+}
+
+export function getDefaultPreferences(): NotificationPreferences {
+  return {
+    'order:created': true,
+    'order:status-changed': true,
+    'order:completed': true,
+    'payment:received': true,
+  };
+}
+
+export async function getNotificationPreferences(userId: number): Promise<NotificationPreferences | null> {
+  const user = await db.select().from(users).where(eq(users.id, userId)).get();
+  if (!user?.notificationPreferences) return null;
+  try {
+    return JSON.parse(user.notificationPreferences) as NotificationPreferences;
+  } catch {
+    return null;
+  }
+}
+
+export async function updateNotificationPreferences(
+  userId: number,
+  preferences: Partial<NotificationPreferences>
+): Promise<boolean> {
+  const existing = await getNotificationPreferences(userId);
+  const updated = { ...existing, ...preferences };
+  const result = await db
+    .update(users)
+    .set({ notificationPreferences: JSON.stringify(updated), updatedAt: new Date() })
+    .where(eq(users.id, userId))
+    .execute();
+  return result.rowsAffected > 0;
 }

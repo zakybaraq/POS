@@ -4,6 +4,7 @@ import * as auditRepo from '../repositories/audit-log';
 import { requireSuperAdmin, getUserFromRequest } from '../middleware/authorization';
 import { createUserSchema, updateUserSchema, updateRoleSchema, resetPasswordSchema } from '../schemas/user';
 import { validateBody } from '../schemas/index';
+import type { NotificationPreferences } from '../db/schema';
 
 function stripPassword(usersList: any[]) {
   return usersList.map(({ password, ...rest }) => rest);
@@ -160,6 +161,31 @@ export const userRoutes = new Elysia({ prefix: '/api/users' })
     });
     await userRepo.deleteUser(Number(id));
     return { success: true };
+  })
+
+  .get('/:id/notifications', async ({ params: { id } }) => {
+    const userId = Number(id);
+    if (isNaN(userId)) return { error: 'Invalid user ID' };
+    
+    const prefs = await userRepo.getNotificationPreferences(userId);
+    return { 
+      preferences: prefs ?? userRepo.getDefaultPreferences() 
+    };
+  })
+
+  .put('/:id/notifications', async ({ params: { id }, body }) => {
+    const userId = Number(id);
+    if (isNaN(userId)) return { error: 'Invalid user ID' };
+    
+    const prefs = (body as any)?.preferences;
+    if (!prefs || typeof prefs !== 'object') {
+      return { error: 'Missing preferences object' };
+    }
+    
+    const success = await userRepo.updateNotificationPreferences(userId, prefs as Partial<NotificationPreferences>);
+    if (!success) return { error: 'User not found' };
+    
+    return { success: true, preferences: await userRepo.getNotificationPreferences(userId) };
   })
 
   .onBeforeHandle(requireSuperAdmin());

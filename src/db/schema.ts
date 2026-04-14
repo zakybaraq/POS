@@ -24,6 +24,7 @@ export const users = mysqlTable('users', {
   name: varchar('name', { length: 100 }).notNull(),
   role: roleEnum.notNull().default('kasir'),
   isActive: boolean('is_active').notNull().default(true),
+  notificationPreferences: varchar('notification_preferences', { length: 1000 }).notNull().default('{"order:created":true,"order:status-changed":true,"order:completed":true,"payment:received":true}'),
   createdAt: datetime('created_at').notNull().default(new Date()),
   updatedAt: datetime('updated_at'),
   lastLogin: datetime('last_login'),
@@ -431,3 +432,10 @@ export type Shift = typeof shifts.$inferSelect;
 export type NewShift = typeof shifts.$inferInsert;
 export type Attendance = typeof attendance.$inferSelect;
 export type NewAttendance = typeof attendance.$inferInsert;
+
+export type NotificationPreferences = {
+  'order:created': boolean;
+  'order:status-changed': boolean;
+  'order:completed': boolean;
+  'payment:received': boolean;
+};

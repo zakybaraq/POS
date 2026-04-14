@@ -32,7 +32,34 @@ export function getNavbarHtml(title: string, activePage: string, user: any) {
         <span class="notification-badge" id="notif-count" style="display: none;">0</span>
       </button>
       <div class="notification-dropdown" id="notif-dropdown">
-        <div class="notification-header">Notifikasi</div>
+        <div class="notification-header">
+          <span>Notifikasi</span>
+          <button class="btn-icon" onclick="togglePreferencesPanel()" title="Preferensi">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <circle cx="12" cy="12" r="3"></circle>
+              <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path>
+            </svg>
+          </button>
+        </div>
+        <div class="preferences-panel hidden" id="preferences-panel">
+          <h4>Preferensi Notifikasi</h4>
+          <label class="preference-toggle">
+            <input type="checkbox" id="pref-order:created" onchange="savePreference(this)">
+            <span>Pesanan Baru</span>
+          </label>
+          <label class="preference-toggle">
+            <input type="checkbox" id="pref-order:status-changed" onchange="savePreference(this)">
+            <span>Status Pesanan</span>
+          </label>
+          <label class="preference-toggle">
+            <input type="checkbox" id="pref-order:completed" onchange="savePreference(this)">
+            <span>Pesanan Selesai</span>
+          </label>
+          <label class="preference-toggle">
+            <input type="checkbox" id="pref-payment:received" onchange="savePreference(this)">
+            <span>Pembayaran</span>
+          </label>
+        </div>
         <div class="notification-list" id="notif-list">
           <div class="notification-empty">Tidak ada notifikasi</div>
         </div>

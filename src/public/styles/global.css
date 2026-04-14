@@ -929,6 +929,43 @@ button.badge {
   border-bottom: 1px solid var(--color-border);
   font-weight: 600;
   color: var(--color-text);
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.preferences-panel {
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--color-border);
+}
+
+.preferences-panel.hidden {
+  display: none;
+}
+
+.preferences-panel h4 {
+  margin: 0 0 12px;
+  font-size: 14px;
+  color: var(--color-text);
+}
+
+.preference-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 8px 0;
+  cursor: pointer;
+}
+
+.preference-toggle input[type="checkbox"] {
+  width: 16px;
+  height: 16px;
+  cursor: pointer;
+}
+
+.preference-toggle span {
+  font-size: 13px;
+  color: var(--color-text);
 }
 
 .notification-list {
