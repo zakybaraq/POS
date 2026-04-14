@@ -61,13 +61,13 @@ Milestone v2.1 advances inventory management with supplier relationships, purcha
 ---
 
 ### Phase 12: Purchase Order System
-**Priority:** HIGH | Effort: 4-5 days | Risk: Medium | **Status:** 📝 Planned
+**Priority:** HIGH | Effort: 4-5 days | Risk: Medium | **Status:** ✅ Complete
 
 **Why:** Formalize purchasing workflow from supplier to inventory.
 
 **Plans:**
-- [x] `12-01-PLAN.md` — PO Infrastructure & Notifications (Pre-implemented)
-- [ ] `12-02-PLAN.md` — PO Approval Workflow (Enhancement)
+- [x] `12-01-PLAN.md` — PO Infrastructure & Notifications (Complete)
+- [x] `12-02-PLAN.md` — PO Approval Workflow (Complete)
 
 **Requirements:** REQ-002
 
@@ -123,40 +123,22 @@ Milestone v2.1 advances inventory management with supplier relationships, purcha
 ---
 
 ### Phase 13: Cost Analytics
-**Priority:** MEDIUM-HIGH | Effort: 3-4 days | Risk: Low | **Status:** 📝 Planned
+**Priority:** MEDIUM-HIGH | Effort: 3-4 days | Risk: Low | **Status:** ✅ Complete
 
 **Why:** Visibility into costs and supplier pricing.
 
 **Plans:**
-- [ ] `13-01-PLAN.md` — Cost Tracking & History
+- [x] `13-01-PLAN.md` — Cost Tracking & History (Complete)
 
 **Requirements:** REQ-003
 
-#### 13.1 Cost Tracking & History
-**What:** Track costs over time and per supplier
-
-**How:**
-1. Add price history tracking (log price per PO)
-2. Create cost analytics endpoints
-3. Add variance alerts (configurable threshold)
-4. Build cost comparison reports
-5. Add to dashboard
-
-**Files to create:**
-- `src/services/cost-analytics.ts` - Cost tracking service
-- `src/routes/analytics.ts` - Analytics API
-
-**Files to modify:**
-- `src/repositories/purchase-order.ts` - Add cost aggregation
-- `src/pages/dashboard.ts` - Add cost widget
-
 **Success Criteria:**
-- [ ] Price history per ingredient
-- [ ] Cost variance alerts
-- [ ] Supplier price comparison
-- [ ] Monthly reports
+- [x] Price history per ingredient
+- [x] Cost variance alerts
+- [x] Supplier price comparison
+- [x] Monthly reports
 
-**Estimate:** 8 hours
+**Estimate:** 8 hours | **Actual:** ~4 hours
 
 ---
 
@@ -165,6 +147,7 @@ Milestone v2.1 advances inventory management with supplier relationships, purcha
 ---
 
 ### Phase 14: Auto-Reorder System
+**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** 📝 Planned
 **Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** 📝 Planned
 
 **Why:** Reduce manual monitoring with automated suggestions.
@@ -242,6 +225,6 @@ Milestone v2.1 advances inventory management with supplier relationships, purcha
 
 ---
 
-**Next:** Plan and execute Phase 11 - Supplier Management
+**Next:** Plan and execute Phase 14 - Auto-Reorder System
 
 **Previous Milestone:** [v2.0 ROADMAP](./milestones/v2.0-ROADMAP.md)
