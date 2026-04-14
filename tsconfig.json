@@ -24,6 +24,16 @@
     // Some stricter flags (disabled by default)
     "noUnusedLocals": false,
     "noUnusedParameters": false,
-    "noPropertyAccessFromIndexSignature": false
+    "noPropertyAccessFromIndexSignature": false,
+
+    // Path aliases for Clean Architecture
+    "baseUrl": ".",
+    "paths": {
+      "@/api/*": ["src/api/*"],
+      "@/domain/*": ["src/domain/*"],
+      "@/infrastructure/*": ["src/infrastructure/*"],
+      "@/shared/*": ["src/shared/*"],
+      "@/config/*": ["src/config/*"]
+    }
   }
 }
