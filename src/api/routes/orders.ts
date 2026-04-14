@@ -1,0 +1,412 @@
+import { Elysia } from 'elysia';
+import * as orderRepo from '../repositories/order';
+import * as orderItemRepo from '../repositories/order-item';
+import * as tableRepo from '../repositories/table';
+import * as paymentService from '../services/payment';
+import { requireRole, getUserFromRequest } from '../middleware/authorization';
+import { createOrderSchema, createOrderWithItemsSchema, addItemToOrderSchema, updateOrderItemSchema, transferOrderSchema, paymentSchema, cancelOrderSchema } from '../schemas/order';
+import { validateBody } from '../schemas/index';
+import { notifyKitchen, notifyOrderStatusChanged } from '../services/notifications';
+
+const requireOrderCreate = () => requireRole(['super_admin', 'admin_restoran', 'kasir', 'waitress']);
+const requirePayment = () => requireRole(['super_admin', 'admin_restoran', 'kasir']);
+const requireCancel = () => requireRole(['super_admin', 'admin_restoran', 'kasir', 'waitress']);
+
+export const orderRoutes = new Elysia({ prefix: '/api/orders' })
+  .get('/', async () => {
+    return orderRepo.getOrdersToday();
+  })
+  .get('/today', async () => {
+    return orderRepo.getOrdersTodayWithTables();
+  })
+  .get('/table/:tableId', async ({ params: { tableId } }) => {
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    if (table.status === 'available') {
+      return { table, order: null };
+    }
+    const order = await orderRepo.getActiveOrderByTableId(Number(tableId));
+    if (order) {
+      const items = await orderItemRepo.getItemsWithMenuByOrderId(order.id);
+      return { table, order, items };
+    }
+    return { table, order: null };
+  })
+  .get('/table/:tableId/all', async ({ params: { tableId } }) => {
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    const ordersWithItems = await orderRepo.getTodayOrdersWithItemsByTableId(Number(tableId));
+    return { table, orders: ordersWithItems };
+  })
+  .get('/:id', async ({ params: { id } }) => {
+    const orderWithItems = await orderRepo.getOrderWithItemsById(Number(id));
+    if (!orderWithItems) {
+      return { error: 'Order not found' };
+    }
+    const table = orderWithItems.tableId ? await tableRepo.getTableById(orderWithItems.tableId) : null;
+    return { order: orderWithItems, items: orderWithItems.items, table };
+  })
+  .post('/', async ({ body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(createOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { tableId, userId } = validation.data;
+    const table = await tableRepo.getTableById(tableId);
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    if (table.status === 'occupied') {
+      return { error: 'Table is occupied' };
+    }
+    const order = await orderRepo.createOrder(tableId, userId);
+    await tableRepo.updateTableStatus(tableId, 'occupied');
+    return order;
+  })
+  .post('/table/:tableId/new', async ({ cookie, headers, params: { tableId }, body }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    const { userId } = body as any;
+    if (!userId) {
+      return { error: 'userId is required' };
+    }
+    const table = await tableRepo.getTableById(Number(tableId));
+    if (!table) {
+      return { error: 'Table not found' };
+    }
+    const order = await orderRepo.createOrder(Number(tableId), userId);
+    return { order };
+  })
+.post('/with-items', async ({ body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(createOrderWithItemsSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { tableId, userId, items, orderType, customerId } = validation.data;
+
+    if (orderType === 'dine-in' && !tableId) {
+      return { error: 'Meja wajib untuk order dine-in' };
+    }
+    if (orderType === 'dine-in' && tableId) {
+      const table = await tableRepo.getTableById(tableId);
+      if (!table) return { error: 'Table not found' };
+    }
+
+    const order = await orderRepo.createOrder(tableId || null, userId, customerId);
+    if (!order) return { error: 'Failed to create order' };
+
+    for (const item of items) {
+      const { getAvailableMenus } = await import('../repositories/menu');
+      const menus = await getAvailableMenus();
+      const menu = menus.find((m: any) => m.id === item.menuId);
+      if (!menu) continue;
+      await orderItemRepo.addItem(Number(order.id), item.menuId, item.quantity || 1);
+      if (item.notes) {
+        await orderItemRepo.updateItemNotes(Number(order.id), item.menuId, item.notes);
+      }
+    }
+
+    await orderRepo.calculateTotals(Number(order.id));
+
+    if (orderType === 'dine-in' && tableId) {
+      await tableRepo.updateTableStatus(tableId, 'occupied');
+    }
+
+await orderRepo.updateOrderStatus(Number(order.id), 'active');
+
+  const finalOrder = await orderRepo.getOrderById(Number(order.id));
+  const orderItems = await orderItemRepo.getItemsWithMenuByOrderId(Number(order.id));
+  
+  // Notify kitchen about new order
+  notifyKitchen({ ...finalOrder, items: orderItems });
+  
+  return { order: finalOrder, items: orderItems };
+  })
+  .put('/:id', async ({ params: { id }, body }) => {
+    const { status } = body as any;
+    if (!status || !['active', 'completed', 'cancelled'].includes(status)) {
+      return { error: 'Invalid status' };
+    }
+    return orderRepo.updateOrderStatus(Number(id), status);
+  })
+  .post('/:id/items', async ({ params: { id }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(addItemToOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { menuId, quantity, notes } = validation.data;
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    if (order.status !== 'active') {
+      return { error: 'Order is not active' };
+    }
+    
+    const { db } = await import('../infrastructure/database/index');
+    const updatedOrder = await db.transaction(async (tx: any) => {
+      const { orderItems, orders } = await import('../infrastructure/database/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await orderItemRepo.addItemTx(tx, Number(id), menuId, quantity, notes || '');
+      
+      const items = await tx.select().from(orderItems)
+        .where(eq(orderItems.orderId, Number(id)));
+      
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.priceAtOrder) * item.quantity;
+      }
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+      
+      await tx.update(orders)
+        .set({ subtotal, tax, total, updatedAt: new Date() })
+        .where(eq(orders.id, Number(id)));
+      
+      return tx.select().from(orders).where(eq(orders.id, Number(id))).then((r: any) => r[0]);
+    });
+    
+    const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
+    return { order: updatedOrder, items };
+  })
+  .delete('/:id/items/:itemId', async ({ cookie, headers, params: { id, itemId } }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    
+    const { db } = await import('../infrastructure/database/index');
+    const order = await db.transaction(async (tx: any) => {
+      const { orderItems, orders } = await import('../infrastructure/database/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await orderItemRepo.removeItemTx(tx, Number(itemId));
+      
+      const items = await tx.select().from(orderItems)
+        .where(eq(orderItems.orderId, Number(id)));
+      
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.priceAtOrder) * item.quantity;
+      }
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+      
+      await tx.update(orders)
+        .set({ subtotal, tax, total, updatedAt: new Date() })
+        .where(eq(orders.id, Number(id)));
+      
+      return tx.select().from(orders).where(eq(orders.id, Number(id))).then((r: any) => r[0]);
+    });
+    
+    const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
+    return { order, items };
+  })
+  .put('/:id/items/:itemId', async ({ params: { id, itemId }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(updateOrderItemSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { quantity } = validation.data;
+    if (quantity !== undefined && quantity < 0) {
+      return { error: 'quantity >= 0 required' };
+    }
+    
+    const { db } = await import('../infrastructure/database/index');
+    const order = await db.transaction(async (tx: any) => {
+      const { orderItems, orders } = await import('../infrastructure/database/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      await orderItemRepo.updateQuantityTx(tx, Number(itemId), quantity || 0);
+      
+      const items = await tx.select().from(orderItems)
+        .where(eq(orderItems.orderId, Number(id)));
+      
+      let subtotal = 0;
+      for (const item of items) {
+        subtotal += Number(item.priceAtOrder) * item.quantity;
+      }
+      const tax = Math.round(subtotal * 0.1);
+      const total = subtotal + tax;
+      
+      await tx.update(orders)
+        .set({ subtotal, tax, total, updatedAt: new Date() })
+        .where(eq(orders.id, Number(id)));
+      
+      return tx.select().from(orders).where(eq(orders.id, Number(id))).then((r: any) => r[0]);
+    });
+    
+    const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
+    return { order, items };
+  })
+  .post('/:id/pay', async ({ params: { id }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran', 'kasir'].includes(user.role)) {
+      return { error: 'Akses ditolak: hanya kasir dan admin yang dapat memproses pembayaran' };
+    }
+
+    const validation = validateBody(paymentSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    try {
+      const completedOrder = await paymentService.processPayment(Number(id), validation.data.amountPaid);
+      const items = await orderItemRepo.getItemsWithMenuByOrderId(Number(id));
+      const table = completedOrder ? await tableRepo.getTableById(completedOrder.tableId) : null;
+      const receipt = completedOrder ? paymentService.generateReceipt(completedOrder, items, table?.tableNumber || 0) : '';
+      return { order: completedOrder, items, receipt };
+    } catch (e: any) {
+      return { error: e.message };
+    }
+  })
+  .post('/:id/cancel', async ({ params: { id }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
+      return { error: 'Akses ditolak: hanya kasir, waitress, dan admin yang dapat membatalkan pesanan' };
+    }
+    
+    const validation = validateBody(cancelOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+    
+    const { reason } = validation.data;
+    
+    try {
+      const { db } = await import('../infrastructure/database/index');
+      const { orders, tables } = await import('../infrastructure/database/schema');
+      const { eq } = await import('drizzle-orm');
+      
+      const order = await db.transaction(async (tx: any) => {
+        const existing = await tx.select().from(orders)
+          .where(eq(orders.id, Number(id)))
+          .then((r: any) => r[0]);
+        
+        if (!existing) {
+          throw new Error('Order not found');
+        }
+        
+        if (existing.status === 'cancelled') {
+          throw new Error('Order already cancelled');
+        }
+        
+        if (existing.status === 'completed') {
+          const { refundStockForOrderTx } = await import('../repositories/inventory');
+          await refundStockForOrderTx(tx, Number(id));
+        }
+        
+        await tx.update(orders)
+          .set({
+            status: 'cancelled',
+            completedAt: new Date(),
+            notes: reason || '',
+          })
+          .where(eq(orders.id, Number(id)));
+        
+        if (existing.tableId && existing.tableId > 0) {
+          await tx.update(tables)
+            .set({ status: 'available' })
+            .where(eq(tables.id, existing.tableId));
+        }
+        
+        return tx.select().from(orders)
+          .where(eq(orders.id, Number(id)))
+          .then((r: any) => r[0]);
+      });
+      
+      return { order, success: true };
+    } catch (error: any) {
+      return { error: error.message, status: 400 };
+    }
+  })
+.post('/:id/finish', async ({ cookie, headers, params: { id } }) => {
+  const user = getUserFromRequest(cookie, headers);
+  if (!user) return { error: 'Unauthorized' };
+  if (!['super_admin', 'admin_restoran', 'kasir', 'waitress'].includes(user.role)) {
+    return { error: 'Akses ditolak' };
+  }
+  
+  try {
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    if (order.status !== 'active') {
+      return { error: 'Order already completed or cancelled' };
+    }
+    
+    const completedOrder = await orderRepo.finishOrderWithoutPayment(Number(id));
+    
+    if (order.tableId) {
+      await tableRepo.updateTableStatus(order.tableId, 'available');
+    }
+    
+    return { success: true, order: completedOrder };
+  } catch (error: any) {
+    return { error: error.message, status: 400 };
+  }
+})
+  .put('/:id/transfer', async ({ params: { id }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const validation = validateBody(transferOrderSchema)(body);
+    if (!validation.success) {
+      return { error: validation.error };
+    }
+
+    const { sourceTableId, targetTableId } = validation.data;
+    
+    if (sourceTableId === targetTableId) {
+      return { error: 'Source and target must be different', status: 400 };
+    }
+    
+    try {
+      await orderRepo.transferOrderToTable(
+        Number(id),
+        sourceTableId,
+        targetTableId
+      );
+      
+      const updatedOrder = await orderRepo.getOrderById(Number(id));
+      return { order: updatedOrder, success: true };
+    } catch (error: any) {
+      return { error: error.message, status: 400 };
+    }
+  })
+  .delete('/:id', async ({ cookie, headers, params: { id } }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+    if (!['super_admin', 'admin_restoran'].includes(user.role)) {
+      return { error: 'Akses ditolak' };
+    }
+    const order = await orderRepo.getOrderById(Number(id));
+    if (!order) {
+      return { error: 'Order not found' };
+    }
+    await orderItemRepo.deleteItemsByOrderId(Number(id));
+    await orderRepo.deleteOrder(Number(id));
+    return { success: true };
+  });
