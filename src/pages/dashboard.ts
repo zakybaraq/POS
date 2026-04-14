@@ -10,6 +10,7 @@ import * as tableRepo from '../repositories/table';
 import * as menuRepo from '../repositories/menu';
 import * as invRepo from '../repositories/inventory';
 import * as custRepo from '../repositories/customer';
+import { getAlertedIngredients, isIngredientAlerted } from '../services/inventory-monitor';
 
 function getGreeting(name: string) {
   const hour = new Date().getHours();
@@ -22,9 +23,9 @@ function getGreeting(name: string) {
 }
 
 export const dashboardPage = new Elysia()
-  .get('/', async ({ cookie, headers }) => {
-    const token = getTokenFromCookies(cookie, headers);
-    if (!token) return redirectToLogin();
+.get('/dashboard', async ({ headers }: { headers: any }) => {
+  const token = getTokenFromCookies(undefined, headers);
+  if (!token) return redirectToLogin();
 
     let user = null;
     try {
@@ -49,6 +50,7 @@ export const dashboardPage = new Elysia()
 
     const greeting = getGreeting(user.name);
     const lowStockItems = await invRepo.getLowStockIngredients();
+    const alertedIngredients = getAlertedIngredients();
     const customerStats = await custRepo.getCustomerStats();
     const tablePercent = tableStats.total > 0 ? Math.round((tableStats.occupied / tableStats.total) * 100) : 0;
     const filledBar = '█'.repeat(Math.round(tablePercent / 10));
@@ -74,12 +76,18 @@ export const dashboardPage = new Elysia()
             <div style="margin-bottom: 24px;">
               <h2 style="margin: 0; font-size: 24px;">${greeting}</h2>
               <p style="color: var(--color-text-secondary); margin: 4px 0 0;">Ringkasan bisnis restoran Anda hari ini</p>
-              ${lowStockItems.length > 0 ? `
-              <div style="margin-top: 16px; padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--color-warning); border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px;">
-                <span style="font-size: 18px;">⚠️</span>
-                <span style="font-size: 14px; font-weight: 500;">${lowStockItems.length} bahan baku stok rendah: ${lowStockItems.map((i: any) => i.name).join(', ')}</span>
-                <a href="/inventory" style="margin-left: auto; color: var(--color-warning); font-weight: 600; font-size: 13px; text-decoration: none;">Lihat →</a>
-              </div>` : ''}
+${lowStockItems.length > 0 ? `
+          <div style="margin-top: 16px; padding: 12px 16px; background: rgba(245, 158, 11, 0.1); border: 1px solid var(--color-warning); border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">⚠️</span>
+            <span style="font-size: 14px; font-weight: 500;">${lowStockItems.length} bahan baku stok rendah: ${lowStockItems.map((i: any) => i.name).join(', ')}</span>
+            <a href="/inventory" style="margin-left: auto; color: var(--color-warning); font-weight: 600; font-size: 13px; text-decoration: none;">Lihat →</a>
+          </div>` : ''}
+          ${alertedIngredients.filter(a => !a.acknowledged).length > 0 ? `
+          <div style="margin-top: 12px; padding: 12px 16px; background: rgba(239, 68, 68, 0.1); border: 1px solid var(--color-error); border-radius: var(--radius-md); display: flex; align-items: center; gap: 8px;">
+            <span style="font-size: 18px;">🚨</span>
+            <span style="font-size: 14px; font-weight: 500;">${alertedIngredients.filter(a => !a.acknowledged).length} alert stok aktif (belum diakui)</span>
+            <a href="/inventory" style="margin-left: auto; color: var(--color-error); font-weight: 600; font-size: 13px; text-decoration: none;">Lihat →</a>
+          </div>` : ''}
             </div>
 
             <div class="stats-grid">
@@ -159,52 +167,89 @@ export const dashboardPage = new Elysia()
               </div>
             </div>
 
-            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px;">
-              <div class="card">
-                <div class="card-header">
-                  <h3 class="card-title">Pesanan Terbaru</h3>
-                </div>
-                ${recentOrders.length === 0 ? '<p class="text-center text-secondary" style="padding: 24px;">Belum ada pesanan hari ini</p>' : `
-                <div class="table-container">
-                  <table class="table">
-                    <thead>
-                      <tr><th>Pesanan</th><th>Total</th><th>Status</th><th>Waktu</th></tr>
-                    </thead>
-                    <tbody>
-                      ${recentOrders.map((o: any) => `
-                        <tr>
-                          <td><strong>#${o.id}</strong></td>
-                          <td>Rp ${(o.total || 0).toLocaleString('id-ID')}</td>
-                          <td><span class="badge ${statusBadge(o.status)}">${statusLabel(o.status)}</span></td>
-                          <td>${new Date(o.createdAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' })}</td>
-                        </tr>
-                      `).join('')}
-                    </tbody>
-                  </table>
-                </div>`}
-              </div>
+<div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 24px;">
+      <div class="card">
+      <div class="card-header">
+      <h3 class="card-title">Pesanan Terbaru</h3>
+      </div>
+      ${recentOrders.length === 0 ? '<p class="text-center text-secondary" style="padding: 24px;">Belum ada pesanan hari ini</p>' : `
+      <div class="table-container">
+      <table class="table">
+      <thead>
+      <tr><th>Pesanan</th><th>Total</th><th>Status</th><th>Waktu</th></tr>
+      </thead>
+      <tbody>
+      ${recentOrders.map((o: any) => `
+      <tr>
+      <td><strong>#${o.id}</strong></td>
+      <td>Rp ${(o.total || 0).toLocaleString('id-ID')}</td>
+      <td><span class="badge ${statusBadge(o.status)}">${statusLabel(o.status)}</span></td>
+      <td>${new Date(o.createdAt).toLocaleTimeString('id-ID', { timeZone: 'Asia/Jakarta', hour: '2-digit', minute: '2-digit' })}</td>
+      </tr>
+      `).join('')}
+      </tbody>
+      </table>
+      </div>`}
+      </div>
 
-              <div class="card">
-                <div class="card-header">
-                  <h3 class="card-title">Menu Terlaris Hari Ini</h3>
-                </div>
-                ${topMenus.length === 0 ? '<p class="text-center text-secondary" style="padding: 24px;">Belum ada data menu terlaris</p>' : `
-                <div style="padding: 8px 16px;">
-                  ${topMenus.map((m: any, i: number) => `
-                    <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-border);">
-                      <div style="display: flex; align-items: center; gap: 12px;">
-                        <span style="width: 24px; height: 24px; border-radius: 50%; background: ${i === 0 ? 'var(--color-warning)' : i === 1 ? 'var(--color-text-secondary)' : i === 2 ? '#cd7f32' : 'var(--color-bg-alt)'}; color: ${i < 3 ? 'white' : 'var(--color-text)'}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">${i + 1}</span>
-                        <span style="font-weight: 500;">${m.name || 'Unknown'}</span>
-                      </div>
-                      <div style="text-align: right;">
-                        <div style="font-weight: 600; font-size: 14px;">${m.totalSold} porsi</div>
-                        <div style="font-size: 12px; color: var(--color-text-secondary);">Rp ${(m.revenue || 0).toLocaleString('id-ID')}</div>
-                      </div>
-                    </div>
-                  `).join('')}
-                </div>`}
-              </div>
-            </div>
+      <div class="card">
+      <div class="card-header">
+      <h3 class="card-title">Menu Terlaris Hari Ini</h3>
+      </div>
+      ${topMenus.length === 0 ? '<p class="text-center text-secondary" style="padding: 24px;">Belum ada data menu terlaris</p>' : `
+      <div style="padding: 8px 16px;">
+      ${topMenus.map((m: any, i: number) => `
+      <div style="display: flex; justify-content: space-between; align-items: center; padding: 12px 0; border-bottom: 1px solid var(--color-border);">
+      <div style="display: flex; align-items: center; gap: 12px;">
+      <span style="width: 24px; height: 24px; border-radius: 50%; background: ${i === 0 ? 'var(--color-warning)' : i === 1 ? 'var(--color-text-secondary)' : i === 2 ? '#cd7f32' : 'var(--color-bg-alt)'}; color: ${i < 3 ? 'white' : 'var(--color-text)'}; display: flex; align-items: center; justify-content: center; font-size: 12px; font-weight: 600;">${i + 1}</span>
+      <span style="font-weight: 500;">${m.name || 'Unknown'}</span>
+      </div>
+      <div style="text-align: right;">
+      <div style="font-weight: 600; font-size: 14px;">${m.totalSold} porsi</div>
+      <div style="font-size: 12px; color: var(--color-text-secondary);">Rp ${(m.revenue || 0).toLocaleString('id-ID')}</div>
+      </div>
+      </div>
+      `).join('')}
+      </div>`}
+      </div>
+      </div>
+
+      ${lowStockItems.length > 0 ? `
+      <div class="card" style="margin-bottom: 24px; border-left: 4px solid var(--color-warning);">
+      <div class="card-header" style="display: flex; align-items: center; justify-content: space-between;">
+      <h3 class="card-title" style="display: flex; align-items: center; gap: 8px;">
+      <span>⚠️</span>
+      <span>Stok Bahan Rendah</span>
+      <span style="background: var(--color-warning); color: white; padding: 2px 8px; border-radius: 12px; font-size: 12px;">${lowStockItems.length}</span>
+      </h3>
+      <a href="/inventory" style="font-size: 13px; color: var(--color-primary); text-decoration: none; font-weight: 500;">Kelola Inventory →</a>
+      </div>
+      <div style="padding: 0 16px 16px;">
+      <table class="table">
+      <thead>
+      <tr><th>Bahan</th><th>Stok Saat Ini</th><th>Batas Minimum</th><th>Status</th></tr>
+      </thead>
+      <tbody>
+      ${lowStockItems.slice(0, 5).map((i: any) => {
+        const stock = Number(i.currentStock);
+        const min = Number(i.minStock);
+        const isAlerted = alertedIngredients.find(a => a.id === i.id && !a.acknowledged);
+        return `
+      <tr>
+      <td><strong>${i.name}</strong></td>
+      <td>${stock.toFixed(2)} ${i.unit}</td>
+      <td>${min.toFixed(2)} ${i.unit}</td>
+      <td>
+        <span class="badge ${stock <= 0 ? 'badge-error' : isAlerted ? 'badge-error' : 'badge-warning'}">${stock <= 0 ? 'Habis' : isAlerted ? '🚨 Alert Aktif' : 'Rendah'}</span>
+        ${isAlerted ? `<button class="btn btn-sm" style="margin-left: 8px;" onclick="acknowledgeAlert(${i.id}, this)">Tandai Dilihat</button>` : ''}
+      </td>
+      </tr>
+      `}).join('')}
+      </tbody>
+      </table>
+      ${lowStockItems.length > 5 ? `<p style="text-align: center; padding: 8px; font-size: 13px; color: var(--color-text-secondary);">Dan ${lowStockItems.length - 5} bahan lainnya...</p>` : ''}
+      </div>
+      </div>` : ''}
           </main>
           ${getFooterHtml()}
         </div>
@@ -238,6 +283,145 @@ export const dashboardPage = new Elysia()
           font-weight: 500;
         }
       </style>
-      ${getCommonScripts()}
-    `);
+${getCommonScripts()}
+<script src="/socket.io/socket.io.js"></script>
+<script>
+(function() {
+  function getCookie(name) {
+    const value = "; " + document.cookie;
+    const parts = value.split("; " + name + "=");
+    if (parts.length === 2) return parts.pop().split(";").shift();
+  }
+  
+  const token = getCookie('pos_session');
+  const socket = io({ query: token ? { token: token } : {} });
+  let isSubscribed = false;
+
+  function subscribeDashboard() {
+    if (!isSubscribed) {
+      socket.emit('subscribe-dashboard');
+      isSubscribed = true;
+    }
+  }
+
+  function unsubscribeDashboard() {
+    if (isSubscribed) {
+      socket.emit('unsubscribe-dashboard');
+      isSubscribed = false;
+    }
+  }
+
+  socket.on('connect', () => {
+    subscribeDashboard();
+  });
+
+  socket.on('dashboard:metrics-batch', (data) => {
+    if (data.kitchenQueue) {
+      updateKitchenDisplay(data.kitchenQueue);
+    }
+    if (data.todaySales !== undefined) {
+      updateSalesDisplay(data.todaySales);
+    }
+    if (data.todayOrders !== undefined) {
+      updateOrdersDisplay(data.todayOrders);
+    }
+  });
+
+  socket.on('kitchen:queue-update', (data) => {
+    updateKitchenDisplay(data);
+  });
+
+  socket.on('orders:new', (order) => {
+    showNotification('Pesanan baru #' + order.id, 'info');
+    const activeOrdersEl = document.getElementById('active-orders-count');
+    if (activeOrdersEl) {
+      const current = parseInt(activeOrdersEl.textContent) || 0;
+      activeOrdersEl.textContent = current + 1;
+    }
+  });
+
+  socket.on('orders:status-change', (data) => {
+    if (data.newStatus === 'completed') {
+      showNotification('Pesanan #' + data.orderId + ' selesai', 'success');
+    }
+    refreshDashboardMetrics();
+  });
+
+  socket.on('inventory:low-stock', (data) => {
+    showNotification('Stok rendah: ' + data.payload.name, 'warning');
+    const lowStockEl = document.getElementById('low-stock-count');
+    if (lowStockEl) {
+      const current = parseInt(lowStockEl.textContent) || 0;
+      lowStockEl.textContent = current + 1;
+    }
+  });
+
+  function updateKitchenDisplay(queue) {
+    const pendingEl = document.getElementById('kitchen-pending');
+    const cookingEl = document.getElementById('kitchen-cooking');
+    const readyEl = document.getElementById('kitchen-ready');
+    if (pendingEl) pendingEl.textContent = queue.pending || 0;
+    if (cookingEl) cookingEl.textContent = queue.cooking || 0;
+    if (readyEl) readyEl.textContent = queue.ready || 0;
+  }
+
+  function updateSalesDisplay(sales) {
+    const salesEl = document.getElementById('today-sales');
+    if (salesEl) {
+      salesEl.textContent = 'Rp ' + sales.toLocaleString('id-ID');
+    }
+  }
+
+  function updateOrdersDisplay(orders) {
+    const ordersEl = document.getElementById('today-orders');
+    if (ordersEl) {
+      ordersEl.textContent = orders;
+    }
+  }
+
+  function showNotification(message, type = 'info') {
+    const toast = document.createElement('div');
+    toast.className = 'toast toast-' + type;
+    toast.textContent = message;
+    toast.style.cssText = 'position:fixed;top:20px;right:20px;padding:12px 20px;border-radius:8px;color:white;z-index:9999;transition:opacity 0.3s;';
+    if (type === 'success') toast.style.background = '#10b981';
+    else if (type === 'warning') toast.style.background = '#f59e0b';
+    else toast.style.background = '#3b82f6';
+    document.body.appendChild(toast);
+    setTimeout(() => {
+      toast.style.opacity = '0';
+      setTimeout(() => toast.remove(), 300);
+    }, 3000);
+  }
+
+  async function refreshDashboardMetrics() {
+    try {
+      const response = await fetch('/api/dashboard/metrics');
+      if (response.ok) {
+        const metrics = await response.json();
+        updateSalesDisplay(metrics.todaySales);
+        updateOrdersDisplay(metrics.todayOrders);
+        updateKitchenDisplay(metrics.kitchenQueue);
+        const activeOrdersEl = document.getElementById('active-orders-count');
+        if (activeOrdersEl) activeOrdersEl.textContent = metrics.activeOrders;
+        const lowStockEl = document.getElementById('low-stock-count');
+        if (lowStockEl) lowStockEl.textContent = metrics.lowStockCount;
+      }
+    } catch (e) {
+      console.error('Failed to refresh dashboard:', e);
+    }
+  }
+
+  setInterval(refreshDashboardMetrics, 10000);
+
+  window.addEventListener('beforeunload', unsubscribeDashboard);
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', subscribeDashboard);
+  } else {
+    subscribeDashboard();
+  }
+})();
+</script>
+`);
   });

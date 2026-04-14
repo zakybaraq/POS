@@ -31,6 +31,7 @@ import { kitchenPage } from './pages/kitchen';
 import { seedDefaultSettings } from './repositories/settings';
 import { seedDefaultCategories } from './repositories/category';
 import { logger } from './logger';
+import { createWebSocketPlugin } from './websocket';
 
 seedDefaultSettings().catch(err => 
   logger.error({ err }, 'Failed to seed settings')
@@ -96,8 +97,9 @@ const app = new Elysia()
   .use(shiftsPage)
   .use(attendancePage)
   .use(kitchenPage)
+  .use(createWebSocketPlugin())
   .listen(process.env.PORT || 3000);
 
-logger.info({ port: process.env.PORT || 3000 }, 'Server running');
+logger.info({ port: process.env.PORT || 3000 }, 'Server running with WebSocket support');
 
 export type App = typeof app;

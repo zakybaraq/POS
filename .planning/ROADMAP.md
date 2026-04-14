@@ -95,9 +95,15 @@ Build real-time notification system and advanced reporting dashboard to improve 
 ---
 
 ### Phase 7: Inventory Alert System
-**Priority:** HIGH | Effort: 3-4 days | Risk: Low
+**Priority:** HIGH | Effort: 3-4 days | Risk: Low | **Status:** 📝 Planned
 
 **Why:** Prevent stockouts by alerting staff when inventory falls below thresholds, ensuring continuous kitchen operations.
+
+**Plans:**
+- [ ] `07-01-PLAN.md` — Low Stock Threshold Configuration UI & API
+- [ ] `07-02-PLAN.md` — Real-time Stock Monitoring & WebSocket Alerts
+
+**Requirements:** INV-01, INV-02, INV-03, INV-04, INV-05, INV-06, INV-07, INV-08
 
 #### 7.1 Low Stock Threshold Configuration
 **What:** Allow setting minimum stock levels per ingredient

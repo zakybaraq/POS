@@ -1,8 +1,9 @@
-import { Elysia } from 'elysia';
+import { Elysia, t } from 'elysia';
 import * as inv from '../repositories/inventory';
 import { requireAdmin, getUserFromRequest } from '../middleware/authorization';
 import { createIngredientSchema, updateIngredientSchema, createRecipeSchema, updateRecipeSchema, stockMovementSchema } from '../schemas/inventory';
 import { validateBody } from '../schemas/index';
+import { acknowledgeAlert, getAlertedIngredients } from '../services/inventory-monitor';
 
 function stripSensitiveData(items: any[], user: any) {
   const isAdmin = user && ['super_admin', 'admin_restoran'].includes(user.role);
@@ -117,29 +118,80 @@ export const inventoryRoutes = new Elysia({ prefix: '/api/inventory' })
     return { success: true };
   })
 
-  .post('/stock-movements', async ({ body, cookie, headers }) => {
-    const user = getUserFromRequest(cookie, headers);
-    if (!user) return { error: 'Unauthorized' };
+.post('/stock-movements', async ({ body, cookie, headers }) => {
+  const user = getUserFromRequest(cookie, headers);
+  if (!user) return { error: 'Unauthorized' };
 
-    const validation = validateBody(stockMovementSchema)(body);
-    if (!validation.success) {
-      return { error: validation.error };
-    }
+  const validation = validateBody(stockMovementSchema)(body);
+  if (!validation.success) {
+    return { error: validation.error };
+  }
 
-    const { ingredientId, type, quantity, reason } = validation.data;
-    return inv.adjustStock(Number(ingredientId), Number(quantity), type, reason || '', user.userId);
-  })
-  .get('/stock-movements', async ({ query, cookie, headers }) => {
+  const { ingredientId, type, quantity, reason } = validation.data;
+  const result = await inv.adjustStock(Number(ingredientId), Number(quantity), type, reason || '', user.userId);
+  if (!result) {
+    return { error: 'Ingredient not found' };
+  }
+  return result;
+})
+.get('/stock-movements', async ({ query, cookie, headers }) => {
     const user = getUserFromRequest(cookie, headers);
     const ingredientId = query?.ingredientId ? Number(query.ingredientId) : undefined;
     const movements = await inv.getStockMovements(ingredientId, 100);
-    
+
     const isAdmin = user && ['super_admin', 'admin_restoran'].includes(user.role);
     if (!isAdmin) {
       return { error: 'Access denied. Admin role required.', status: 403 };
     }
-    
+
     return movements;
+  })
+
+  .put('/ingredients/:id/threshold', async ({ params: { id }, body, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const threshold = typeof body === 'object' && body !== null && 'threshold' in body
+      ? Number((body as any).threshold)
+      : NaN;
+
+    if (Number.isNaN(threshold) || threshold < 0) {
+      return { error: 'Invalid threshold value' };
+    }
+
+    const ingredient = await inv.getIngredientById(Number(id));
+    if (!ingredient) {
+      return { error: 'Ingredient not found' };
+    }
+
+    await inv.updateIngredientThreshold(Number(id), threshold);
+    return { success: true, message: 'Threshold updated successfully' };
+  })
+
+  .get('/ingredients/below-threshold/list', async ({ cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const items = await inv.getIngredientsBelowThreshold();
+    const alertedIngredients = getAlertedIngredients();
+
+    return items.map(item => ({
+      ...item,
+      isAlerted: alertedIngredients.some(a => a.id === item.id),
+    }));
+  })
+
+  .post('/ingredients/:id/acknowledge-alert', async ({ params: { id }, cookie, headers }) => {
+    const user = getUserFromRequest(cookie, headers);
+    if (!user) return { error: 'Unauthorized' };
+
+    const ingredient = await inv.getIngredientById(Number(id));
+    if (!ingredient) {
+      return { error: 'Ingredient not found' };
+    }
+
+    acknowledgeAlert(Number(id));
+    return { success: true, message: 'Alert acknowledged' };
   })
 
   .onBeforeHandle(requireAdmin());
