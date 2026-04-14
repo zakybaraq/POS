@@ -290,6 +290,15 @@ export const dashboardPage = new Elysia()
                 </div>`}
               </div>
             </div>
+
+            <div id="reorder-section" class="card" style="margin-top: 24px; display: none;">
+              <div class="card-header">
+                <h3 class="card-title">Reorder Suggestions 🔔</h3>
+              </div>
+              <div id="reorder-suggestions" style="padding: 16px;">
+                <p class="text-center text-secondary">Loading...</p>
+              </div>
+            </div>
           </main>
           ${getFooterHtml()}
         </div>
@@ -546,6 +555,45 @@ export const dashboardPage = new Elysia()
         socket.on('orders:new', (order) => {
           showToast('Pesanan baru #' + order.id, 'info');
         });
+
+        async function loadReorderSuggestions() {
+          try {
+            const response = await fetch('/api/reorder/suggestions', { credentials: 'same-origin' });
+            if (response.ok) {
+              const suggestions = await response.json();
+              const section = document.getElementById('reorder-section');
+              const container = document.getElementById('reorder-suggestions');
+              if (section && container) {
+                if (suggestions.length === 0) {
+                  section.style.display = 'none';
+                } else {
+                  section.style.display = 'block';
+                  container.innerHTML = suggestions.map((s: any) => {
+                    return '<div style="display: flex; justify-content: space-between; align-items: center; padding: 12px; border-bottom: 1px solid var(--color-border);">' +
+                      '<div>' +
+                        '<strong>' + s.ingredientName + '</strong>' +
+                        '<div style="font-size: 12px; color: var(--color-text-secondary);">' +
+                          'Stock: ' + s.currentStock + ' ' + s.unit + ' | Min: ' + s.minStock + ' ' + s.unit +
+                        '</div>' +
+                        '<div style="font-size: 12px; color: var(--color-text-secondary);">' +
+                          'Daily Usage: ' + s.dailyUsage + ' ' + s.unit + '/day | Lead Time: ' + s.leadTimeDays + ' days' +
+                        '</div>' +
+                      '</div>' +
+                      '<div style="text-align: right;">' +
+                        '<div style="font-size: 14px; font-weight: 600;">EOQ: ' + s.eoq + ' ' + s.unit + '</div>' +
+                        '<a href="/purchase-orders" class="btn btn-sm btn-primary" style="margin-top: 4px;">Buat PO</a>' +
+                      '</div>' +
+                    '</div>';
+                  }).join('');
+                }
+              }
+            }
+          } catch (error) {
+            console.error('Failed to load reorder suggestions:', error);
+          }
+        }
+
+        loadReorderSuggestions();
 
         window.addEventListener('beforeunload', () => {
           clearInterval(metricsInterval);

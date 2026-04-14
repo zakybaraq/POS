@@ -150,10 +150,13 @@ export const ingredients = mysqlTable('ingredients', {
   currentStock: decimal('current_stock', { precision: 10, scale: 2 }).notNull().default('0'),
   minStock: decimal('min_stock', { precision: 10, scale: 2 }).notNull().default('0'),
   costPerUnit: int('cost_per_unit').notNull().default(0),
+  supplierId: int('supplier_id'),
+  usageOverride: decimal('usage_override', { precision: 10, scale: 2 }),
   createdAt: datetime('created_at').notNull().default(new Date()),
   updatedAt: datetime('updated_at'),
 }, (table) => ({
   nameIdx: index('idx_ingredients_name').on(table.name),
+  supplierIdIdx: index('idx_ingredients_supplier_id').on(table.supplierId),
 }));
 
 export const recipes = mysqlTable('recipes', {
@@ -297,7 +300,7 @@ export const purchaseOrders = mysqlTable('purchase_orders', {
   supplierId: int('supplier_id').notNull(),
   orderDate: datetime('order_date').notNull().default(new Date()),
   expectedDeliveryDate: datetime('expected_delivery_date'),
-  status: mysqlEnum('status', ['draft', 'ordered', 'received', 'cancelled']).notNull().default('draft'),
+  status: mysqlEnum('status', ['draft', 'submitted', 'approved', 'rejected', 'ordered', 'received', 'cancelled']).notNull().default('draft'),
   subtotal: int('subtotal').notNull().default(0),
   notes: varchar('notes', { length: 500 }).default(''),
   receivedDate: datetime('received_date'),
@@ -332,6 +335,7 @@ export const supplierPrices = mysqlTable('supplier_prices', {
   ingredientId: int('ingredient_id').notNull(),
   price: int('price').notNull(),
   unit: varchar('unit', { length: 20 }).notNull(),
+  effectiveDate: datetime('effective_date').notNull().default(new Date()),
   lastOrderedAt: datetime('last_ordered_at').notNull().default(new Date()),
 }, (table) => ({
   supplierIngredientIdx: index('idx_sp_supplier_ingredient').on(table.supplierId, table.ingredientId),

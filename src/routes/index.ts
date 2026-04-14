@@ -18,6 +18,8 @@ import { employeeRoutes } from './employees';
 import { shiftRoutes } from './shifts';
 import { attendanceRoutes } from './attendance';
 import { kitchenRoutes } from './kitchen';
+import { analyticsRoutes } from './analytics';
+import { reorderRoutes } from './reorder';
 
 export const routes = new Elysia()
   .use(cookie())
@@ -37,4 +39,6 @@ export const routes = new Elysia()
   .use(employeeRoutes)
   .use(shiftRoutes)
   .use(attendanceRoutes)
-  .use(kitchenRoutes);
+  .use(kitchenRoutes)
+  .use(analyticsRoutes)
+  .use(reorderRoutes);
