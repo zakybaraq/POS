@@ -1,10 +1,10 @@
 import { eq, and, gte, gt, desc, sql, sum } from 'drizzle-orm';
-import { db } from '../db/index';
-import { orders, orderItems, tables, menus } from '../db/schema';
-import type { Order, NewOrder } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { orders, orderItems, tables, menus } from '../infrastructure/database/schema';
+import type { Order, NewOrder } from '../infrastructure/database/schema';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
 import { incrementOrdersCompleted } from '../metrics';
-import { emitOrderStatusChange } from '../websocket/events/dashboard-events';
+import { emitOrderStatusChange } from '../infrastructure/websocket/events/dashboard-events';
 
 function todayStart(): Date {
   const now = new Date();
@@ -465,7 +465,7 @@ export async function cancelOrder(orderId: number, reason?: string) {
 
     // Free up the table if assigned
     if (order.tableId && order.tableId > 0) {
-      const { tables } = await import('../db/schema');
+      const { tables } = await import('../infrastructure/database/schema');
       await tx.update(tables)
         .set({ status: 'available' })
         .where(eq(tables.id, order.tableId));

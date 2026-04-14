@@ -1,4 +1,4 @@
-import type { Order } from '../db/schema';
+import type { Order } from '../infrastructure/database/schema';
 import * as orderRepo from '../repositories/order';
 import * as tableRepo from '../repositories/table';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';

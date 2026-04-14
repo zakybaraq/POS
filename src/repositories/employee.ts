@@ -1,7 +1,7 @@
 import { eq, and, gte, lte, desc, asc, sql, sum, count, avg } from 'drizzle-orm';
-import { db } from '../db/index';
-import { employeeProfiles, shifts, attendance, orders, users } from '../db/schema';
-import type { NewEmployeeProfile } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { employeeProfiles, shifts, attendance, orders, users } from '../infrastructure/database/schema';
+import type { NewEmployeeProfile } from '../infrastructure/database/schema';
 
 export async function getAllEmployees() {
   return db.select({

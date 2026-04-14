@@ -1,6 +1,6 @@
 import { eq, and, sql, sum, count, avg, desc, gte, lte } from 'drizzle-orm';
-import { db } from '../db/index';
-import { orders, orderItems, menus, tables } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { orders, orderItems, menus, tables } from '../infrastructure/database/schema';
 
 export async function getActiveKitchenOrders() {
   return db.select({

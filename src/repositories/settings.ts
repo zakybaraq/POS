@@ -1,6 +1,6 @@
 import { eq, asc } from 'drizzle-orm';
-import { db } from '../db/index';
-import { businessSettings, taxSettings, paymentMethods, receiptSettings, operatingHours } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { businessSettings, taxSettings, paymentMethods, receiptSettings, operatingHours } from '../infrastructure/database/schema';
 
 export async function getBusinessSettings() {
   const result = await db.select().from(businessSettings).limit(1);

@@ -1,7 +1,7 @@
 import { eq, and, desc, sql } from 'drizzle-orm';
-import { db } from '../db/index';
-import { ingredients, recipes, stockMovements, menus, orders, orderItems } from '../db/schema';
-import type { NewIngredient, NewRecipe, NewStockMovement } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { ingredients, recipes, stockMovements, menus, orders, orderItems } from '../infrastructure/database/schema';
+import type { NewIngredient, NewRecipe, NewStockMovement } from '../infrastructure/database/schema';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
 import { incrementStockDecrements } from '../metrics';

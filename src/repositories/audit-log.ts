@@ -1,7 +1,7 @@
 import { eq, desc, gte, sql } from 'drizzle-orm';
-import { db } from '../db/index';
-import { auditLogs } from '../db/schema';
-import type { NewAuditLog } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { auditLogs } from '../infrastructure/database/schema';
+import type { NewAuditLog } from '../infrastructure/database/schema';
 
 export async function createAuditLog(data: NewAuditLog) {
   return db.insert(auditLogs).values(data);

@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../db/index';
-import { menus } from '../db/schema';
-import type { Menu, NewMenu } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { menus } from '../infrastructure/database/schema';
+import type { Menu, NewMenu } from '../infrastructure/database/schema';
 
 export async function getAllMenus() {
   return db.select().from(menus);

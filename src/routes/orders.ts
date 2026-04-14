@@ -159,9 +159,9 @@ await orderRepo.updateOrderStatus(Number(order.id), 'active');
       return { error: 'Order is not active' };
     }
     
-    const { db } = await import('../db/index');
+    const { db } = await import('../infrastructure/database/index');
     const updatedOrder = await db.transaction(async (tx: any) => {
-      const { orderItems, orders } = await import('../db/schema');
+      const { orderItems, orders } = await import('../infrastructure/database/schema');
       const { eq } = await import('drizzle-orm');
       
       await orderItemRepo.addItemTx(tx, Number(id), menuId, quantity, notes || '');
@@ -190,9 +190,9 @@ await orderRepo.updateOrderStatus(Number(order.id), 'active');
     const user = getUserFromRequest(cookie, headers);
     if (!user) return { error: 'Unauthorized' };
     
-    const { db } = await import('../db/index');
+    const { db } = await import('../infrastructure/database/index');
     const order = await db.transaction(async (tx: any) => {
-      const { orderItems, orders } = await import('../db/schema');
+      const { orderItems, orders } = await import('../infrastructure/database/schema');
       const { eq } = await import('drizzle-orm');
       
       await orderItemRepo.removeItemTx(tx, Number(itemId));
@@ -231,9 +231,9 @@ await orderRepo.updateOrderStatus(Number(order.id), 'active');
       return { error: 'quantity >= 0 required' };
     }
     
-    const { db } = await import('../db/index');
+    const { db } = await import('../infrastructure/database/index');
     const order = await db.transaction(async (tx: any) => {
-      const { orderItems, orders } = await import('../db/schema');
+      const { orderItems, orders } = await import('../infrastructure/database/schema');
       const { eq } = await import('drizzle-orm');
       
       await orderItemRepo.updateQuantityTx(tx, Number(itemId), quantity || 0);
@@ -295,8 +295,8 @@ await orderRepo.updateOrderStatus(Number(order.id), 'active');
     const { reason } = validation.data;
     
     try {
-      const { db } = await import('../db/index');
-      const { orders, tables } = await import('../db/schema');
+      const { db } = await import('../infrastructure/database/index');
+      const { orders, tables } = await import('../infrastructure/database/schema');
       const { eq } = await import('drizzle-orm');
       
       const order = await db.transaction(async (tx: any) => {

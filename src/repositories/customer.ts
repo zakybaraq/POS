@@ -1,7 +1,7 @@
 import { eq, and, desc, sql, gte } from 'drizzle-orm';
-import { db } from '../db/index';
-import { customers, loyaltyTransactions, orders } from '../db/schema';
-import type { NewCustomer, NewLoyaltyTransaction } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { customers, loyaltyTransactions, orders } from '../infrastructure/database/schema';
+import type { NewCustomer, NewLoyaltyTransaction } from '../infrastructure/database/schema';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
 
 export async function getAllCustomers() {

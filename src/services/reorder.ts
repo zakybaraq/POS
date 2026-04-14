@@ -1,6 +1,6 @@
 import { eq, sql, desc, and, gte } from 'drizzle-orm';
-import { db } from '../db/index';
-import { ingredients, suppliers, stockMovements, purchaseOrders, purchaseOrderItems, supplierPrices } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { ingredients, suppliers, stockMovements, purchaseOrders, purchaseOrderItems, supplierPrices } from '../infrastructure/database/schema';
 import { getIngredientById, getLowStockIngredients } from '../repositories/inventory';
 import { getSupplierById } from '../repositories/supplier';
 import type { Decimal } from 'drizzle-orm/mysql.columns';

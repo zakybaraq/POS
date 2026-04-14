@@ -1,6 +1,6 @@
 import { eq, and, gte, lte, desc, sql, sum, count, avg } from 'drizzle-orm';
-import { db } from '../db/index';
-import { orders, orderItems, ingredients, stockMovements, purchaseOrders, purchaseOrderItems, employeeProfiles, users } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { orders, orderItems, ingredients, stockMovements, purchaseOrders, purchaseOrderItems, employeeProfiles, users } from '../infrastructure/database/schema';
 
 function dateStart(dateStr: string) {
   const d = new Date(dateStr);

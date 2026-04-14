@@ -1,7 +1,7 @@
 import { eq, and, gte, lte, desc, asc, sql, sum } from 'drizzle-orm';
-import { db } from '../db/index';
-import { suppliers, purchaseOrders, purchaseOrderItems, supplierPrices, ingredients, stockMovements } from '../db/schema';
-import type { NewSupplier } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { suppliers, purchaseOrders, purchaseOrderItems, supplierPrices, ingredients, stockMovements } from '../infrastructure/database/schema';
+import type { NewSupplier } from '../infrastructure/database/schema';
 
 export async function getAllSuppliers() {
   return db.select().from(suppliers).orderBy(asc(suppliers.name));

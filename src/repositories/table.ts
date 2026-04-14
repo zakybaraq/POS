@@ -1,7 +1,7 @@
 import { eq, sql } from 'drizzle-orm';
-import { db } from '../db/index';
-import { tables } from '../db/schema';
-import type { Table, NewTable } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { tables } from '../infrastructure/database/schema';
+import type { Table, NewTable } from '../infrastructure/database/schema';
 
 export async function getAllTables() {
   return db.select().from(tables);

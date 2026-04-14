@@ -1,5 +1,5 @@
-import { db } from '../db/index';
-import { orders, orderItems, menus, ingredients } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { orders, orderItems, menus, ingredients } from '../infrastructure/database/schema';
 import { eq, gte, sql, desc, and } from 'drizzle-orm';
 import { getLowStockIngredients } from '../repositories/inventory';
 import * as tableRepo from '../repositories/table';

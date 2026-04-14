@@ -4,7 +4,7 @@ import * as auditRepo from '../repositories/audit-log';
 import { requireSuperAdmin, getUserFromRequest } from '../middleware/authorization';
 import { createUserSchema, updateUserSchema, updateRoleSchema, resetPasswordSchema } from '../schemas/user';
 import { validateBody } from '../schemas/index';
-import type { NotificationPreferences } from '../db/schema';
+import type { NotificationPreferences } from '../infrastructure/database/schema';
 
 function stripPassword(usersList: any[]) {
   return usersList.map(({ password, ...rest }) => rest);

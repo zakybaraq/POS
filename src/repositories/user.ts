@@ -1,7 +1,7 @@
 import { eq } from 'drizzle-orm';
-import { db } from '../db/index';
-import { users } from '../db/schema';
-import type { User, NewUser, NotificationPreferences } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { users } from '../infrastructure/database/schema';
+import type { User, NewUser, NotificationPreferences } from '../infrastructure/database/schema';
 import bcrypt from 'bcryptjs';
 
 export async function getUserByEmail(email: string) {

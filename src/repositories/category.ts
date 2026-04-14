@@ -1,5 +1,5 @@
 import { db } from '../db';
-import { categories } from '../db/schema';
+import { categories } from '../infrastructure/database/schema';
 import { eq, asc } from 'drizzle-orm';
 
 export async function getAllCategories() {

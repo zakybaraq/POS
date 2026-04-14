@@ -1,5 +1,5 @@
 import { Elysia } from 'elysia';
-import { db } from '../db/index';
+import { db } from '../infrastructure/database/index';
 import { logger } from '../logger';
 import { sql } from 'drizzle-orm';
 

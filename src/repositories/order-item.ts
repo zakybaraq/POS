@@ -1,7 +1,7 @@
 import { eq, and } from 'drizzle-orm';
-import { db } from '../db/index';
-import { orderItems, menus } from '../db/schema';
-import type { OrderItem, NewOrderItem } from '../db/schema';
+import { db } from '../infrastructure/database/index';
+import { orderItems, menus } from '../infrastructure/database/schema';
+import type { OrderItem, NewOrderItem } from '../infrastructure/database/schema';
 
 /**
  * Add or update an item in an order within a transaction
