@@ -95,10 +95,11 @@ export const inventoryPage = new Elysia()
                             <td>${min.toFixed(2)}</td>
                             <td>Rp ${(i.costPerUnit || 0).toLocaleString('id-ID')}</td>
                             <td><span class="badge ${statusClass}">${statusLabel}</span></td>
-                            <td>
-                              <button onclick="showEditIngredientModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', '${i.unit}', ${stock}, ${min}, ${i.costPerUnit || 0})" class="btn btn-secondary btn-sm">Edit</button>
-                              <button onclick="showStockAdjustModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', ${stock})" class="btn btn-warning btn-sm">Stok</button>
-                            </td>
+<td>
+      <button onclick="showEditIngredientModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', '${i.unit}', ${stock}, ${min}, ${i.costPerUnit || 0})" class="btn btn-secondary btn-sm">Edit</button>
+      <button onclick="showStockAdjustModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', ${stock})" class="btn btn-warning btn-sm">Stok</button>
+      <button onclick="showThresholdModal(${i.id}, '${i.name.replace(/'/g, "\\'")}', ${min})" class="btn btn-primary btn-sm">Batas</button>
+      </td>
                           </tr>`;
                         }).join('')}
                       </tbody>
@@ -236,20 +237,34 @@ export const inventoryPage = new Elysia()
         </div>
       </div>
 
-      <div class="modal" id="add-recipe-modal">
-        <div class="modal-backdrop" onclick="closeAddRecipeModal()"></div>
-        <div class="modal-content">
-          <div class="modal-header"><h3>Tambah Bahan ke Resep</h3><button class="modal-close" onclick="closeAddRecipeModal()">&times;</button></div>
-          <div class="modal-body">
-            <input type="hidden" id="recipe-menu-id">
-            <div class="form-group"><label>Bahan Baku</label><select id="recipe-ingredient" class="input"></select></div>
-            <div class="form-group"><label>Jumlah</label><input type="number" id="recipe-quantity" class="input" step="0.01" min="0"></div>
-          </div>
-          <div class="modal-footer"><button onclick="closeAddRecipeModal()" class="btn btn-secondary">Batal</button><button onclick="saveRecipeItem()" class="btn btn-primary">Simpan</button></div>
-        </div>
-      </div>
+<div class="modal" id="add-recipe-modal">
+  <div class="modal-backdrop" onclick="closeAddRecipeModal()"></div>
+  <div class="modal-content">
+  <div class="modal-header"><h3>Tambah Bahan ke Resep</h3><button class="modal-close" onclick="closeAddRecipeModal()">&times;</button></div>
+  <div class="modal-body">
+  <input type="hidden" id="recipe-menu-id">
+  <div class="form-group"><label>Bahan Baku</label><select id="recipe-ingredient" class="input"></select></div>
+  <div class="form-group"><label>Jumlah</label><input type="number" id="recipe-quantity" class="input" step="0.01" min="0"></div>
+  </div>
+  <div class="modal-footer"><button onclick="closeAddRecipeModal()" class="btn btn-secondary">Batal</button><button onclick="saveRecipeItem()" class="btn btn-primary">Simpan</button></div>
+  </div>
+  </div>
 
-      <style>
+  <div class="modal" id="threshold-modal">
+  <div class="modal-backdrop" onclick="closeThresholdModal()"></div>
+  <div class="modal-content" style="max-width: 400px;">
+  <div class="modal-header"><h3>Atur Batas Minimum Stok</h3><button class="modal-close" onclick="closeThresholdModal()">&times;</button></div>
+  <div class="modal-body">
+  <input type="hidden" id="threshold-ing-id">
+  <p style="margin-bottom: 16px;">Bahan: <strong id="threshold-ing-name"></strong></p>
+  <div class="form-group"><label>Batas Minimum Stok</label><input type="number" id="threshold-value" class="input" step="0.01" min="0" placeholder="Contoh: 10"></div>
+  <p style="margin-top: 12px; font-size: 13px; color: var(--color-text-secondary);">Sistem akan memberi peringatan saat stok bahan ini mencapai atau kurang dari batas ini.</p>
+  </div>
+  <div class="modal-footer"><button onclick="closeThresholdModal()" class="btn btn-secondary">Batal</button><button onclick="saveThreshold()" class="btn btn-primary">Simpan</button></div>
+  </div>
+  </div>
+
+  <style>
         .tab-content { padding: 0; }
         .tab-content .menu-toolbar { margin-bottom: 16px; padding: 0 16px; }
         .tab-content .table-container { padding: 0 16px 16px; }
@@ -539,10 +554,29 @@ function renderMovementPagination() {
   pagDiv.innerHTML = html;
 }
 
-          function goToMovementPage(page) { movementCurrentPage = page; renderMovementPagination(); }
+function goToMovementPage(page) { movementCurrentPage = page; renderMovementPagination(); }
 
-          document.addEventListener('DOMContentLoaded', function() { renderMovementPagination(); });
-       </script>
+function showThresholdModal(id, name, minStock) {
+  document.getElementById('threshold-ing-id').value = id;
+  document.getElementById('threshold-ing-name').textContent = name;
+  document.getElementById('threshold-value').value = minStock;
+  document.getElementById('threshold-modal').classList.add('show');
+}
+
+function closeThresholdModal() { document.getElementById('threshold-modal').classList.remove('show'); }
+
+async function saveThreshold() {
+  const id = document.getElementById('threshold-ing-id').value;
+  const threshold = parseFloat(document.getElementById('threshold-value').value);
+  if (Number.isNaN(threshold) || threshold < 0) { showToast('Batas stok tidak valid', 'warning'); return; }
+  const res = await fetch('/api/inventory/ingredients/' + id + '/threshold', { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ threshold }) });
+  const data = await res.json();
+  if (data.error) { showToast(data.error, 'error'); return; }
+  closeThresholdModal(); showToast('Batas minimum stok berhasil diupdate'); location.reload();
+}
+
+document.addEventListener('DOMContentLoaded', function() { renderMovementPagination(); });
+</script>
        ${getCommonScripts()}
     `);
   });

@@ -5,6 +5,9 @@ import type { NewIngredient, NewRecipe, NewStockMovement } from '../db/schema';
 import type { MySql2Database } from 'drizzle-orm/mysql2';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
 import { incrementStockDecrements } from '../metrics';
+import { checkStockThreshold } from '../services/inventory-monitor';
+import { getIO } from '../websocket/index';
+import { invalidateCache } from '../services/dashboard';
 
 // === CRUD Ingredients ===
 export async function getAllIngredients() {
@@ -32,8 +35,40 @@ export async function deleteIngredient(id: number) {
   return db.delete(ingredients).where(eq(ingredients.id, id));
 }
 
+// === Low Stock / Threshold Methods ===
+
+// Get ingredients with stock below their minStock threshold
 export async function getLowStockIngredients() {
-  return db.select().from(ingredients).where(sql`${ingredients.currentStock} < ${ingredients.minStock}`);
+  return db.select()
+    .from(ingredients)
+    .where(sql`${ingredients.currentStock} <= ${ingredients.minStock} AND ${ingredients.minStock} > 0`);
+}
+
+// Update minStock threshold for an ingredient
+export async function updateIngredientThreshold(id: number, threshold: number) {
+  await db.update(ingredients)
+    .set({ minStock: String(threshold) })
+    .where(eq(ingredients.id, id));
+  return getIngredientById(id);
+}
+
+// Get ingredients with stock below threshold (for dashboard widget)
+export async function getIngredientsBelowThreshold() {
+  return db.select()
+    .from(ingredients)
+    .where(sql`${ingredients.currentStock} <= ${ingredients.minStock} AND ${ingredients.minStock} > 0`)
+    .orderBy(ingredients.name);
+}
+
+// Check if a specific ingredient is below threshold
+export async function isIngredientBelowThreshold(ingredientId: number): Promise<boolean> {
+  const [result] = await db.select({
+    belowThreshold: sql<boolean>`${ingredients.currentStock} <= ${ingredients.minStock} AND ${ingredients.minStock} > 0`
+  })
+  .from(ingredients)
+  .where(eq(ingredients.id, ingredientId));
+  
+  return result?.belowThreshold ?? false;
 }
 
 // === CRUD Recipes ===
@@ -129,7 +164,7 @@ export async function adjustStock(
 
   const currentStock = Number(ingredient.currentStock);
   let newStock: number;
-  
+
   switch (type) {
     case 'in':
       newStock = currentStock + quantity;
@@ -160,6 +195,24 @@ export async function adjustStock(
     referenceId: referenceId || null,
     createdAt: new Date(),
   });
+
+  // Emit stock change and invalidate cache
+  try {
+    const io = getIO();
+    if (io) {
+      io.to('dashboard').emit('inventory:stock-change', {
+        ingredientId,
+        ingredientName: ingredient.name,
+        type,
+        quantity,
+        currentStock: newStock,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    invalidateCache('low-stock-count');
+  } catch {
+    // Silently ignore if getIO() is not available (e.g., in tests)
+  }
 
   return getIngredientById(ingredientId);
 }
@@ -259,20 +312,43 @@ export async function decrementStockForOrderTx(
         .set({ currentStock: String(newStock), updatedAt: new Date() })
         .where(eq(ingredients.id, recipe.ingredientId));
 
-      await tx.insert(stockMovements).values({
-        ingredientId: recipe.ingredientId,
-        type: 'out',
-        quantity: String(totalQuantity),
-        stockBefore: String(currentStock),
-        stockAfter: String(newStock),
-        reason: `Pesanan #${orderId}`,
-        referenceId: orderId,
-        createdAt: new Date(),
-      });
-    }
+    await tx.insert(stockMovements).values({
+      ingredientId: recipe.ingredientId,
+      type: 'out',
+      quantity: String(totalQuantity),
+      stockBefore: String(currentStock),
+      stockAfter: String(newStock),
+      reason: `Pesanan #${orderId}`,
+      referenceId: orderId,
+      createdAt: new Date(),
+    });
+
+    await checkStockThreshold({
+      id: recipe.ingredientId,
+      name: ingredient.name,
+      currentStock: String(newStock),
+      minStock: ingredient.minStock,
+      unit: ingredient.unit,
+    });
   }
+}
 
   incrementStockDecrements(1);
+
+  // Emit stock decrement event and invalidate caches
+  try {
+    const io = getIO();
+    if (io) {
+      io.to('dashboard').emit('inventory:stock-decrement', {
+        orderId,
+        timestamp: new Date().toISOString(),
+      });
+    }
+    invalidateCache('low-stock-count');
+  } catch {
+    // Silently ignore if getIO() is not available (e.g., in tests)
+  }
+
   logger.info({ orderId }, 'Stock decrement completed successfully');
 }
 

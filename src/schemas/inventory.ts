@@ -31,7 +31,7 @@ export const updateRecipeSchema = z.object({
 export const stockMovementSchema = z.object({
   ingredientId: z.number().int().positive('Valid ingredient ID required'),
   type: z.enum(['in', 'out', 'adjustment', 'waste']),
-  quantity: z.number().int().positive('Quantity must be greater than 0'),
+  quantity: z.number().min(0.01, 'Quantity must be greater than 0'),
   reason: z.string().max(500).optional(),
 });
 

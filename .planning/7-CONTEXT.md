@@ -1,7 +1,9 @@
 # Phase 7 Context - Inventory Alert System
 
-**Status:** Discussion Complete | **Phase:** 7 of 10 | **Effort:** 10 hours  
+**Status:** Discussion Complete ✅ | **Phase:** 7 of 10 | **Effort:** 10 hours
 **Prerequisites:** Phase 6 (WebSocket) Complete ✅
+**Discussion Date:** 2026-04-13
+**Next Step:** Ready for Planning & Execution
 
 ---
 
@@ -14,18 +16,21 @@ Phase 7 implements real-time inventory monitoring and alerting system to prevent
 ## Decisions Made
 
 ### 1. Low Stock Threshold Configuration
-**Decision:** Add `minStockThreshold` field to ingredients table
+**Decision:** Use existing `minStock` field (already in schema) as threshold
+
+**Discovery:** Database already has `minStock` field (line 150 in schema.ts), no migration needed for threshold field.
 
 **Default Threshold Strategy:**
-- ✅ **Default: 10 units** (or 20% of current stock, whichever is higher)
+- ✅ **Use existing `minStock` field** - Already exists in database
 - ✅ **Per-ingredient configurable** - Each ingredient can have custom threshold
 - ✅ **Minimum threshold: 1 unit** - Prevent zero/negative values
-- ✅ **Maximum threshold: 1000 units** - Prevent unrealistic values
+- ✅ **Maximum threshold: 10000 units** - Reasonable upper limit for restaurants
 
 **Rationale:**
-- 10 units is a reasonable default for most restaurant ingredients
+- Avoid duplicate fields (minStock already serves threshold purpose)
+- Existing `getLowStockIngredients()` query already uses this field
+- Simpler migration path - no schema changes needed
 - Per-ingredient flexibility allows customization for fast-moving vs slow-moving items
-- Validation prevents data errors
 
 ---
 
@@ -101,31 +106,25 @@ Phase 7 implements real-time inventory monitoring and alerting system to prevent
 ## Technical Implementation
 
 ### Database Changes
-**File:** `src/db/schema.ts`
+**Status:** No schema changes needed ✅
 
-```typescript
-export const ingredients = mysqlTable('ingredients', {
-  // ... existing fields
-  minStockThreshold: decimal('min_stock_threshold', { 
-    precision: 10, 
-    scale: 2 
-  }).notNull().default('10'),
-}, (table) => ({
-  nameIdx: index('idx_ingredients_name').on(table.name),
-  thresholdIdx: index('idx_ingredients_threshold').on(table.minStockThreshold),
-}));
-```
+Field `minStock` already exists in `ingredients` table (line 150 in schema.ts) and is used by existing `getLowStockIngredients()` function.
+
+**Validation:**
+- Minimum: 1 unit
+- Maximum: 10000 units
+- Default: 0 (existing behavior)
 
 ### New Files
 1. `src/services/inventory-monitor.ts` - Stock monitoring logic
 2. `src/websocket/events/inventory-events.ts` - WebSocket event emitters
-3. Migration file for `min_stock_threshold` column
 
 ### Modified Files
-1. `src/repositories/inventory.ts` - Add threshold check
+1. `src/repositories/inventory.ts` - Add threshold check + update method
 2. `src/routes/inventory.ts` - Add threshold update endpoint
 3. `src/pages/inventory.ts` - Add threshold UI
 4. `src/pages/dashboard.ts` - Add low stock widget
+5. `src/db/schema.ts` - Add index on minStock (optional optimization)
 
 ---
 
@@ -175,15 +174,60 @@ export const ingredients = mysqlTable('ingredients', {
 
 ## Next Steps
 
-1. Add `minStockThreshold` to schema
-2. Create migration
-3. Create inventory monitoring service
+1. ✅ Verify `minStock` field exists (DONE - already exists)
+2. Create inventory monitoring service
+3. Integrate threshold checks with stock operations
 4. Add threshold update endpoint
 5. Add threshold UI in inventory page
 6. Create dashboard low stock widget
-7. Test alert flow end-to-end
+7. Add WebSocket inventory events
+8. Test alert flow end-to-end
+
+## Implementation Notes
+
+### Schema Compatibility
+- Using existing `minStock` field (already in database since early development)
+- No breaking changes to existing data
+- Existing `getLowStockIngredients()` query works immediately
+
+### WebSocket Integration
+- Phase 6 WebSocket infrastructure is ready
+- Socket.io already configured with auth and rooms
+- Can emit to 'admin' and 'kitchen' rooms immediately
+
+### Alert Logic
+- Check after every stock decrement (decrementStockForOrderTx)
+- Check after manual stock adjustments (adjustStock)
+- In-memory Set for tracking alerted ingredients
+- 5-minute cooldown using timestamp comparison
 
 ---
 
-**Context Locked:** 2026-04-13  
+**Context Locked:** 2026-04-13
 **Ready for Planning:** Yes
+
+---
+
+## Discussion Summary
+
+**Phase 7 telah didiskusikan ulang dan keputusan dikonfirmasi:**
+
+### Keputusan Utama:
+1. ✅ **Gunakan field `minStock` yang sudah ada** - Tidak perlu field baru
+2. ✅ **5 menit cooldown dengan in-memory tracking** - Cukup untuk MVP
+3. ✅ **WebSocket only** - Email/SMS deferred ke v2.1
+4. ✅ **Simple acknowledgment** - In-memory Set, reset saat restart
+5. ✅ **No alert history database** - In-memory only untuk MVP
+
+### Temuan Penting dari Codebase:
+- Field `minStock` sudah ada sejak awal development
+- WebSocket infrastructure (Phase 6) sudah siap pakai
+- Repository pattern sudah established
+- Stock operations sudah transactional
+
+### Risks Identified:
+- Server restart akan clear acknowledged alerts (acceptable untuk MVP)
+- No persistent alert history (deferred ke v2.1)
+- Only one severity level (future: WARNING vs CRITICAL)
+
+**Status:** Siap untuk planning dan execution

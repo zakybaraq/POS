@@ -153,6 +153,7 @@ export const ingredients = mysqlTable('ingredients', {
   updatedAt: datetime('updated_at'),
 }, (table) => ({
   nameIdx: index('idx_ingredients_name').on(table.name),
+  minStockIdx: index('idx_ingredients_min_stock').on(table.minStock),
 }));
 
 export const recipes = mysqlTable('recipes', {

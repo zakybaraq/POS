@@ -123,9 +123,33 @@ function showPrivacyModal() {
   const modal = document.getElementById('privacy-modal');
   if (modal) modal.classList.add('show'); 
 }
-function closePrivacyModal() { 
+function closePrivacyModal() {
   const modal = document.getElementById('privacy-modal');
-  if (modal) modal.classList.remove('show'); 
+  if (modal) modal.classList.remove('show');
+}
+
+async function acknowledgeAlert(ingredientId, button) {
+  try {
+    button.disabled = true;
+    button.textContent = 'Menyimpan...';
+    const response = await fetch('/api/inventory/ingredients/' + ingredientId + '/acknowledge-alert', {
+      method: 'POST',
+      credentials: 'include'
+    });
+    const result = await response.json();
+    if (result.success) {
+      showToast('Alert berhasil ditandai sudah dilihat', 'success');
+      button.remove();
+    } else {
+      showToast(result.error || 'Gagal menandai alert', 'error');
+      button.disabled = false;
+      button.textContent = 'Tandai Dilihat';
+    }
+  } catch (error) {
+    showToast('Terjadi kesalahan', 'error');
+    button.disabled = false;
+    button.textContent = 'Tandai Dilihat';
+  }
 }
 </script>
 

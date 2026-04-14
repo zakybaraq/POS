@@ -16,47 +16,55 @@ Implement real-time inventory monitoring and alerting system to prevent stockout
 - [x] Phase 6 (WebSocket) complete
 - [x] 7-CONTEXT.md created with decisions
 - [x] WebSocket infrastructure ready
-- [x] Default threshold: 10 units
+- [x] Field `minStock` already exists in ingredients table
+- [x] Default threshold: 0 (use existing minStock values)
 
 ---
 
 ## Wave 1: Low Stock Threshold Configuration (4 hours)
 
-### Task 1.1: Add Threshold Field to Schema
-**What:** Add `minStockThreshold` column to ingredients table
+### Task 1.1: Verify Existing minStock Field
+**What:** Confirm minStock field exists and is suitable for threshold
+**File:** `src/db/schema.ts`
+
+**Discovery:** Field `minStock` already exists on line 150:
+```typescript
+minStock: decimal('min_stock', { precision: 10, scale: 2 }).notNull().default('0'),
+```
+
+**Action Required:**
+- ✅ Field already exists - NO schema changes needed
+- [ ] Add optional index on minStock for performance (if not exists)
+
+**Success Criteria:**
+- [x] Confirmed: minStock field exists
+- [ ] Optional: Add index on minStock column for faster low-stock queries
+
+---
+
+### Task 1.2: Add Database Index (Optional)
+**What:** Add index on minStock for faster low-stock queries
 **File:** `src/db/schema.ts`
 
 **Implementation:**
 ```typescript
 export const ingredients = mysqlTable('ingredients', {
   // ... existing fields
-  minStockThreshold: decimal('min_stock_threshold', { 
-    precision: 10, 
-    scale: 2 
-  }).notNull().default('10'),
 }, (table) => ({
   nameIdx: index('idx_ingredients_name').on(table.name),
-  thresholdIdx: index('idx_ingredients_threshold').on(table.minStockThreshold),
+  minStockIdx: index('idx_ingredients_min_stock').on(table.minStock), // Add this
 }));
 ```
 
-**Success Criteria:**
-- [ ] Field added to schema
-- [ ] Default value: 10
-- [ ] Migration generated
-
----
-
-### Task 1.2: Create Database Migration
-**What:** Generate migration for threshold field
-**Command:**
+**Migration Command:**
 ```bash
 bunx drizzle-kit generate:mysql
+bunx drizzle-kit push:mysql
 ```
 
 **Success Criteria:**
-- [ ] Migration file created
-- [ ] Schema updated
+- [ ] Index added (optional optimization)
+- [ ] Migration generated and applied
 
 ---
 
@@ -66,23 +74,37 @@ bunx drizzle-kit generate:mysql
 
 **Implementation:**
 ```typescript
+// Update minStock threshold for an ingredient
 export async function updateIngredientThreshold(id: number, threshold: number) {
   await db.update(ingredients)
-    .set({ minStockThreshold: threshold.toString() })
+    .set({ minStock: String(threshold) })
     .where(eq(ingredients.id, id));
   return getIngredientById(id);
 }
 
+// Get ingredients with stock below their minStock threshold
 export async function getIngredientsBelowThreshold() {
   return db.select()
     .from(ingredients)
-    .where(lte(ingredients.currentStock, ingredients.minStockThreshold));
+    .where(sql`${ingredients.currentStock} <= ${ingredients.minStock}`);
+}
+
+// Check if a specific ingredient is below threshold
+export async function isIngredientBelowThreshold(ingredientId: number): Promise<boolean> {
+  const [result] = await db.select({
+    belowThreshold: sql<boolean>`${ingredients.currentStock} <= ${ingredients.minStock}`
+  })
+  .from(ingredients)
+  .where(eq(ingredients.id, ingredientId));
+  
+  return result?.belowThreshold ?? false;
 }
 ```
 
 **Success Criteria:**
 - [ ] Update method works
 - [ ] Query method returns low stock items
+- [ ] Single ingredient check method works
 
 ---
 
@@ -141,8 +163,11 @@ const alertedIngredients = new Set<number>();
 const logger = getLoggerWithRequestId();
 
 export async function checkStockThreshold(ingredient: any) {
-  const threshold = parseFloat(ingredient.minStockThreshold || '10');
+  const threshold = parseFloat(ingredient.minStock || '0');
   const currentStock = parseFloat(ingredient.currentStock || '0');
+  
+  // Skip check if threshold is 0 (no alert configured)
+  if (threshold <= 0) return;
   
   if (currentStock <= threshold) {
     // Check if already alerted
