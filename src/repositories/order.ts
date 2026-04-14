@@ -4,6 +4,7 @@ import { orders, orderItems, tables, menus } from '../db/schema';
 import type { Order, NewOrder } from '../db/schema';
 import { getLoggerWithRequestId } from '../utils/logger-with-context';
 import { incrementOrdersCompleted } from '../metrics';
+import { emitOrderStatusChange } from '../websocket/events/dashboard-events';
 
 function todayStart(): Date {
   const now = new Date();
@@ -246,6 +247,13 @@ export async function completeOrderWithPayment(
 
     logger.info({ orderId: id }, 'Order status: active → completed');
 
+    // Emit dashboard event for order completion
+    try {
+      emitOrderStatusChange(id, 'active', 'completed', { tableNumber: order.tableId, total: order.total });
+    } catch (error) {
+      // Silently ignore if getIO() is not available (e.g., in tests)
+    }
+
     const { decrementStockForOrderTx } = await import('./inventory');
     await decrementStockForOrderTx(tx, id);
 
@@ -419,7 +427,63 @@ export async function transferOrderToTable(
   sourceTableId: number,
   targetTableId: number
 ) {
-  return db.transaction(tx => 
+  return db.transaction(tx =>
     transferOrderToTableTx(tx, orderId, sourceTableId, targetTableId)
   );
+}
+
+/**
+ * Cancel order with stock refund if already completed
+ */
+export async function cancelOrder(orderId: number, reason?: string) {
+  const logger = getLoggerWithRequestId();
+  const order = await getOrderById(orderId);
+  if (!order) {
+    throw new Error(`Order #${orderId} not found`);
+  }
+
+  if (order.status === 'cancelled') {
+    throw new Error('Order already cancelled');
+  }
+
+  const previousStatus = order.status;
+
+  return await db.transaction(async (tx: any) => {
+    // Refund stock if order was completed
+    if (previousStatus === 'completed') {
+      const { refundStockForOrderTx } = await import('./inventory');
+      await refundStockForOrderTx(tx, orderId);
+    }
+
+    await tx.update(orders)
+      .set({
+        status: 'cancelled',
+        completedAt: new Date(),
+        notes: reason || '',
+      })
+      .where(eq(orders.id, orderId));
+
+    // Free up the table if assigned
+    if (order.tableId && order.tableId > 0) {
+      const { tables } = await import('../db/schema');
+      await tx.update(tables)
+        .set({ status: 'available' })
+        .where(eq(tables.id, order.tableId));
+    }
+
+    const cancelledOrder = await tx.select().from(orders)
+      .where(eq(orders.id, orderId))
+      .then((r: any) => r[0]);
+
+    // Emit dashboard event for order cancellation
+    try {
+      emitOrderStatusChange(orderId, previousStatus, 'cancelled', { tableNumber: order.tableId, total: order.total });
+    } catch (error) {
+      // Silently ignore if getIO() is not available (e.g., in tests)
+    }
+
+    logger.info({ orderId, previousStatus }, 'Order cancelled');
+
+    return cancelledOrder;
+  });
 }
