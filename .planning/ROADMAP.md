@@ -147,8 +147,7 @@ Milestone v2.1 advances inventory management with supplier relationships, purcha
 ---
 
 ### Phase 14: Auto-Reorder System
-**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** 📝 Planned
-**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** 📝 Planned
+**Priority:** MEDIUM | Effort: 2-3 days | Risk: Low | **Status:** ✅ Complete
 
 **Why:** Reduce manual monitoring with automated suggestions.
 
@@ -225,6 +224,59 @@ Milestone v2.1 advances inventory management with supplier relationships, purcha
 
 ---
 
-**Next:** Plan and execute Phase 14 - Auto-Reorder System
+**Next:** Plan and execute Phase 15 - File Cleanup (v2.2 Refactoring)
+
+---
+
+## Milestone v2.2: Codebase Refactoring
+
+**Status:** 📝 Planning
+**Start Date:** 2026-04-14
+**Theme:** Architecture improvement and code organization
+
+---
+
+### Phase 15: File Cleanup
+**Priority:** HIGH | Effort: 0.5 day | Risk: Low | **Status:** 📝 Planned
+
+**Why:** Remove temporary files and clutter before major restructuring.
+
+**Plans:**
+- [ ] `15-01-PLAN.md` — File Cleanup & Gitignore Update
+
+**Requirements:** REQ-001
+
+#### 15.1 File Cleanup
+**What:** Delete temporary files and update .gitignore
+
+**How:**
+1. Delete 6 temporary .md files (login-*.md, PR_BODY.md, issue.md, LOYALTY_IMPLEMENTATION.md)
+2. Archive CONTEXT.md to .planning/archive/
+3. Update .gitignore with test-results/, playwright-report/, *.log
+4. Verify clean git status
+
+**Files to delete:**
+- login-page-snapshot.md
+- login-snapshot.md  
+- login-after-submit.md
+- PR_BODY.md
+- issue.md
+- LOYALTY_IMPLEMENTATION.md
+
+**Files to archive:**
+- CONTEXT.md → .planning/archive/CONTEXT-v1.0.md
+
+**Files to modify:**
+- .gitignore - Add test results and log patterns
+
+**Success Criteria:**
+- [ ] All temporary files deleted
+- [ ] CONTEXT.md archived
+- [ ] .gitignore updated
+- [ ] Clean git status
+- [ ] No functional impact
+- [ ] All tests passing
+
+**Estimate:** 2 hours
 
 **Previous Milestone:** [v2.0 ROADMAP](./milestones/v2.0-ROADMAP.md)
